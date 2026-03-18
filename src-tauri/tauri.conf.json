@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "aero-chat-app",
+  "productName": "AeroChat",
   "version": "0.1.0",
-  "identifier": "com.dejanandovski.aero-chat-app",
+  "identifier": "com.aeroboysinc.aero-chat",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "$HOME/.local/bin/pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "$HOME/.local/bin/pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "aero-chat-app",
+        "title": "AeroChat",
         "width": 800,
         "height": 600
       }
