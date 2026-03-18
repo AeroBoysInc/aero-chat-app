@@ -57,11 +57,12 @@ export function ChatWindow({ contact }: Props) {
   const contactKeyRef    = useRef<string | null>(null);
   const channelRef       = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef      = useRef(false);
   const historyLoadedRef = useRef(false); // true after first DB load; new messages get animation
   // Messages that arrived via realtime before contactKeyRef was populated
   const pendingDecrypt   = useRef<Message[]>([]);
 
-  const hasPrivateKey = !!loadPrivateKey();
+  const hasPrivateKey = !!loadPrivateKey(user?.id);
 
   // Clear unread when this chat is opened
   useEffect(() => {
@@ -129,7 +130,7 @@ export function ChatWindow({ contact }: Props) {
   }
 
   function decrypt(ciphertext: string): string {
-    const pk = loadPrivateKey();
+    const pk = loadPrivateKey(user?.id);
     if (!pk)                    return '[no private key]';
     if (!contactKeyRef.current) return '[loading key…]';
     return decryptMessage(ciphertext, contactKeyRef.current, pk) ?? '[decryption failed]';
@@ -189,9 +190,9 @@ export function ChatWindow({ contact }: Props) {
         setContactTyping(isTyping);
         setTyping(contact.id, isTyping); // update global store for sidebar
       })
-      .subscribe(async (status) => {
+      .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ typing: false });
+          channel.track({ typing: false });
         }
       });
 
@@ -208,14 +209,18 @@ export function ChatWindow({ contact }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: historyLoadedRef.current ? 'smooth' : 'instant' });
   }, [messages, contactTyping]);
 
-  async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
-    // Broadcast typing = true
-    if (channelRef.current) await channelRef.current.track({ typing: true });
+    // Only broadcast typing=true once per typing session, not on every keystroke
+    if (!isTypingRef.current && channelRef.current) {
+      isTypingRef.current = true;
+      channelRef.current.track({ typing: true });
+    }
     // Auto-clear after 2.5s of inactivity
     if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(async () => {
-      if (channelRef.current) await channelRef.current.track({ typing: false });
+    typingTimer.current = setTimeout(() => {
+      isTypingRef.current = false;
+      if (channelRef.current) channelRef.current.track({ typing: false });
     }, 2500);
   }
 
@@ -227,9 +232,10 @@ export function ChatWindow({ contact }: Props) {
 
     // Stop typing indicator
     if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (channelRef.current) await channelRef.current.track({ typing: false });
+    isTypingRef.current = false;
+    if (channelRef.current) channelRef.current.track({ typing: false });
 
-    const privateKey = loadPrivateKey();
+    const privateKey = loadPrivateKey(user?.id);
     if (!privateKey) { setSendError('Encryption key missing. Please reload.'); setSending(false); return; }
     if (!contactKeyRef.current) { setSendError('Contact key not loaded yet. Please try again.'); setSending(false); return; }
 
@@ -315,7 +321,7 @@ export function ChatWindow({ contact }: Props) {
       </div>
 
       {/* Messages */}
-      <div className="relative flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1">
+      <div className="relative flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1" style={{ contain: 'layout paint' }}>
         <SoapBubbles />
 
         {messages.length === 0 && (

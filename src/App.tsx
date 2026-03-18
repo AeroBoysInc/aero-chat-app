@@ -39,9 +39,9 @@ export default function App() {
 
       // Ensure a keypair exists for this session. Generates a new one only if
       // the private key is missing (new device, cleared storage, post-sign-out).
-      if (!loadPrivateKey()) {
+      if (!loadPrivateKey(userId)) {
         const kp = generateKeyPair();
-        savePrivateKey(kp.privateKey);
+        savePrivateKey(kp.privateKey, userId);
         await supabase.from('profiles').update({ public_key: kp.publicKey }).eq('id', userId);
         profile.public_key = kp.publicKey;
       }

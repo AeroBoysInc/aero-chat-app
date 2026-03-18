@@ -1,7 +1,8 @@
 import * as nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 
-const PRIVATE_KEY_STORE = 'aero_private_key';
+const PRIVATE_KEY_STORE = (userId?: string) =>
+  userId ? `aero_private_key_${userId}` : 'aero_private_key';
 
 export function generateKeyPair() {
   const kp = nacl.box.keyPair();
@@ -11,12 +12,12 @@ export function generateKeyPair() {
   };
 }
 
-export function savePrivateKey(privateKey: string) {
-  localStorage.setItem(PRIVATE_KEY_STORE, privateKey);
+export function savePrivateKey(privateKey: string, userId?: string) {
+  localStorage.setItem(PRIVATE_KEY_STORE(userId), privateKey);
 }
 
-export function loadPrivateKey(): string | null {
-  return localStorage.getItem(PRIVATE_KEY_STORE);
+export function loadPrivateKey(userId?: string): string | null {
+  return localStorage.getItem(PRIVATE_KEY_STORE(userId));
 }
 
 export function encryptMessage(

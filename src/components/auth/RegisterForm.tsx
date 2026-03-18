@@ -21,7 +21,6 @@ export function RegisterForm({ onSuccess }: Props) {
     // the onAuthStateChange handler in App.tsx sees it and does not generate
     // a second keypair that would mismatch the public key we store in the profile.
     const { publicKey, privateKey } = generateKeyPair();
-    savePrivateKey(privateKey);
 
     // Create auth user
     const { data, error: authErr } = await supabase.auth.signUp({ email, password });
@@ -30,6 +29,9 @@ export function RegisterForm({ onSuccess }: Props) {
       setLoading(false);
       return;
     }
+
+    // Scope private key to this user so multiple accounts on the same browser don't conflict
+    savePrivateKey(privateKey, data.user.id);
 
     // Insert profile with public key
     const { error: profileErr } = await supabase.from('profiles').insert({
