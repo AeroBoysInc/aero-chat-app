@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { savePrivateKey } from '../../lib/crypto';
 import { useAuthStore } from '../../store/authStore';
 
 export function LoginForm() {

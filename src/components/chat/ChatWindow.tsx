@@ -23,10 +23,6 @@ export function ChatWindow({ contact }: Props) {
   function decrypt(ciphertext: string, senderId: string): string {
     const privateKey = loadPrivateKey();
     if (!privateKey) return '[no private key]';
-    const theirKey = senderId === user!.id ? contact.public_key : user!.public_key;
-    // When I'm the sender, I encrypted with recipient's public key + my private key
-    // When they're the sender, I decrypt with their public key + my private key
-    const senderPublicKey = senderId === user!.id ? contact.public_key : contact.public_key;
     const result = decryptMessage(ciphertext, contact.public_key, privateKey);
     return result ?? '[decryption failed]';
   }

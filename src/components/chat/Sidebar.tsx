@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, LogOut, MessageCircle, Plus } from 'lucide-react';
+import { Search, LogOut, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 
