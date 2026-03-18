@@ -53,12 +53,13 @@ export function ChatWindow({ contact }: Props) {
   const [contactTyping, setContactTyping] = useState(false);
   const [confirmClear,  setConfirmClear]  = useState(false);
 
-  const bottomRef      = useRef<HTMLDivElement>(null);
-  const contactKeyRef  = useRef<string | null>(null);
-  const channelRef     = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const typingTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bottomRef        = useRef<HTMLDivElement>(null);
+  const contactKeyRef    = useRef<string | null>(null);
+  const channelRef       = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyLoadedRef = useRef(false); // true after first DB load; new messages get animation
   // Messages that arrived via realtime before contactKeyRef was populated
-  const pendingDecrypt = useRef<Message[]>([]);
+  const pendingDecrypt   = useRef<Message[]>([]);
 
   const hasPrivateKey = !!loadPrivateKey();
 
@@ -75,6 +76,7 @@ export function ChatWindow({ contact }: Props) {
     setConfirmClear(false);
     contactKeyRef.current = null;
     pendingDecrypt.current = [];
+    historyLoadedRef.current = false;
 
     supabase.from('profiles').select('public_key').eq('id', contact.id).single()
       .then(async ({ data }) => {
@@ -111,6 +113,7 @@ export function ChatWindow({ contact }: Props) {
 
         setMessages(allWithPending);
         saveChatCache(contact.id, allWithPending); // write to localStorage
+        historyLoadedRef.current = true;
         markMessagesRead();
       });
   }, [contact.id, user]);
@@ -200,8 +203,10 @@ export function ChatWindow({ contact }: Props) {
     };
   }, [contact.id, user]);
 
-  // Scroll to bottom
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, contactTyping]);
+  // Scroll to bottom — instant for history loads, smooth only for new realtime messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: historyLoadedRef.current ? 'smooth' : 'instant' });
+  }, [messages, contactTyping]);
 
   async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
@@ -341,7 +346,7 @@ export function ChatWindow({ contact }: Props) {
                   <div className="flex-1 h-px" style={{ background: 'var(--panel-divider)' }} />
                 </div>
               )}
-              <div className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+              <div className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${i === messages.length - 1 && historyLoadedRef.current ? 'animate-slide-up' : ''}`}>
                 {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
                 <div className="max-w-[65%] rounded-aero-lg px-4 py-2.5"
                   style={isMine ? {

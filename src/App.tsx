@@ -111,7 +111,11 @@ export default function App() {
       .channel('global:online', { config: { presence: { key: user.id } } })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        setOnlineIds(new Set(Object.keys(state)));
+        const newIds = new Set(Object.keys(state));
+        // Skip re-render if the set of online users hasn't changed
+        const prev = usePresenceStore.getState().onlineIds;
+        const changed = newIds.size !== prev.size || [...newIds].some(id => !prev.has(id));
+        if (changed) setOnlineIds(newIds);
         setPresenceReady(true);
       })
       .subscribe(async (status) => {
