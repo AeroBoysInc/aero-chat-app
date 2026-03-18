@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-aero-deep text-white antialiased;
+    background: linear-gradient(160deg, #1a5fa0 0%, #1a6fd4 40%, #0a3d8f 100%);
+    min-height: 100vh;
+    /* Disable default browser drag on Tauri window */
+    user-select: none;
+  }
+  input, textarea { user-select: text; }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/10 backdrop-blur-aero border border-white/20 rounded-aero;
+  }
+  .glass-elevated {
+    @apply bg-white/15 backdrop-blur-[20px] border border-white/25 rounded-aero-lg shadow-glass;
+  }
+  .aero-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-aero px-4 py-2 text-sm font-semibold
+           bg-gradient-to-b from-white/25 to-white/10 border border-white/30
+           text-white shadow-gloss backdrop-blur-sm
+           transition-all duration-150
+           hover:from-white/35 hover:to-white/15 hover:shadow-glass
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .aero-btn-primary {
+    @apply aero-btn bg-gradient-to-b from-aero-cyan/80 to-aero-blue/80 border-aero-cyan/40
+           hover:from-aero-cyan hover:to-aero-blue;
+  }
+  .aero-input {
+    @apply w-full rounded-aero border border-white/25 bg-white/10 px-4 py-2.5
+           text-white placeholder-white/40 backdrop-blur-sm outline-none
+           transition-all focus:border-aero-cyan/60 focus:bg-white/15 focus:ring-2 focus:ring-aero-cyan/20;
+  }
+  .scrollbar-aero {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.2) transparent;
+  }
+}
+
+@layer utilities {
+  .backdrop-blur-aero   { backdrop-filter: blur(12px); }
+  .backdrop-blur-aero-lg { backdrop-filter: blur(20px); }
+  .text-shadow { text-shadow: 0 1px 4px rgba(0,20,80,0.5); }
+  /* Tauri drag region */
+  .drag-region { -webkit-app-region: drag; app-region: drag; }
+  .no-drag     { -webkit-app-region: no-drag; app-region: no-drag; }
+}
