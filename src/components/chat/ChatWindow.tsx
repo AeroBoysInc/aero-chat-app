@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Lock } from 'lucide-react';
+import { Send, Lock, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
+import { useFriendStore } from '../../store/friendStore';
+import { AvatarImage } from '../ui/AvatarImage';
 
 interface Message {
   id: string;
@@ -15,6 +17,8 @@ interface Props { contact: Profile; }
 
 export function ChatWindow({ contact }: Props) {
   const { user } = useAuthStore();
+  const { friends } = useFriendStore();
+  const isFriend = friends.some((f) => f.id === contact.id);
   const [messages,  setMessages]  = useState<Message[]>([]);
   const [input,     setInput]     = useState('');
   const [sending,   setSending]   = useState(false);
@@ -93,9 +97,7 @@ export function ChatWindow({ contact }: Props) {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="drag-region flex items-center gap-3 border-b border-white/15 bg-white/5 px-6 py-4">
-        <div className="no-drag flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aero-cyan/60 to-aero-blue text-sm font-bold text-white">
-          {contact.username[0].toUpperCase()}
-        </div>
+        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" />
         <div className="no-drag">
           <p className="font-semibold text-white">{contact.username}</p>
           <p className="flex items-center gap-1 text-[10px] text-aero-green">
@@ -147,16 +149,22 @@ export function ChatWindow({ contact }: Props) {
 
       {/* Input */}
       <form onSubmit={sendMessage} className="border-t border-white/15 bg-white/5 px-6 py-4">
+        {!isFriend && (
+          <div className="mb-3 flex items-center gap-2 rounded-aero border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/50">
+            <UserPlus className="h-4 w-4 shrink-0" />
+            Add {contact.username} as a friend to start messaging.
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <input
             className="aero-input flex-1 py-3"
-            placeholder={`Message ${contact.username}…`}
+            placeholder={isFriend ? `Message ${contact.username}…` : 'Add as friend to chat'}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }}
-            disabled={sending}
+            disabled={sending || !isFriend}
           />
-          <button type="submit" disabled={sending || !input.trim()} className="aero-btn-primary h-11 w-11 rounded-full p-0">
+          <button type="submit" disabled={sending || !input.trim() || !isFriend} className="aero-btn-primary h-11 w-11 rounded-full p-0">
             <Send className="h-4 w-4" />
           </button>
         </div>

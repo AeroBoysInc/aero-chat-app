@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Search, LogOut, MessageCircle } from 'lucide-react';
+import { Search, LogOut, MessageCircle, Bell, UserPlus, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
+import { useFriendStore } from '../../store/friendStore';
+import { AvatarImage } from '../ui/AvatarImage';
+import { FriendRequestModal } from './FriendRequestModal';
+import { SettingsPanel } from '../settings/SettingsPanel';
 
 interface Props {
   selectedUser: Profile | null;
@@ -10,29 +14,12 @@ interface Props {
 
 export function Sidebar({ selectedUser, onSelectUser }: Props) {
   const { user, signOut } = useAuthStore();
-  const [contacts,  setContacts]  = useState<Profile[]>([]);
-  const [query,     setQuery]     = useState('');
-  const [results,   setResults]   = useState<Profile[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  // Load recent conversations (users we have messages with)
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('messages')
-      .select('sender_id, recipient_id')
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .then(async ({ data }) => {
-        if (!data) return;
-        const ids = [...new Set(
-          data.flatMap(m => [m.sender_id, m.recipient_id]).filter(id => id !== user.id)
-        )];
-        if (!ids.length) return;
-        const { data: profiles } = await supabase
-          .from('profiles').select('id, username, public_key').in('id', ids);
-        setContacts(profiles ?? []);
-      });
-  }, [user]);
+  const { friends, pendingIncoming, pendingSent, sendFriendRequest } = useFriendStore();
+  const [query,          setQuery]          = useState('');
+  const [results,        setResults]        = useState<Profile[]>([]);
+  const [searching,      setSearching]      = useState(false);
+  const [requestsOpen,   setRequestsOpen]   = useState(false);
+  const [settingsOpen,   setSettingsOpen]   = useState(false);
 
   // Search users by username
   useEffect(() => {
@@ -41,7 +28,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
       setSearching(true);
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, public_key')
+        .select('id, username, public_key, avatar_url')
         .ilike('username', `%${query}%`)
         .neq('id', user?.id)
         .limit(8);
@@ -51,19 +38,48 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
     return () => clearTimeout(t);
   }, [query, user]);
 
-  const displayList = query ? results : contacts;
+  function friendStatus(profileId: string): 'friend' | 'pending_sent' | 'pending_incoming' | 'none' {
+    if (friends.some((f) => f.id === profileId)) return 'friend';
+    if (pendingSent.some((r) => r.receiver_id === profileId)) return 'pending_sent';
+    if (pendingIncoming.some((r) => r.sender_id === profileId)) return 'pending_incoming';
+    return 'none';
+  }
+
+  async function handleAddFriend(profileId: string) {
+    if (!user) return;
+    await sendFriendRequest(user.id, profileId);
+  }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-white/15 bg-white/5">
+    <aside className="relative flex h-full w-64 flex-col border-r border-white/15 bg-white/5">
       {/* Header */}
       <div className="drag-region flex items-center justify-between px-4 py-4 border-b border-white/10">
         <div className="flex items-center gap-2 no-drag">
           <MessageCircle className="h-5 w-5 text-aero-cyan" />
           <span className="font-bold text-white text-shadow">AeroChat</span>
         </div>
-        <button onClick={signOut} className="no-drag rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors" title="Sign out">
-          <LogOut className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1 no-drag">
+          {/* Friend requests bell */}
+          <button
+            onClick={() => setRequestsOpen(true)}
+            className="relative rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+            title="Friend Requests"
+          >
+            <Bell className="h-4 w-4" />
+            {pendingIncoming.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-aero-cyan text-[9px] font-bold text-white">
+                {pendingIncoming.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={signOut}
+            className="no-drag rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -72,7 +88,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
           <input
             className="aero-input pl-8 py-2 text-sm"
-            placeholder="Find user..."
+            placeholder="Search users..."
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
@@ -82,48 +98,99 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
       {/* Section label */}
       <div className="px-4 pb-1">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">
-          {query ? 'Search Results' : 'Direct Messages'}
+          {query ? 'Search Results' : 'Friends'}
         </p>
       </div>
 
-      {/* Contact list */}
+      {/* Contact / search list */}
       <nav className="flex-1 overflow-y-auto scrollbar-aero px-2 pb-2">
-        {searching && <p className="px-2 py-4 text-center text-xs text-white/40">Searching…</p>}
-        {!searching && displayList.length === 0 && (
-          <p className="px-2 py-4 text-center text-xs text-white/40">
-            {query ? 'No users found' : 'No conversations yet.\nSearch for someone to start chatting.'}
-          </p>
+        {/* Search results with friend actions */}
+        {query && (
+          <>
+            {searching && <p className="px-2 py-4 text-center text-xs text-white/40">Searching…</p>}
+            {!searching && results.length === 0 && (
+              <p className="px-2 py-4 text-center text-xs text-white/40">No users found</p>
+            )}
+            {results.map((profile) => {
+              const status = friendStatus(profile.id);
+              return (
+                <div key={profile.id} className="flex items-center gap-2 rounded-aero px-2 py-2 hover:bg-white/5">
+                  <AvatarImage username={profile.username} avatarUrl={profile.avatar_url} size="md" />
+                  <span className="flex-1 truncate text-sm text-white/80">{profile.username}</span>
+                  {status === 'friend' && (
+                    <button
+                      onClick={() => { onSelectUser(profile); setQuery(''); }}
+                      className="rounded px-2 py-1 text-[10px] font-semibold text-aero-cyan hover:bg-aero-cyan/10 transition-colors"
+                    >
+                      Message
+                    </button>
+                  )}
+                  {status === 'pending_sent' && (
+                    <span className="flex items-center gap-1 text-[10px] text-white/35">
+                      <Clock className="h-3 w-3" /> Pending
+                    </span>
+                  )}
+                  {status === 'pending_incoming' && (
+                    <span className="text-[10px] text-aero-cyan">Sent you a request</span>
+                  )}
+                  {status === 'none' && (
+                    <button
+                      onClick={() => handleAddFriend(profile.id)}
+                      className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+                      title="Add Friend"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </>
         )}
-        {displayList.map(contact => (
-          <button
-            key={contact.id}
-            onClick={() => onSelectUser(contact)}
-            className={`flex w-full items-center gap-3 rounded-aero px-3 py-2.5 text-left transition-all duration-100 ${
-              selectedUser?.id === contact.id
-                ? 'bg-white/20 text-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aero-cyan/60 to-aero-blue text-sm font-bold text-white">
-              {contact.username[0].toUpperCase()}
-            </div>
-            <span className="truncate text-sm font-medium">{contact.username}</span>
-          </button>
-        ))}
+
+        {/* Friends list */}
+        {!query && (
+          <>
+            {friends.length === 0 && (
+              <p className="px-2 py-4 text-center text-xs text-white/40">
+                No friends yet. Search for someone to add them!
+              </p>
+            )}
+            {friends.map(friend => (
+              <button
+                key={friend.id}
+                onClick={() => onSelectUser(friend)}
+                className={`flex w-full items-center gap-3 rounded-aero px-3 py-2.5 text-left transition-all duration-100 ${
+                  selectedUser?.id === friend.id
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="md" />
+                <span className="truncate text-sm font-medium">{friend.username}</span>
+              </button>
+            ))}
+          </>
+        )}
       </nav>
 
-      {/* Current user */}
-      <div className="border-t border-white/10 px-3 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aero-teal/60 to-aero-blue text-sm font-bold text-white">
-            {user?.username?.[0].toUpperCase()}
-          </div>
-          <div className="min-w-0">
+      {/* Current user footer */}
+      <div className="relative border-t border-white/10 px-3 py-3">
+        <button
+          onClick={() => setSettingsOpen((o) => !o)}
+          className="flex w-full items-center gap-2 rounded-aero px-1 py-1 hover:bg-white/10 transition-colors"
+          title="Profile settings"
+        >
+          <AvatarImage username={user?.username ?? '?'} avatarUrl={user?.avatar_url} size="md" />
+          <div className="min-w-0 text-left">
             <p className="truncate text-sm font-semibold text-white">{user?.username}</p>
             <p className="text-[10px] text-aero-green">● Encrypted</p>
           </div>
-        </div>
+        </button>
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
+
+      {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
     </aside>
   );
 }
