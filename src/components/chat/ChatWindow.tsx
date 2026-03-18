@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Lock, UserPlus } from 'lucide-react';
+import { Send, Lock, UserPlus, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -17,12 +17,20 @@ interface Props { contact: Profile; }
 
 export function ChatWindow({ contact }: Props) {
   const { user } = useAuthStore();
-  const { friends } = useFriendStore();
+  const { friends, loadFriends } = useFriendStore();
   const isFriend = friends.some((f) => f.id === contact.id);
   const [messages,  setMessages]  = useState<Message[]>([]);
   const [input,     setInput]     = useState('');
   const [sending,   setSending]   = useState(false);
+  const [sendError, setSendError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Fallback: re-check friend status when opening a chat window, in case
+  // the realtime UPDATE subscription missed the accepted-request event.
+  useEffect(() => {
+    if (!user) return;
+    loadFriends(user.id);
+  }, [contact.id, user?.id]);
 
   function decrypt(ciphertext: string, _senderId: string): string {
     const privateKey = loadPrivateKey();
@@ -74,6 +82,7 @@ export function ChatWindow({ contact }: Props) {
     e.preventDefault();
     if (!input.trim() || !user) return;
     setSending(true);
+    setSendError('');
 
     const privateKey = loadPrivateKey();
     if (!privateKey) { setSending(false); return; }
@@ -86,10 +95,12 @@ export function ChatWindow({ contact }: Props) {
       content:      ciphertext,
     }).select('id, sender_id, content, created_at').single();
 
-    if (!error && data) {
+    if (error) {
+      setSendError('Failed to send. Please try again.');
+    } else if (data) {
       setMessages(prev => [...prev, { ...data, content: input.trim() }]);
+      setInput('');
     }
-    setInput('');
     setSending(false);
   }
 
@@ -153,6 +164,12 @@ export function ChatWindow({ contact }: Props) {
           <div className="mb-3 flex items-center gap-2 rounded-aero border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/50">
             <UserPlus className="h-4 w-4 shrink-0" />
             Add {contact.username} as a friend to start messaging.
+          </div>
+        )}
+        {sendError && (
+          <div className="mb-3 flex items-center gap-2 rounded-aero border border-red-400/30 bg-red-400/10 px-4 py-2.5 text-sm text-red-300">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {sendError}
           </div>
         )}
         <div className="flex items-center gap-3">
