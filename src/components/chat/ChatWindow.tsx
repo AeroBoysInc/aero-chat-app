@@ -20,7 +20,7 @@ export function ChatWindow({ contact }: Props) {
   const [sending,   setSending]   = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  function decrypt(ciphertext: string, senderId: string): string {
+  function decrypt(ciphertext: string, _senderId: string): string {
     const privateKey = loadPrivateKey();
     if (!privateKey) return '[no private key]';
     const result = decryptMessage(ciphertext, contact.public_key, privateKey);

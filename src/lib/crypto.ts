@@ -1,9 +1,4 @@
-/**
- * E2E encryption using TweetNaCl (X25519 key exchange + XSalsa20-Poly1305).
- * Keys are generated on the client; only the public key is stored in Supabase.
- * The private key never leaves the device (stored in localStorage for now).
- */
-import nacl from 'tweetnacl';
+import * as nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 
 const PRIVATE_KEY_STORE = 'aero_private_key';
@@ -32,10 +27,9 @@ export function encryptMessage(
   const theirPublicKey = decodeBase64(theirPublicKeyB64);
   const myPrivateKey   = decodeBase64(myPrivateKeyB64);
   const nonce          = nacl.randomBytes(nacl.box.nonceLength);
-  const message        = encodeUTF8(plaintext);
+  const message        = decodeUTF8(plaintext);
   const encrypted      = nacl.box(message, nonce, theirPublicKey, myPrivateKey);
 
-  // Pack nonce + ciphertext into one base64 blob
   const combined = new Uint8Array(nonce.length + encrypted.length);
   combined.set(nonce);
   combined.set(encrypted, nonce.length);
@@ -55,7 +49,7 @@ export function decryptMessage(
     const myPrivateKey   = decodeBase64(myPrivateKeyB64);
     const decrypted      = nacl.box.open(ciphertext, nonce, theirPublicKey, myPrivateKey);
     if (!decrypted) return null;
-    return decodeUTF8(decrypted);
+    return encodeUTF8(decrypted);
   } catch {
     return null;
   }
