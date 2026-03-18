@@ -26,6 +26,7 @@ create policy "fr_insert" on public.friend_requests for insert
 create policy "fr_update" on public.friend_requests for update
   using (auth.uid() = receiver_id);
 
+alter table public.friend_requests replica identity full;
 alter publication supabase_realtime add table public.friend_requests;
 
 -- 3. Gate messages behind accepted friendship
@@ -35,12 +36,12 @@ create policy "messages_insert" on public.messages for insert
   with check (
     auth.uid() = sender_id
     and exists (
-      select 1 from public.friend_requests
-      where status = 'accepted'
+      select 1 from public.friend_requests fr
+      where fr.status = 'accepted'
         and (
-          (sender_id = auth.uid() and receiver_id = messages.recipient_id)
+          (fr.sender_id = auth.uid() and fr.receiver_id = messages.recipient_id)
           or
-          (receiver_id = auth.uid() and sender_id = messages.recipient_id)
+          (fr.receiver_id = auth.uid() and fr.sender_id = messages.recipient_id)
         )
     )
   );

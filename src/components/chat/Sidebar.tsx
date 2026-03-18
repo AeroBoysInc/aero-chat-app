@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Search, LogOut, MessageCircle, Bell, UserPlus, Clock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
-import { AvatarImage } from '../ui/AvatarImage';
+import { useUnreadStore } from '../../store/unreadStore';
+import { useTypingStore } from '../../store/typingStore';
+import { useStatusStore } from '../../store/statusStore';
+import { usePresenceStore } from '../../store/presenceStore';
+import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/AvatarImage';
+import { AeroLogo } from '../ui/AeroLogo';
 import { FriendRequestModal } from './FriendRequestModal';
 import { SettingsPanel } from '../settings/SettingsPanel';
 
@@ -12,16 +17,37 @@ interface Props {
   onSelectUser: (user: Profile) => void;
 }
 
+
+const ALL_STATUSES: Status[] = ['online', 'busy', 'away', 'offline'];
+
 export function Sidebar({ selectedUser, onSelectUser }: Props) {
   const { user, signOut } = useAuthStore();
-  const { friends, pendingIncoming, pendingSent, sendFriendRequest } = useFriendStore();
+  const { friends, pendingIncoming, pendingSent, sendFriendRequest, removeFriend } = useFriendStore();
+  const { counts, clear } = useUnreadStore();
+  const { typing } = useTypingStore();
+  const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
+  const onlineIds = usePresenceStore(s => s.onlineIds);
+  const presenceReady = usePresenceStore(s => s.presenceReady);
+
   const [query,          setQuery]          = useState('');
   const [results,        setResults]        = useState<Profile[]>([]);
   const [searching,      setSearching]      = useState(false);
   const [requestsOpen,   setRequestsOpen]   = useState(false);
   const [settingsOpen,   setSettingsOpen]   = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [hoveredFriend,  setHoveredFriend]  = useState<string | null>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
 
-  // Search users by username
+  // Close status menu on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node))
+        setStatusMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
     const t = setTimeout(async () => {
@@ -38,10 +64,10 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
     return () => clearTimeout(t);
   }, [query, user]);
 
-  function friendStatus(profileId: string): 'friend' | 'pending_sent' | 'pending_incoming' | 'none' {
-    if (friends.some((f) => f.id === profileId)) return 'friend';
-    if (pendingSent.some((r) => r.receiver_id === profileId)) return 'pending_sent';
-    if (pendingIncoming.some((r) => r.sender_id === profileId)) return 'pending_incoming';
+  function friendStatus(id: string): 'friend' | 'pending_sent' | 'pending_incoming' | 'none' {
+    if (friends.some(f => f.id === id))                return 'friend';
+    if (pendingSent.some(r => r.receiver_id === id))   return 'pending_sent';
+    if (pendingIncoming.some(r => r.sender_id === id)) return 'pending_incoming';
     return 'none';
   }
 
@@ -51,30 +77,46 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
   }
 
   return (
-    <aside className="relative flex h-full w-64 flex-col border-r border-white/15 bg-white/5">
-      {/* Header */}
-      <div className="drag-region flex items-center justify-between px-4 py-4 border-b border-white/10">
-        <div className="flex items-center gap-2 no-drag">
-          <MessageCircle className="h-5 w-5 text-aero-cyan" />
-          <span className="font-bold text-white text-shadow">AeroChat</span>
+    <aside
+      className="glass-sidebar relative flex h-full flex-col"
+      style={{ isolation: 'isolate', width: 260, flexShrink: 0 }}
+    >
+      {/* ── Header ── */}
+      <div
+        className="drag-region flex items-center justify-between px-4 py-4"
+        style={{ borderBottom: '1px solid var(--panel-divider)' }}
+      >
+        <div className="flex items-center gap-2.5 no-drag">
+          <AeroLogo size={30} />
+          <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
+            AeroChat
+          </span>
         </div>
-        <div className="flex items-center gap-1 no-drag">
-          {/* Friend requests bell */}
+        <div className="flex items-center gap-0.5 no-drag">
           <button
             onClick={() => setRequestsOpen(true)}
-            className="relative rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+            className="relative rounded-aero p-2 transition-all duration-150"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
             title="Friend Requests"
           >
             <Bell className="h-4 w-4" />
             {pendingIncoming.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-aero-cyan text-[9px] font-bold text-white">
+              <span
+                className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)' }}
+              >
                 {pendingIncoming.length}
               </span>
             )}
           </button>
           <button
             onClick={signOut}
-            className="no-drag rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+            className="no-drag rounded-aero p-2 transition-all duration-150"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />
@@ -82,65 +124,75 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-3 py-3">
+      {/* ── Search ── */}
+      <div className="px-3 pt-3 pb-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
           <input
-            className="aero-input pl-8 py-2 text-sm"
-            placeholder="Search users..."
+            className="aero-input pl-9 py-2 text-sm"
+            placeholder="Search users…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Section label */}
-      <div className="px-4 pb-1">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">
+      {/* ── Section label ── */}
+      <div className="px-4 pb-2 pt-1">
+        <p style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-label)' }}>
           {query ? 'Search Results' : 'Friends'}
         </p>
       </div>
 
-      {/* Contact / search list */}
+      {/* ── List ── */}
       <nav className="flex-1 overflow-y-auto scrollbar-aero px-2 pb-2">
-        {/* Search results with friend actions */}
+
         {query && (
           <>
-            {searching && <p className="px-2 py-4 text-center text-xs text-white/40">Searching…</p>}
+            {searching && <p className="px-2 py-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>Searching…</p>}
             {!searching && results.length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-white/40">No users found</p>
+              <p className="px-2 py-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No users found</p>
             )}
             {results.map((profile) => {
-              const status = friendStatus(profile.id);
+              const fs = friendStatus(profile.id);
               return (
-                <div key={profile.id} className="flex items-center gap-2 rounded-aero px-2 py-2 hover:bg-white/5">
-                  <AvatarImage username={profile.username} avatarUrl={profile.avatar_url} size="md" />
-                  <span className="flex-1 truncate text-sm text-white/80">{profile.username}</span>
-                  {status === 'friend' && (
-                    <button
-                      onClick={() => { onSelectUser(profile); setQuery(''); }}
-                      className="rounded px-2 py-1 text-[10px] font-semibold text-aero-cyan hover:bg-aero-cyan/10 transition-colors"
-                    >
-                      Message
-                    </button>
+                <div key={profile.id} className="flex items-center gap-3 rounded-aero px-3 py-2.5 transition-colors"
+                  style={{ cursor: 'default' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                >
+                  <AvatarImage username={profile.username} avatarUrl={profile.avatar_url} size="lg"
+                    status={fs === 'friend' ? ((profile.status as Status | undefined) ?? 'online') : null} />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                      {profile.username}
+                    </p>
+                    {fs === 'friend' && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Friend</p>}
+                  </div>
+                  {fs === 'friend' && (
+                    <button onClick={() => { onSelectUser(profile); setQuery(''); }}
+                      className="rounded-aero px-2.5 py-1 text-xs font-bold transition-colors"
+                      style={{ color: '#1a6fd4', border: '1px solid rgba(26,111,212,0.25)' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                    >Message</button>
                   )}
-                  {status === 'pending_sent' && (
-                    <span className="flex items-center gap-1 text-[10px] text-white/35">
+                  {fs === 'pending_sent' && (
+                    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
                       <Clock className="h-3 w-3" /> Pending
                     </span>
                   )}
-                  {status === 'pending_incoming' && (
-                    <span className="text-[10px] text-aero-cyan">Sent you a request</span>
+                  {fs === 'pending_incoming' && (
+                    <span className="text-[10px] font-bold" style={{ color: '#1a6fd4' }}>Sent request</span>
                   )}
-                  {status === 'none' && (
-                    <button
-                      onClick={() => handleAddFriend(profile.id)}
-                      className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+                  {fs === 'none' && (
+                    <button onClick={() => handleAddFriend(profile.id)}
+                      className="rounded-aero p-1.5 transition-all"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                       title="Add Friend"
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                    </button>
+                    ><UserPlus className="h-4 w-4" /></button>
                   )}
                 </div>
               );
@@ -148,49 +200,177 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
           </>
         )}
 
-        {/* Friends list */}
         {!query && (
           <>
             {friends.length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-white/40">
-                No friends yet. Search for someone to add them!
-              </p>
+              <div className="flex flex-col items-center px-2 py-10 text-center gap-3">
+                <UserPlus className="h-9 w-9" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  No friends yet.<br />Search for someone to add them!
+                </p>
+              </div>
             )}
-            {friends.map(friend => (
-              <button
-                key={friend.id}
-                onClick={() => onSelectUser(friend)}
-                className={`flex w-full items-center gap-3 rounded-aero px-3 py-2.5 text-left transition-all duration-100 ${
-                  selectedUser?.id === friend.id
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="md" />
-                <span className="truncate text-sm font-medium">{friend.username}</span>
-              </button>
-            ))}
+
+            {friends.map(friend => {
+              // Use presence to determine if actually connected; fall back to stored status before presence syncs
+              const storedStatus = (friend.status as Status | undefined) ?? 'online';
+              const effectiveStatus: Status = presenceReady && !onlineIds.has(friend.id) ? 'offline' : storedStatus;
+              const isSelected = selectedUser?.id === friend.id;
+              const unread = counts[friend.id] ?? 0;
+              const isTyping = typing[friend.id] === true;
+              const isHovered = hoveredFriend === friend.id;
+
+              return (
+                <button
+                  key={friend.id}
+                  onClick={() => { onSelectUser(friend); clear(friend.id); }}
+                  className="flex w-full items-center gap-3 rounded-aero px-3 py-3 text-left transition-all duration-150"
+                  style={isSelected ? {
+                    background: 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)',
+                    boxShadow: 'inset 0 0 0 1.5px rgba(26,111,212,0.30), 0 2px 8px rgba(26,111,212,0.10)',
+                  } : {}}
+                  onMouseEnter={e => { setHoveredFriend(friend.id); if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'; }}
+                  onMouseLeave={e => { setHoveredFriend(null); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
+                >
+                  <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="xl" status={effectiveStatus} />
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
+                      {friend.username}
+                    </p>
+
+                    {isTyping ? (
+                      <p className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: '#1a6fd4', fontStyle: 'italic' }}>
+                        <span className="typing-dots" style={{ color: '#1a6fd4' }}>
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                        </span>
+                        <span>typing…</span>
+                      </p>
+                    ) : (
+                      <StatusLine status={effectiveStatus} />
+                    )}
+                  </div>
+
+                  {/* Unfriend button on hover (only when no unread) */}
+                  {isHovered && unread === 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeFriend(user!.id, friend.id); }}
+                      className="rounded-aero p-1 transition-all shrink-0"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+                      title="Remove friend"
+                    >
+                      <UserMinus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
+                  {/* Unread badge */}
+                  {unread > 0 && (
+                    <span
+                      className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shrink-0"
+                      style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)', boxShadow: '0 1px 6px rgba(0,80,200,0.30)' }}
+                    >
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </>
         )}
       </nav>
 
-      {/* Current user footer */}
-      <div className="relative border-t border-white/10 px-3 py-3">
-        <button
-          onClick={() => setSettingsOpen((o) => !o)}
-          className="flex w-full items-center gap-2 rounded-aero px-1 py-1 hover:bg-white/10 transition-colors"
-          title="Profile settings"
-        >
-          <AvatarImage username={user?.username ?? '?'} avatarUrl={user?.avatar_url} size="md" />
-          <div className="min-w-0 text-left">
-            <p className="truncate text-sm font-semibold text-white">{user?.username}</p>
-            <p className="text-[10px] text-aero-green">● Encrypted</p>
+      {/* ── Footer: current user + status change ── */}
+      <div className="relative" style={{ borderTop: '1px solid var(--panel-divider)' }} ref={statusMenuRef}>
+        {/* Status change popup */}
+        {statusMenuOpen && (
+          <div
+            className="absolute bottom-full left-3 right-3 mb-2 rounded-aero-lg overflow-hidden"
+            style={{
+              background: 'var(--sidebar-bg)',
+              border: '1px solid var(--panel-divider)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.50)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-label)' }}>
+              Set Status
+            </p>
+            {ALL_STATUSES.map(s => (
+              <button
+                key={s}
+                onClick={() => { setMyStatus(s); setStatusMenuOpen(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors"
+                style={{ color: 'var(--text-primary)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ background: statusColor[s], boxShadow: `0 0 6px ${statusColor[s]}bb` }}
+                />
+                <span style={{ fontFamily: 'Inter, system-ui, sans-serif', textTransform: 'capitalize' }}>
+                  {statusLabel[s]}
+                </span>
+                {myStatus === s && <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>✓</span>}
+              </button>
+            ))}
           </div>
-        </button>
+        )}
+
+        {/* Footer row */}
+        <div className="flex items-center gap-2.5 px-4 py-3">
+          <AvatarImage username={user?.username ?? '?'} avatarUrl={user?.avatar_url} size="lg" status={myStatus} />
+          <div className="min-w-0 flex-1 text-left">
+            <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, color: 'var(--text-primary)' }}>
+              {user?.username}
+            </p>
+            {/* Clickable status — opens menu */}
+            <button
+              onClick={() => setStatusMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 mt-0.5 rounded transition-opacity hover:opacity-70"
+              style={{ fontSize: 11, color: statusColor[myStatus], fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                style={{ background: statusColor[myStatus], boxShadow: `0 0 5px ${statusColor[myStatus]}cc` }} />
+              {statusLabel[myStatus]}
+              <ChevronUp className="h-3 w-3" style={{ transform: statusMenuOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+            </button>
+          </div>
+          <button
+            onClick={() => setSettingsOpen(o => !o)}
+            className="rounded-aero p-1.5 transition-all"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+            title="Settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
 
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
     </aside>
+  );
+}
+
+function StatusLine({ status }: { status: Status }) {
+  const color = statusColor[status];
+  return (
+    <p className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: 11, color }}>
+      <span className="inline-block rounded-full shrink-0"
+        style={{ width: 7, height: 7, background: color, boxShadow: `0 0 5px ${color}cc` }} />
+      <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}>
+        {statusLabel[status]}
+      </span>
+    </p>
   );
 }

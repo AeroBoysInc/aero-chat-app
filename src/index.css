@@ -2,52 +2,379 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════
+   THEME TOKENS  (day = default, night = dark)
+═══════════════════════════════════════════════ */
+:root {
+  /* Aero Day */
+  --body-bg:
+    radial-gradient(ellipse 420px 420px at  7% 82%, rgba(255,155,0,0.60)  0%, transparent 52%),
+    radial-gradient(ellipse 280px 280px at  2% 40%, rgba(50,210,50,0.45)  0%, transparent 48%),
+    radial-gradient(ellipse 480px 400px at 93% 18%, rgba(0,195,255,0.55)  0%, transparent 52%),
+    radial-gradient(ellipse 340px 340px at 83% 92%, rgba(0,165,238,0.45)  0%, transparent 50%),
+    radial-gradient(ellipse 600px 360px at 50% 50%, rgba(255,255,255,0.25) 0%, transparent 52%),
+    linear-gradient(170deg, #72d8fa 0%, #3dbce8 40%, #1aa8de 100%);
+
+  --sidebar-bg:      rgba(255,255,255,0.86);
+  --sidebar-border:  rgba(255,255,255,0.92);
+  --sidebar-shadow:  0 8px 32px rgba(0,80,160,0.18), inset 0 1px 0 rgba(255,255,255,1);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.28) 40%, rgba(255,255,255,0) 65%);
+
+  --chat-bg:         rgba(215,238,255,0.55);
+  --chat-border:     rgba(255,255,255,0.75);
+  --chat-shadow:     0 8px 32px rgba(0,80,160,0.14), inset 0 1px 0 rgba(255,255,255,0.90);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0) 55%);
+
+  --card-bg:         rgba(255,255,255,0.80);
+  --card-border:     rgba(255,255,255,0.95);
+  --card-shadow:     0 12px 48px rgba(0,80,160,0.24), inset 0 1px 0 rgba(255,255,255,1);
+  --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.30) 42%, rgba(255,255,255,0) 65%);
+
+  --panel-header-bg: rgba(255,255,255,0.62);
+  --panel-divider:   rgba(150,195,228,0.40);
+
+  --text-primary:    #1a3553;
+  --text-secondary:  #3a6585;
+  --text-muted:      #7aaac8;
+  --text-label:      #7aaac8;
+  --text-title:      #1a4a7a;
+
+  --input-bg:        rgba(255,255,255,0.88);
+  --input-border:    rgba(150,198,230,0.80);
+  --input-text:      #1a3553;
+  --input-placeholder: rgba(80,130,168,0.60);
+  --input-focus-border: rgba(0,165,230,0.70);
+  --input-focus-ring:   rgba(0,165,230,0.18);
+
+  --hover-bg:        rgba(0,120,200,0.07);
+  --hover-bg-btn:    rgba(0,120,200,0.12);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(220,240,255,0.85) 100%);
+  --recv-border:     rgba(180,215,240,0.80);
+  --recv-text:       #1a3553;
+  --recv-time:       rgba(60,120,160,0.55);
+
+  --badge-bg:        #1a6fd4;
+  --badge-text:      #ffffff;
+
+  --switcher-bg:     rgba(255,255,255,0.70);
+  --switcher-border: rgba(180,215,240,0.70);
+}
+
+[data-theme="night"] {
+  /* Aero Night */
+  --body-bg:
+    radial-gradient(ellipse 500px 420px at 92% 15%, rgba(0,210,180,0.22)  0%, transparent 55%),
+    radial-gradient(ellipse 420px 420px at  5% 85%, rgba(130,0,255,0.20)  0%, transparent 55%),
+    radial-gradient(ellipse 360px 360px at 48% 48%, rgba(0,100,255,0.18)  0%, transparent 52%),
+    radial-gradient(ellipse 280px 280px at 20% 15%, rgba(0,160,220,0.16)  0%, transparent 50%),
+    linear-gradient(165deg, #0d1b3e 0%, #08142a 55%, #040e1e 100%);
+
+  --sidebar-bg:      rgba(12,25,58,0.92);
+  --sidebar-border:  rgba(80,145,255,0.22);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(100,160,255,0.15);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 38%, rgba(255,255,255,0) 60%);
+
+  --chat-bg:         rgba(8,16,42,0.75);
+  --chat-border:     rgba(60,120,255,0.20);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(80,140,255,0.12);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 50%);
+
+  --card-bg:         rgba(12,25,58,0.94);
+  --card-border:     rgba(80,145,255,0.25);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(100,160,255,0.18);
+  --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0) 62%);
+
+  --panel-header-bg: rgba(255,255,255,0.04);
+  --panel-divider:   rgba(60,120,255,0.18);
+
+  --text-primary:    #dce8ff;
+  --text-secondary:  #8aabde;
+  --text-muted:      #4a6a9a;
+  --text-label:      #3a5888;
+  --text-title:      #b8d4ff;
+
+  --input-bg:        rgba(255,255,255,0.07);
+  --input-border:    rgba(100,160,255,0.28);
+  --input-text:      #dce8ff;
+  --input-placeholder: rgba(138,171,222,0.50);
+  --input-focus-border: rgba(0,180,255,0.60);
+  --input-focus-ring:   rgba(0,180,255,0.15);
+
+  --hover-bg:        rgba(100,160,255,0.08);
+  --hover-bg-btn:    rgba(100,160,255,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(80,140,255,0.12) 100%);
+  --recv-border:     rgba(100,160,255,0.28);
+  --recv-text:       #dce8ff;
+  --recv-time:       rgba(138,171,222,0.60);
+
+  --badge-bg:        #3d8cff;
+  --badge-text:      #ffffff;
+
+  --switcher-bg:     rgba(12,25,58,0.85);
+  --switcher-border: rgba(80,145,255,0.30);
+}
+
+/* ═══════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════ */
 @layer base {
   body {
-    @apply bg-aero-deep text-white antialiased;
-    background: linear-gradient(160deg, #1a5fa0 0%, #1a6fd4 40%, #0a3d8f 100%);
+    @apply antialiased;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Ubuntu, Cantarell, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    color: var(--text-primary);
+    background: var(--body-bg);
     min-height: 100vh;
-    /* Disable default browser drag on Tauri window */
     user-select: none;
+    transition: background 0.4s ease;
   }
   input, textarea { user-select: text; }
 }
 
+/* ═══════════════════════════════════════════════
+   GLASS COMPONENTS
+═══════════════════════════════════════════════ */
 @layer components {
-  .glass {
-    @apply bg-white/10 backdrop-blur-aero border border-white/20 rounded-aero;
+
+  .glass-sidebar {
+    position: relative;
+    overflow: hidden;
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(28px) saturate(2.2);
+    -webkit-backdrop-filter: blur(28px) saturate(2.2);
+    border: 1px solid var(--sidebar-border);
+    border-radius: 18px;
+    box-shadow: var(--sidebar-shadow);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
+  .glass-sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--sidebar-gloss);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glass-chat {
+    position: relative;
+    overflow: hidden;
+    background: var(--chat-bg);
+    backdrop-filter: blur(22px) saturate(2);
+    -webkit-backdrop-filter: blur(22px) saturate(2);
+    border: 1px solid var(--chat-border);
+    border-radius: 18px;
+    box-shadow: var(--chat-shadow);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  .glass-chat::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--chat-gloss);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glass-chat > * { position: relative; z-index: 1; }
+
   .glass-elevated {
-    @apply bg-white/15 backdrop-blur-[20px] border border-white/25 rounded-aero-lg shadow-glass;
+    position: relative;
+    overflow: hidden;
+    background: var(--card-bg);
+    backdrop-filter: blur(28px) saturate(2.2);
+    -webkit-backdrop-filter: blur(28px) saturate(2.2);
+    border: 1px solid var(--card-border);
+    border-radius: 22px;
+    box-shadow: var(--card-shadow);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
+  .glass-elevated::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--card-gloss);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glass-elevated > * { position: relative; z-index: 1; }
+
+  .glass {
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--sidebar-border);
+    @apply rounded-aero;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.70);
+  }
+
+  /* ── Buttons ── */
   .aero-btn {
     @apply inline-flex items-center justify-center gap-2 rounded-aero px-4 py-2 text-sm font-semibold
-           bg-gradient-to-b from-white/25 to-white/10 border border-white/30
-           text-white shadow-gloss backdrop-blur-sm
-           transition-all duration-150
-           hover:from-white/35 hover:to-white/15 hover:shadow-glass
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+           transition-all duration-150 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(200,228,255,0.65) 100%);
+    border: 1px solid rgba(255,255,255,0.90);
+    box-shadow: 0 2px 8px rgba(0,80,160,0.16), inset 0 1px 0 rgba(255,255,255,1);
+    color: var(--text-title);
   }
+  .aero-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 52%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .aero-btn:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(210,235,255,0.78) 100%);
+  }
+
+  /* Orange glossy pill Send button */
+  .aero-btn-send {
+    @apply inline-flex items-center justify-center gap-1.5 font-bold
+           transition-all duration-150 active:scale-95
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    padding: 0 20px;
+    height: 42px;
+    color: white;
+    background: linear-gradient(180deg, #ffa820 0%, #d96800 100%);
+    border: 1px solid rgba(255,150,20,0.70);
+    box-shadow: 0 3px 12px rgba(200,90,0,0.40), inset 0 1px 0 rgba(255,220,100,0.80);
+    text-shadow: 0 1px 2px rgba(100,40,0,0.45);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .aero-btn-send::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 52%;
+    background: linear-gradient(180deg, rgba(255,230,120,0.70) 0%, rgba(255,200,60,0) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .aero-btn-send:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffbe40 0%, #e87800 100%);
+    box-shadow: 0 5px 18px rgba(200,90,0,0.52), inset 0 1px 0 rgba(255,230,110,0.85);
+  }
+
+  /* Blue primary button */
   .aero-btn-primary {
-    @apply aero-btn bg-gradient-to-b from-aero-cyan/80 to-aero-blue/80 border-aero-cyan/40
-           hover:from-aero-cyan hover:to-aero-blue;
+    @apply inline-flex items-center justify-center gap-2 rounded-aero px-4 py-2 text-sm font-semibold
+           text-white transition-all duration-150 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #38ccf8 0%, #1278d8 100%);
+    border: 1px solid rgba(0,190,248,0.60);
+    box-shadow: 0 3px 14px rgba(0,140,220,0.42), inset 0 1px 0 rgba(255,255,255,0.50);
   }
+  .aero-btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 52%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .aero-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #50d8ff 0%, #1a88e8 100%);
+    box-shadow: 0 5px 20px rgba(0,140,220,0.55), inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+
+  /* ── Inputs ── */
   .aero-input {
-    @apply w-full rounded-aero border border-white/25 bg-white/10 px-4 py-2.5
-           text-white placeholder-white/40 backdrop-blur-sm outline-none
-           transition-all focus:border-aero-cyan/60 focus:bg-white/15 focus:ring-2 focus:ring-aero-cyan/20;
+    @apply w-full rounded-aero px-4 py-2.5 outline-none transition-all;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--input-text);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
   }
+  .aero-input::placeholder { color: var(--input-placeholder); }
+  .aero-input:focus {
+    background: var(--input-bg);
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-ring), inset 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* ── Soap bubble decoration ── */
+  .soap-bubble {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at 32% 28%,
+      rgba(255,255,255,0.85)  0%,
+      rgba(200,235,255,0.40) 40%,
+      rgba(120,195,255,0.15) 70%,
+      rgba(100,180,255,0.05) 100%
+    );
+    border: 1px solid rgba(255,255,255,0.72);
+    box-shadow:
+      inset 0 0 10px rgba(255,255,255,0.50),
+      inset -2px -3px 6px rgba(120,190,255,0.30),
+      0 3px 10px rgba(0,100,180,0.10);
+  }
+
+  /* ── Typing dots animation ── */
+  .typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .typing-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: typing-bounce 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
   .scrollbar-aero {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.2) transparent;
+    scrollbar-color: rgba(120,160,200,0.28) transparent;
+  }
+  .scrollbar-aero::-webkit-scrollbar { width: 5px; }
+  .scrollbar-aero::-webkit-scrollbar-thumb {
+    background: rgba(120,160,200,0.25);
+    border-radius: 9px;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(55px);
   }
 }
 
+/* ═══════════════════════════════════════════════
+   KEYFRAMES
+═══════════════════════════════════════════════ */
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: translateY(0);   opacity: 0.5; }
+  40%            { transform: translateY(-5px); opacity: 1;   }
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════ */
 @layer utilities {
-  .backdrop-blur-aero   { backdrop-filter: blur(12px); }
-  .backdrop-blur-aero-lg { backdrop-filter: blur(20px); }
-  .text-shadow { text-shadow: 0 1px 4px rgba(0,20,80,0.5); }
-  /* Tauri drag region */
+  .text-shadow    { text-shadow: 0 1px 6px rgba(0,20,80,0.35); }
+  .text-shadow-sm { text-shadow: 0 1px 3px rgba(0,20,80,0.22); }
   .drag-region { -webkit-app-region: drag; app-region: drag; }
   .no-drag     { -webkit-app-region: no-drag; app-region: no-drag; }
 }

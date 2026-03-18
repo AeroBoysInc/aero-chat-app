@@ -17,8 +17,11 @@ export function RegisterForm({ onSuccess }: Props) {
     setError('');
     setLoading(true);
 
-    // Generate E2E keypair
+    // Generate E2E keypair and persist the private key BEFORE signUp so that
+    // the onAuthStateChange handler in App.tsx sees it and does not generate
+    // a second keypair that would mismatch the public key we store in the profile.
     const { publicKey, privateKey } = generateKeyPair();
+    savePrivateKey(privateKey);
 
     // Create auth user
     const { data, error: authErr } = await supabase.auth.signUp({ email, password });
@@ -41,8 +44,6 @@ export function RegisterForm({ onSuccess }: Props) {
       return;
     }
 
-    // Save private key locally
-    savePrivateKey(privateKey);
     setLoading(false);
     onSuccess();
   }
@@ -50,22 +51,22 @@ export function RegisterForm({ onSuccess }: Props) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-white/70 uppercase tracking-wide">Username</label>
+        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Username</label>
         <input className="aero-input" type="text" required minLength={2} value={username} onChange={e => setUsername(e.target.value)} placeholder="cooluser" />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-white/70 uppercase tracking-wide">Email</label>
+        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Email</label>
         <input className="aero-input" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-white/70 uppercase tracking-wide">Password</label>
+        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Password</label>
         <input className="aero-input" type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)} placeholder="min 8 characters" />
       </div>
-      {error && <p className="rounded-aero bg-aero-red/15 border border-aero-red/30 px-3 py-2 text-sm text-aero-red">{error}</p>}
+      {error && <p className="rounded-aero px-3 py-2 text-sm" style={{ background: 'rgba(220,60,60,0.10)', border: '1px solid rgba(200,60,60,0.30)', color: '#8a2020' }}>{error}</p>}
       <button type="submit" disabled={loading} className="aero-btn-primary mt-1 w-full py-3">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserPlus className="h-4 w-4" /> Create Account</>}
       </button>
-      <p className="text-center text-xs text-white/40">
+      <p className="text-center text-xs" style={{ color: '#8ab4cc' }}>
         A unique encryption keypair is generated on your device. Your private key never leaves it.
       </p>
     </form>

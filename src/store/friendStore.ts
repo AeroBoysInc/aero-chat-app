@@ -20,6 +20,7 @@ interface FriendState {
   loadFriends:          (userId: string) => Promise<void>;
   sendFriendRequest:    (senderId: string, receiverId: string) => Promise<string | null>;
   respondToRequest:     (requestId: string, accept: boolean) => Promise<void>;
+  removeFriend:         (userId: string, friendId: string) => Promise<void>;
   subscribeToRequests:  (userId: string) => () => void;
 }
 
@@ -35,7 +36,7 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     // Accepted requests (both directions)
     const { data: accepted } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url), receiver:profiles!receiver_id(id,username,public_key,avatar_url)')
+      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status), receiver:profiles!receiver_id(id,username,public_key,avatar_url,status)')
       .eq('status', 'accepted')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
@@ -46,14 +47,14 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     // Pending incoming
     const { data: incoming } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url)')
+      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status)')
       .eq('receiver_id', userId)
       .eq('status', 'pending');
 
     // Pending sent
     const { data: sent } = await supabase
       .from('friend_requests')
-      .select('*, receiver:profiles!receiver_id(id,username,public_key,avatar_url)')
+      .select('*, receiver:profiles!receiver_id(id,username,public_key,avatar_url,status)')
       .eq('sender_id', userId)
       .eq('status', 'pending');
 
@@ -74,6 +75,17 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     if (error) return error.message;
     set((s) => ({ pendingSent: [...s.pendingSent, data as FriendRequest] }));
     return null;
+  },
+
+  removeFriend: async (userId, friendId) => {
+    await supabase
+      .from('friend_requests')
+      .delete()
+      .or(
+        `and(sender_id.eq.${userId},receiver_id.eq.${friendId}),` +
+        `and(sender_id.eq.${friendId},receiver_id.eq.${userId})`
+      );
+    set(s => ({ friends: s.friends.filter(f => f.id !== friendId) }));
   },
 
   respondToRequest: async (requestId, accept) => {
@@ -120,6 +132,27 @@ export const useFriendStore = create<FriendState>((set, get) => ({
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Separate channel: live status updates for any profile
+    const profileChannel = supabase
+      .channel(`profile_status:${userId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+      }, (payload) => {
+        const updated = payload.new as { id: string; status: string };
+        // Patch the status on any friend whose profile was updated
+        set(state => ({
+          friends: state.friends.map(f =>
+            f.id === updated.id ? { ...f, status: updated.status } : f
+          ),
+        }));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(profileChannel);
+    };
   },
 }));
