@@ -91,6 +91,7 @@ export function BubblePop() {
   const renderBubsRef = useRef<RenderBubble[]>([]);
   const nextId        = useRef(0);
   const floatId       = useRef(0);
+  const gameStartRef  = useRef(0); // performance.now() when game started
 
   // Sync hot refs
   const gsRef    = useRef<GameState>('idle');
@@ -168,13 +169,21 @@ export function BubblePop() {
 
   const scheduleSpawn = useCallback(() => {
     if (gsRef.current !== 'playing') return;
-    const delay = Math.max(500, 1500 - (levelRef.current - 1) * 90) + Math.random() * 400;
+    // Time-based continuous difficulty curve:
+    // t=0s  → ~2500ms between spawns (gentle start)
+    // t=15s → ~1300ms
+    // t=30s → ~350ms  (hectic — ~8-12 bubbles on screen)
+    // t=45s → ~280ms min (stays intense)
+    const elapsed = (performance.now() - gameStartRef.current) / 1000;
+    const delay = Math.max(280, 2500 - elapsed * 74) + Math.random() * 300;
     spawnTimer.current = setTimeout(() => {
       if (gsRef.current !== 'playing') return;
       const id        = ++nextId.current;
       const size      = 30 + Math.random() * 44;
       const col       = 0.05 + Math.random() * 0.88;
-      const duration  = 3800 - (levelRef.current - 1) * 210 + Math.random() * 600;
+      // Bubbles also get slightly faster over time
+      const elapsedNow = (performance.now() - gameStartRef.current) / 1000;
+      const duration  = Math.max(2000, 4000 - elapsedNow * 35) + Math.random() * 500;
       const hue       = Math.random() * 360;
       const points    = size < 42 ? 30 : size < 58 ? 20 : 10;
       const amplitude = 18 + Math.random() * 22;
@@ -196,6 +205,7 @@ export function BubblePop() {
     setCombo(0);     comboRef.current  = 0;
     setHits(0);      hitsRef.current   = 0;
     setMisses(0);    missesRef.current = 0;
+    gameStartRef.current = performance.now();
     gsRef.current = 'playing';
     setGameState('playing');
   }
@@ -215,7 +225,7 @@ export function BubblePop() {
     scheduleSpawn();
     levelTimer.current = setInterval(() => {
       setLevel(l => { const n = Math.min(9, l + 1); levelRef.current = n; return n; });
-    }, 15_000);
+    }, 8_000);
     return () => {
       cancelAnimationFrame(rafRef.current);
       if (spawnTimer.current) clearTimeout(spawnTimer.current);
