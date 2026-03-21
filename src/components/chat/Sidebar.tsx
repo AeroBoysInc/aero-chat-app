@@ -79,7 +79,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
   return (
     <aside
       className="glass-sidebar relative flex h-full flex-col"
-      style={{ isolation: 'isolate', width: 260, flexShrink: 0 }}
+      style={{ isolation: 'isolate', width: '100%', flexShrink: 0 }}
     >
       {/* ── Header ── */}
       <div
