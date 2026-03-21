@@ -12,6 +12,7 @@ import { requestNotificationPermission, showMessageNotification } from './lib/no
 import { loadSelectedContactId, clearAllChatCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
+import { GameNotification } from './components/ui/GameNotification';
 
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
@@ -159,5 +160,10 @@ export default function App() {
     );
   }
 
-  return user ? <ChatLayout /> : <AuthPage />;
+  return (
+    <>
+      {user ? <ChatLayout /> : <AuthPage />}
+      {user && <GameNotification />}
+    </>
+  );
 }
