@@ -6,14 +6,22 @@ import { useCornerStore } from '../../../store/cornerStore';
 
 interface Bubble {
   id: number;
-  x: number;        // % from left
-  size: number;     // px
-  duration: number; // ms to float up
-  hue: number;      // HSL hue for tint
+  col: number;       // 0–1 starting X fraction of area width
+  size: number;      // diameter px
+  hue: number;
   points: number;
-  popped: boolean;
-  popX?: number;
-  popY?: number;
+  startTime: number; // performance.now()
+  duration: number;  // ms to travel full height
+  amplitude: number; // px of lateral sway
+  phase: number;     // sine wave phase offset
+}
+
+interface RenderBubble extends Bubble {
+  cx: number;      // center X in px (game area coords)
+  cy: number;      // center Y in px (game area coords)
+  opacity: number;
+  sx: number;
+  sy: number;
 }
 
 interface FloatText {
@@ -26,15 +34,23 @@ interface FloatText {
 
 type GameState = 'idle' | 'playing' | 'gameover';
 
-const HS_KEY = 'aero_bubblepop_hs';
+const HS_KEY    = 'aero_bubblepop_hs';
 const MAX_LIVES = 5;
+const HIT_PAD   = 14; // extra px forgiveness beyond bubble radius
 
-function getHighScore(): number {
-  try { return parseInt(localStorage.getItem(HS_KEY) ?? '0', 10) || 0; } catch { return 0; }
-}
-function saveHighScore(s: number) {
-  try { localStorage.setItem(HS_KEY, String(s)); } catch {}
-}
+const COMBO_COLORS = ['#ffffff', '#00d4ff', '#ffd700', '#ff8c00', '#ff4040'];
+
+const IDLE_BUBBLES = [
+  { col: 0.10, size: 52, hue: 195, delay: 0    },
+  { col: 0.28, size: 36, hue: 260, delay: 0.9  },
+  { col: 0.50, size: 60, hue: 160, delay: 1.7  },
+  { col: 0.68, size: 42, hue: 220, delay: 0.5  },
+  { col: 0.82, size: 32, hue: 300, delay: 1.3  },
+  { col: 0.92, size: 46, hue: 30,  delay: 2.1  },
+];
+
+function getHS(): number  { try { return parseInt(localStorage.getItem(HS_KEY) ?? '0', 10) || 0; } catch { return 0; } }
+function saveHS(s: number) { try { localStorage.setItem(HS_KEY, String(s)); } catch {} }
 
 function bubbleGradient(hue: number) {
   return `radial-gradient(
@@ -47,208 +63,266 @@ function bubbleGradient(hue: number) {
   )`;
 }
 
-const IDLE_BUBBLES = [
-  { x: 15, size: 48, hue: 195, delay: 0 },
-  { x: 32, size: 36, hue: 260, delay: 0.8 },
-  { x: 50, size: 56, hue: 160, delay: 1.6 },
-  { x: 65, size: 40, hue: 220, delay: 0.4 },
-  { x: 78, size: 30, hue: 300, delay: 1.2 },
-  { x: 88, size: 44, hue: 30, delay: 2.0 },
-];
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function BubblePop() {
   const { selectGame } = useCornerStore();
   const onBack = () => selectGame(null);
 
-  const [gameState, setGameState] = useState<GameState>('idle');
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(MAX_LIVES);
-  const [level, setLevel] = useState(1);
-  const [combo, setCombo] = useState(0);
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
-  const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
-  const [highScore, setHighScore] = useState(getHighScore);
+  const [gameState,    setGameState]    = useState<GameState>('idle');
+  const [score,        setScore]        = useState(0);
+  const [lives,        setLives]        = useState(MAX_LIVES);
+  const [level,        setLevel]        = useState(1);
+  const [combo,        setCombo]        = useState(0);
+  const [hits,         setHits]         = useState(0);
+  const [misses,       setMisses]       = useState(0);
+  const [renderBubs,   setRenderBubs]   = useState<RenderBubble[]>([]);
+  const [floatTexts,   setFloatTexts]   = useState<FloatText[]>([]);
+  const [highScore,    setHighScore]    = useState(getHS);
 
-  const nextId = useRef(0);
-  const floatId = useRef(0);
-  const poppedRef = useRef<Set<number>>(new Set());
-  const spawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const levelRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const areaRef = useRef<HTMLDivElement>(null);
+  // Canonical refs (used inside RAF / timeouts without stale closure issues)
+  const bubblesRef    = useRef<Bubble[]>([]);
+  const poppedRef     = useRef<Set<number>>(new Set());
+  const rafRef        = useRef<number>(0);
+  const spawnTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const levelTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const comboTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const areaRef       = useRef<HTMLDivElement>(null);
+  const renderBubsRef = useRef<RenderBubble[]>([]);
+  const nextId        = useRef(0);
+  const floatId       = useRef(0);
 
-  const comboRef = useRef(combo);
-  comboRef.current = combo;
-  const scoreRef = useRef(score);
+  // Sync hot refs
+  const gsRef    = useRef<GameState>('idle');
+  const livesRef = useRef(MAX_LIVES);
+  const scoreRef = useRef(0);
+  const levelRef = useRef(1);
+  const comboRef = useRef(0);
+  const hitsRef  = useRef(0);
+  const missesRef = useRef(0);
+  gsRef.current    = gameState;
+  livesRef.current = lives;
   scoreRef.current = score;
-  const levelRef2 = useRef(level);
-  levelRef2.current = level;
+  levelRef.current = level;
+  comboRef.current = combo;
+  hitsRef.current  = hits;
+  missesRef.current = misses;
+  renderBubsRef.current = renderBubs;
+
+  // ── RAF loop ───────────────────────────────────────────────────────────────
+
+  const tick = useCallback(() => {
+    if (gsRef.current !== 'playing') return;
+    const area = areaRef.current;
+    if (!area) { rafRef.current = requestAnimationFrame(tick); return; }
+
+    const W = area.clientWidth;
+    const H = area.clientHeight;
+    const now = performance.now();
+    const rendered: RenderBubble[] = [];
+    let escaped = 0;
+
+    for (const b of bubblesRef.current) {
+      if (poppedRef.current.has(b.id)) continue;
+      const progress = (now - b.startTime) / b.duration;
+
+      if (progress >= 1) {
+        escaped++;
+        continue;
+      }
+
+      // Y: starts at H + size/2 (below screen), rises to -size/2 (above screen)
+      const cy = (H + b.size) * (1 - progress) - b.size / 2;
+      // X: sinusoidal sway
+      const cx = b.col * W + b.amplitude * Math.sin(progress * Math.PI * 2 + b.phase);
+      // Opacity: fade in / fade out
+      const opacity = progress < 0.05 ? progress / 0.05
+                    : progress > 0.88 ? (1 - progress) / 0.12
+                    : 1;
+      // Subtle organic wobble
+      const wobble = Math.sin(progress * Math.PI * 5 + b.phase);
+      const sx = 1 + wobble * 0.018;
+      const sy = 1 - wobble * 0.018;
+
+      rendered.push({ ...b, cx, cy, opacity, sx, sy });
+    }
+
+    setRenderBubs(rendered);
+
+    if (escaped > 0) {
+      bubblesRef.current = bubblesRef.current.filter(b => {
+        const progress = (now - b.startTime) / b.duration;
+        return !(!poppedRef.current.has(b.id) && progress >= 1);
+      });
+
+      const newLives = Math.max(0, livesRef.current - escaped);
+      livesRef.current = newLives;
+      setLives(newLives);
+      if (newLives <= 0) { endGame(); return; }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
 
   // ── Spawn ──────────────────────────────────────────────────────────────────
 
-  const spawnBubble = useCallback(() => {
-    const id = ++nextId.current;
-    const size = 30 + Math.random() * 44;
-    const x = 4 + Math.random() * 88;
-    const duration = 3800 - (levelRef2.current - 1) * 210 + Math.random() * 600;
-    const hue = Math.random() * 360;
-    const points = size < 42 ? 30 : size < 58 ? 20 : 10;
-
-    setBubbles(prev => [...prev, { id, x, size, duration, hue, points, popped: false }]);
-
-    setTimeout(() => {
-      if (!poppedRef.current.has(id)) {
-        setBubbles(prev => prev.filter(b => b.id !== id));
-        setLives(l => {
-          const next = l - 1;
-          if (next <= 0) endGame();
-          return Math.max(0, next);
-        });
-      }
-    }, duration + 200);
+  const scheduleSpawn = useCallback(() => {
+    if (gsRef.current !== 'playing') return;
+    const delay = Math.max(500, 1500 - (levelRef.current - 1) * 90) + Math.random() * 400;
+    spawnTimer.current = setTimeout(() => {
+      if (gsRef.current !== 'playing') return;
+      const id        = ++nextId.current;
+      const size      = 30 + Math.random() * 44;
+      const col       = 0.05 + Math.random() * 0.88;
+      const duration  = 3800 - (levelRef.current - 1) * 210 + Math.random() * 600;
+      const hue       = Math.random() * 360;
+      const points    = size < 42 ? 30 : size < 58 ? 20 : 10;
+      const amplitude = 18 + Math.random() * 22;
+      const phase     = Math.random() * Math.PI * 2;
+      bubblesRef.current = [...bubblesRef.current, { id, col, size, hue, points, startTime: performance.now(), duration, amplitude, phase }];
+      scheduleSpawn();
+    }, delay);
   }, []);
 
   // ── Game control ───────────────────────────────────────────────────────────
 
   function startGame() {
+    bubblesRef.current = [];
     poppedRef.current.clear();
-    setBubbles([]);
-    setFloatTexts([]);
-    setScore(0);
-    setLives(MAX_LIVES);
-    setLevel(1);
-    setCombo(0);
+    setRenderBubs([]); setFloatTexts([]);
+    setScore(0);     scoreRef.current  = 0;
+    setLives(MAX_LIVES); livesRef.current = MAX_LIVES;
+    setLevel(1);     levelRef.current  = 1;
+    setCombo(0);     comboRef.current  = 0;
+    setHits(0);      hitsRef.current   = 0;
+    setMisses(0);    missesRef.current = 0;
+    gsRef.current = 'playing';
     setGameState('playing');
   }
 
   function endGame() {
+    gsRef.current = 'gameover';
     setGameState('gameover');
-    if (spawnRef.current) clearInterval(spawnRef.current);
-    if (levelRef.current) clearInterval(levelRef.current);
-    spawnRef.current = null;
-    levelRef.current = null;
-    setHighScore(prev => {
-      const final = Math.max(prev, scoreRef.current);
-      saveHighScore(final);
-      return final;
-    });
+    cancelAnimationFrame(rafRef.current);
+    if (spawnTimer.current) clearTimeout(spawnTimer.current);
+    if (levelTimer.current) clearInterval(levelTimer.current);
+    setHighScore(prev => { const f = Math.max(prev, scoreRef.current); saveHS(f); return f; });
   }
-
-  // ── Spawn & level intervals ────────────────────────────────────────────────
 
   useEffect(() => {
     if (gameState !== 'playing') return;
+    rafRef.current = requestAnimationFrame(tick);
+    scheduleSpawn();
+    levelTimer.current = setInterval(() => {
+      setLevel(l => { const n = Math.min(9, l + 1); levelRef.current = n; return n; });
+    }, 15_000);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (spawnTimer.current) clearTimeout(spawnTimer.current);
+      if (levelTimer.current) clearInterval(levelTimer.current);
+    };
+  }, [gameState, tick, scheduleSpawn]);
 
-    function startSpawner() {
-      if (spawnRef.current) clearInterval(spawnRef.current);
-      const interval = Math.max(500, 1600 - (levelRef2.current - 1) * 120);
-      spawnRef.current = setInterval(spawnBubble, interval);
+  // ── Click handling ─────────────────────────────────────────────────────────
+
+  function handleAreaClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (gsRef.current !== 'playing') return;
+    const rect = areaRef.current!.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+
+    // Find nearest bubble within hit radius
+    let best: RenderBubble | null = null;
+    let bestDist = Infinity;
+    for (const rb of renderBubsRef.current) {
+      if (poppedRef.current.has(rb.id)) continue;
+      const d = Math.sqrt((cx - rb.cx) ** 2 + (cy - rb.cy) ** 2);
+      if (d <= rb.size / 2 + HIT_PAD && d < bestDist) { bestDist = d; best = rb; }
     }
 
-    startSpawner();
-    levelRef.current = setInterval(() => {
-      setLevel(l => {
-        const next = Math.min(9, l + 1);
-        levelRef2.current = next;
-        startSpawner();
-        return next;
-      });
-    }, 15_000);
+    if (best) {
+      popBubble(best, cx, cy);
+    } else {
+      const m = missesRef.current + 1;
+      missesRef.current = m;
+      setMisses(m);
+    }
+  }
 
-    spawnBubble();
-
-    return () => {
-      if (spawnRef.current) clearInterval(spawnRef.current);
-      if (levelRef.current) clearInterval(levelRef.current);
-    };
-  }, [gameState, spawnBubble]);
-
-  // ── Pop handler ────────────────────────────────────────────────────────────
-
-  function popBubble(bubble: Bubble, e: React.MouseEvent) {
-    if (bubble.popped) return;
-    e.stopPropagation();
-
-    poppedRef.current.add(bubble.id);
+  function popBubble(rb: RenderBubble, clickX: number, clickY: number) {
+    poppedRef.current.add(rb.id);
+    bubblesRef.current = bubblesRef.current.filter(b => b.id !== rb.id);
 
     const newCombo = comboRef.current + 1;
+    comboRef.current = newCombo;
     setCombo(newCombo);
-    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
-    comboTimerRef.current = setTimeout(() => setCombo(0), 1200);
+    if (comboTimer.current) clearTimeout(comboTimer.current);
+    comboTimer.current = setTimeout(() => { comboRef.current = 0; setCombo(0); }, 1200);
 
-    const multiplier = newCombo >= 5 ? 5 : newCombo >= 3 ? 3 : 1;
-    const earned = bubble.points * multiplier;
-    setScore(s => s + earned);
+    const multiplier = Math.min(newCombo, 5);
+    const earned     = rb.points * multiplier;
+    const newScore   = scoreRef.current + earned;
+    scoreRef.current = newScore;
+    setScore(newScore);
 
-    const rect = areaRef.current?.getBoundingClientRect();
-    const fx = rect ? e.clientX - rect.left : e.clientX;
-    const fy = rect ? e.clientY - rect.top : e.clientY;
-    const ftId = ++floatId.current;
-    const color = multiplier >= 5 ? '#ff8c00' : multiplier >= 3 ? '#00d4ff' : '#ffffff';
-    const text = multiplier > 1 ? `${multiplier}× ${earned}` : `+${earned}`;
-    setFloatTexts(prev => [...prev, { id: ftId, x: fx, y: fy, text, color }]);
-    setTimeout(() => setFloatTexts(prev => prev.filter(f => f.id !== ftId)), 700);
+    const newHits = hitsRef.current + 1;
+    hitsRef.current = newHits;
+    setHits(newHits);
 
-    setBubbles(prev => prev.map(b =>
-      b.id === bubble.id ? { ...b, popped: true, popX: fx, popY: fy } : b
-    ));
-    setTimeout(() => {
-      setBubbles(prev => prev.filter(b => b.id !== bubble.id));
-    }, 350);
+    // Float text
+    const fid   = ++floatId.current;
+    const color = COMBO_COLORS[Math.min(newCombo - 1, 4)];
+    const text  = multiplier > 1 ? `×${multiplier} +${earned}` : `+${earned}`;
+    setFloatTexts(prev => [...prev, { id: fid, x: clickX, y: clickY, text, color }]);
+    setTimeout(() => setFloatTexts(prev => prev.filter(f => f.id !== fid)), 700);
   }
+
+  // Derived
+  const totalShots = hits + misses;
+  const accuracy   = totalShots > 0 ? Math.round(hits / totalShots * 100) : 100;
+  const comboColor = combo > 0 ? COMBO_COLORS[Math.min(combo - 1, 4)] : '#fff';
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full flex-col" style={{ userSelect: 'none' }}>
 
-      {/* Header — extra right padding to clear the fixed ThemeSwitcher */}
+      {/* Header */}
       <div
         className="flex items-center gap-4 py-4 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--panel-divider)', paddingLeft: 24, paddingRight: 72 }}
+        style={{ borderBottom: '1px solid var(--panel-divider)', paddingLeft: 24, paddingRight: 24 }}
       >
         <button
           onClick={onBack}
           className="flex h-8 w-8 items-center justify-center rounded-xl transition-all flex-shrink-0"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            color: 'var(--text-muted)',
-          }}
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'var(--text-muted)' }}
           onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
 
-        <div className="flex items-center gap-2.5 flex-1">
-          <span style={{ fontSize: 22 }}>🫧</span>
+        <div className="flex items-center gap-2 flex-1">
+          <span style={{ fontSize: 20 }}>🫧</span>
           <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Bubble Pop</p>
         </div>
 
-        {/* HUD — spread out on the right */}
+        {/* HUD */}
         {gameState === 'playing' && (
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Level</span>
-              <span className="text-lg font-bold" style={{ color: '#00d4ff' }}>{level}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Score</span>
-              <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                {score.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-5">
+            {[
+              { label: 'Level',    value: String(level),                    color: '#00d4ff' },
+              { label: 'Score',    value: score.toLocaleString(),           color: 'var(--text-primary)' },
+              { label: 'Accuracy', value: `${accuracy}%`,                  color: accuracy >= 80 ? '#00d4ff' : accuracy >= 55 ? '#ffd700' : '#ff6060' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex flex-col items-center" style={{ minWidth: 44 }}>
+                <span className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                <span className="text-base font-bold tabular-nums" style={{ color }}>{value}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-0.5 ml-1">
               {Array.from({ length: MAX_LIVES }, (_, i) => (
-                <span
-                  key={i}
-                  style={{ opacity: i < lives ? 1 : 0.2, fontSize: 20, transition: 'opacity 0.2s' }}
-                >
-                  🫧
-                </span>
+                <span key={i} style={{ opacity: i < lives ? 1 : 0.18, fontSize: 18, transition: 'opacity 0.25s' }}>🫧</span>
               ))}
             </div>
           </div>
@@ -259,69 +333,92 @@ export function BubblePop() {
       <div
         ref={areaRef}
         className="relative flex-1 overflow-hidden"
-        style={{ background: 'linear-gradient(180deg, rgba(0,8,30,0.97) 0%, rgba(0,16,50,0.95) 100%)' }}
+        style={{ cursor: gameState === 'playing' ? 'crosshair' : 'default' }}
+        onClick={handleAreaClick}
       >
+
+        {/* ── Frutiger Aero background ── */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+          {/* Deep navy base */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(165deg, #020d24 0%, #041533 45%, #071f42 100%)' }} />
+          {/* Cyan glow — top right */}
+          <div style={{
+            position: 'absolute', top: '-20%', right: '-10%',
+            width: '60%', height: '60%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,190,255,0.22) 0%, transparent 68%)',
+            filter: 'blur(55px)',
+          }} />
+          {/* Royal blue — bottom left */}
+          <div style={{
+            position: 'absolute', bottom: '-20%', left: '-12%',
+            width: '65%', height: '65%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,80,230,0.28) 0%, transparent 68%)',
+            filter: 'blur(65px)',
+          }} />
+          {/* Teal accent — mid */}
+          <div style={{
+            position: 'absolute', top: '30%', left: '28%',
+            width: '40%', height: '40%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,220,195,0.13) 0%, transparent 65%)',
+            filter: 'blur(70px)',
+          }} />
+          {/* Subtle grid */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }} />
+          {/* Bottom shimmer line */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.25) 50%, transparent 100%)',
+          }} />
+        </div>
 
         {/* ── Idle screen ── */}
         {gameState === 'idle' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-center">
-            {/* Preview bubbles */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-center" style={{ zIndex: 5 }}>
             {IDLE_BUBBLES.map(b => (
               <div
-                key={b.x}
+                key={b.col}
                 className="absolute rounded-full pointer-events-none"
                 style={{
                   width: b.size, height: b.size,
-                  left: `${b.x}%`,
+                  left: `${b.col * 100}%`,
                   bottom: '-8%',
                   background: bubbleGradient(b.hue),
                   border: '1px solid rgba(255,255,255,0.65)',
-                  boxShadow: 'inset 0 0 8px rgba(255,255,255,0.45), inset -2px -2px 5px rgba(120,190,255,0.25)',
+                  boxShadow: 'inset 0 0 8px rgba(255,255,255,0.45)',
                   animation: `bubble-idle 3.5s ${b.delay}s ease-in-out infinite`,
                 }}
               />
             ))}
 
             <div className="relative z-10 flex flex-col items-center gap-5">
-              <div
-                className="flex h-20 w-20 items-center justify-center rounded-3xl"
-                style={{
-                  background: 'rgba(0,212,255,0.12)',
-                  border: '1px solid rgba(0,212,255,0.30)',
-                  boxShadow: '0 0 36px rgba(0,212,255,0.18)',
-                  fontSize: 42,
-                }}
-              >
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl"
+                style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.30)', boxShadow: '0 0 40px rgba(0,212,255,0.20)', fontSize: 42 }}>
                 🫧
               </div>
-
               <div>
                 <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bubble Pop</p>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-muted)', maxWidth: 340 }}>
-                  Pop bubbles before they float away!
-                  Small bubbles are worth more points. Chain pops for combo multipliers.
+                  Pop bubbles before they float away!<br />
+                  Small bubbles = more points. Chain for combos.
                 </p>
               </div>
-
               {highScore > 0 && (
                 <div className="flex items-center gap-2 text-sm" style={{ color: '#00d4ff' }}>
                   <Trophy className="h-4 w-4" />
                   Best: {highScore.toLocaleString()}
                 </div>
               )}
-
               <button
                 onClick={startGame}
                 className="rounded-aero-lg px-12 py-3 text-base font-bold transition-all active:scale-95 hover:brightness-110"
-                style={{
-                  background: 'linear-gradient(135deg, #00d4ff, #0099cc)',
-                  color: '#000',
-                  boxShadow: '0 6px 24px rgba(0,212,255,0.40)',
-                }}
+                style={{ background: 'linear-gradient(135deg, #00d4ff, #0099cc)', color: '#000', boxShadow: '0 6px 24px rgba(0,212,255,0.40)' }}
               >
                 Play
               </button>
-
               <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <span>🔵 Large = 10pts</span>
                 <span>🟡 Medium = 20pts</span>
@@ -331,74 +428,70 @@ export function BubblePop() {
           </div>
         )}
 
-        {/* ── Playing: bubbles ── */}
-        {gameState === 'playing' && bubbles.map(bubble => (
+        {/* ── Live bubbles (RAF positioned) ── */}
+        {gameState === 'playing' && renderBubs.map(rb => (
           <div
-            key={bubble.id}
-            onClick={bubble.popped ? undefined : (e) => popBubble(bubble, e)}
+            key={rb.id}
             style={{
               position: 'absolute',
-              bottom: '-5%',
-              left: `${bubble.x}%`,
-              width: bubble.size,
-              height: bubble.size,
+              left: 0, top: 0,
+              width: rb.size,
+              height: rb.size,
               borderRadius: '50%',
-              cursor: bubble.popped ? 'default' : 'pointer',
-              background: bubbleGradient(bubble.hue),
+              background: bubbleGradient(rb.hue),
               border: '1px solid rgba(255,255,255,0.72)',
-              boxShadow: `inset 0 0 ${bubble.size * 0.3}px rgba(255,255,255,0.50), inset -2px -3px 6px rgba(120,190,255,0.30), 0 2px 8px rgba(0,100,180,0.12)`,
-              animation: bubble.popped
-                ? 'bubble-pop 0.32s ease-out forwards'
-                : `bubble-float-up ${bubble.duration}ms linear forwards`,
-              transformOrigin: 'center center',
+              boxShadow: `inset 0 0 ${rb.size * 0.28}px rgba(255,255,255,0.55), inset -2px -3px 6px rgba(120,190,255,0.30), 0 3px 14px rgba(0,100,200,0.22)`,
+              opacity: rb.opacity,
+              // Single GPU-composited transform — also what the hit zone matches
+              transform: `translate(${rb.cx - rb.size / 2}px, ${rb.cy - rb.size / 2}px) scale(${rb.sx}, ${rb.sy})`,
               willChange: 'transform, opacity',
+              pointerEvents: 'none',
+              zIndex: 5,
             }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                top: '18%', left: '22%',
-                width: '28%', height: '18%',
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.75)',
-                filter: 'blur(2px)',
-                pointerEvents: 'none',
-              }}
-            />
+            <div style={{ position: 'absolute', top: '16%', left: '20%', width: '30%', height: '20%', borderRadius: '50%', background: 'rgba(255,255,255,0.80)', filter: 'blur(2px)', pointerEvents: 'none' }} />
           </div>
         ))}
 
-        {/* Combo banner */}
-        {gameState === 'playing' && combo >= 3 && (
+        {/* ── Combo display ── */}
+        {gameState === 'playing' && combo > 0 && (
           <div
-            className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-5 py-1.5 text-sm font-bold animate-fade-in"
-            style={{
-              background: combo >= 5 ? 'rgba(255,140,0,0.90)' : 'rgba(0,212,255,0.90)',
-              color: '#000',
-              boxShadow: combo >= 5 ? '0 0 18px rgba(255,140,0,0.55)' : '0 0 18px rgba(0,212,255,0.55)',
-              zIndex: 20,
-            }}
+            key={combo}
+            className="absolute pointer-events-none"
+            style={{ top: '22%', left: '50%', zIndex: 20, animation: 'combo-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}
           >
-            {combo >= 5 ? `🔥 ${combo}× COMBO!` : `✨ ${combo}× Combo`}
+            <div style={{
+              transform: 'translateX(-50%)',
+              fontSize: Math.min(56 + combo * 7, 96),
+              fontWeight: 900,
+              lineHeight: 1,
+              color: comboColor,
+              textShadow: `0 0 24px ${comboColor}, 0 0 50px ${comboColor}77`,
+              whiteSpace: 'nowrap',
+            }}>
+              ×{combo}
+            </div>
+            {combo >= 3 && (
+              <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: comboColor, marginTop: 5, transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}>
+                {combo >= 5 ? '🔥 ULTRA COMBO!' : '✨ COMBO!'}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Float texts */}
+        {/* ── Float texts ── */}
         {floatTexts.map(ft => (
           <div
             key={ft.id}
             style={{
               position: 'absolute',
-              left: ft.x - 20,
-              top: ft.y - 10,
+              left: ft.x - 22, top: ft.y - 12,
               pointerEvents: 'none',
-              fontWeight: 700,
-              fontSize: 14,
+              fontWeight: 800, fontSize: 14,
               color: ft.color,
               textShadow: `0 0 8px ${ft.color}`,
               animation: 'score-float 0.7s ease-out forwards',
-              zIndex: 30,
-              whiteSpace: 'nowrap',
+              zIndex: 30, whiteSpace: 'nowrap',
             }}
           >
             {ft.text}
@@ -407,38 +500,40 @@ export function BubblePop() {
 
         {/* ── Game over ── */}
         {gameState === 'gameover' && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-5"
-            style={{ background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)' }}
-          >
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5"
+            style={{ background: 'rgba(2,13,36,0.72)', backdropFilter: 'blur(8px)', zIndex: 40 }}>
             <div style={{ fontSize: 52 }}>💥</div>
-
             <div className="text-center">
               <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Game Over</p>
-              <p className="mt-1 text-4xl font-bold tabular-nums" style={{ color: '#00d4ff' }}>
-                {score.toLocaleString()}
-              </p>
+              <p className="mt-1 text-4xl font-bold tabular-nums" style={{ color: '#00d4ff' }}>{score.toLocaleString()}</p>
               {score > 0 && score >= highScore && (
                 <p className="mt-2 text-sm font-bold" style={{ color: '#ffd700' }}>🏆 New High Score!</p>
               )}
             </div>
-
+            {/* Stats row */}
+            <div className="flex items-center gap-8 text-sm">
+              {[
+                { label: 'Accuracy', value: `${accuracy}%` },
+                { label: 'Hits',     value: hits.toString() },
+                { label: 'Misses',   value: misses.toString() },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex flex-col items-center gap-0.5">
+                  <span style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+                </div>
+              ))}
+            </div>
             {highScore > 0 && (
               <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
                 <Trophy className="h-4 w-4" />
                 Best: {highScore.toLocaleString()}
               </div>
             )}
-
             <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
                 className="rounded-aero-lg px-6 py-2.5 text-sm font-semibold transition-all active:scale-95"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'var(--text-secondary)',
-                }}
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-secondary)' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.13)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'}
               >
@@ -447,11 +542,7 @@ export function BubblePop() {
               <button
                 onClick={startGame}
                 className="rounded-aero-lg px-8 py-2.5 text-sm font-bold transition-all active:scale-95 hover:brightness-110"
-                style={{
-                  background: 'linear-gradient(135deg, #00d4ff, #0099cc)',
-                  color: '#000',
-                  boxShadow: '0 4px 18px rgba(0,212,255,0.35)',
-                }}
+                style={{ background: 'linear-gradient(135deg, #00d4ff, #0099cc)', color: '#000', boxShadow: '0 4px 18px rgba(0,212,255,0.35)' }}
               >
                 Play Again
               </button>
@@ -460,26 +551,23 @@ export function BubblePop() {
         )}
       </div>
 
-      {/* Footer — size legend + hint */}
+      {/* Footer — size legend */}
       {gameState === 'playing' && (
         <div
           className="px-6 py-2.5 flex items-center justify-center gap-5 flex-shrink-0 text-[11px]"
           style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--panel-divider)' }}
         >
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block rounded-full" style={{ width: 10, height: 10, background: '#4fc3f7', border: '1px solid rgba(255,255,255,0.4)', flexShrink: 0 }} />
-            <span>Large = 10pts</span>
-          </div>
-          <span style={{ opacity: 0.3 }}>·</span>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block rounded-full" style={{ width: 8, height: 8, background: '#ffd54f', border: '1px solid rgba(255,255,255,0.4)', flexShrink: 0 }} />
-            <span>Medium = 20pts</span>
-          </div>
-          <span style={{ opacity: 0.3 }}>·</span>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block rounded-full" style={{ width: 6, height: 6, background: '#ef9a9a', border: '1px solid rgba(255,255,255,0.4)', flexShrink: 0 }} />
-            <span>Small = 30pts</span>
-          </div>
+          {[
+            { size: 10, color: '#4fc3f7', label: 'Large = 10pts' },
+            { size: 8,  color: '#ffd54f', label: 'Medium = 20pts' },
+            { size: 6,  color: '#ef9a9a', label: 'Small = 30pts' },
+          ].map(({ size, color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className="inline-block rounded-full flex-shrink-0"
+                style={{ width: size, height: size, background: color, border: '1px solid rgba(255,255,255,0.35)' }} />
+              <span>{label}</span>
+            </div>
+          ))}
           <span style={{ opacity: 0.3 }}>·</span>
           <span>Chain pops = combo ×</span>
         </div>

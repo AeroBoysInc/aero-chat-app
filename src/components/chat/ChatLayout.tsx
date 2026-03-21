@@ -55,10 +55,12 @@ export function ChatLayout() {
   return (
     <div className="relative flex h-screen overflow-hidden p-3 gap-2">
 
-      {/* Theme switcher — fixed top-right */}
-      <div className="fixed top-4 right-5 z-50 drag-region">
-        <ThemeSwitcher />
-      </div>
+      {/* Theme switcher — hidden during game view so it doesn't overlap */}
+      {!gameViewActive && (
+        <div className="fixed top-4 right-5 z-50 drag-region">
+          <ThemeSwitcher />
+        </div>
+      )}
 
       {/* ── Corner Rail — always visible ── */}
       <CornerRail />
