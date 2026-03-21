@@ -52,6 +52,23 @@ export function clearChatCache(contactId: string) {
   try { localStorage.removeItem(msgKey(contactId)); } catch {}
 }
 
+// ── Per-user clear timestamps ────────────────────────────────────────────────
+// Stores the ISO timestamp of when a user last cleared a specific chat.
+// History loads filter out messages older than this timestamp so cleared
+// messages never reappear on refresh — without touching the other user's data.
+
+function clearTsKey(userId: string, contactId: string) {
+  return `aero-clear-${userId}-${contactId}`;
+}
+
+export function saveClearTimestamp(userId: string, contactId: string) {
+  try { localStorage.setItem(clearTsKey(userId, contactId), new Date().toISOString()); } catch {}
+}
+
+export function loadClearTimestamp(userId: string, contactId: string): string | null {
+  try { return localStorage.getItem(clearTsKey(userId, contactId)); } catch { return null; }
+}
+
 export function clearAllChatCaches() {
   try {
     const toRemove: string[] = [];

@@ -6,7 +6,7 @@ import { useAuthStore, type Profile } from '../../store/authStore';
 import { useUnreadStore } from '../../store/unreadStore';
 import { useTypingStore } from '../../store/typingStore';
 import { useFriendStore } from '../../store/friendStore';
-import { loadChatCache, saveChatCache, clearChatCache } from '../../lib/chatCache';
+import { loadChatCache, saveChatCache, clearChatCache, saveClearTimestamp, loadClearTimestamp } from '../../lib/chatCache';
 import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
 
@@ -50,8 +50,8 @@ export function ChatWindow({ contact }: Props) {
   const [input,         setInput]         = useState('');
   const [sending,       setSending]       = useState(false);
   const [sendError,     setSendError]     = useState('');
-  const [contactTyping, setContactTyping] = useState(false);
-  const [confirmClear,  setConfirmClear]  = useState(false);
+  const [contactTyping,  setContactTyping]  = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
 
   const bottomRef        = useRef<HTMLDivElement>(null);
   const contactKeyRef    = useRef<string | null>(null);
@@ -74,7 +74,7 @@ export function ChatWindow({ contact }: Props) {
     if (!user) return;
     // Show cache immediately while fresh data loads from DB
     setMessages(loadChatCache(contact.id));
-    setConfirmClear(false);
+    setShowClearModal(false);
     contactKeyRef.current = null;
     pendingDecrypt.current = [];
     historyLoadedRef.current = false;
@@ -99,7 +99,9 @@ export function ChatWindow({ contact }: Props) {
             .order('created_at', { ascending: true }),
         ]);
 
+        const clearTs = loadClearTimestamp(user.id, contact.id);
         const all = [...(sent ?? []), ...(received ?? [])]
+          .filter(m => !clearTs || m.created_at > clearTs)
           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         // Flush any realtime messages that arrived before the key was ready
@@ -294,10 +296,23 @@ export function ChatWindow({ contact }: Props) {
       <div className="drag-region flex items-center gap-3 px-6 py-3.5"
         style={{ borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
         <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" status={liveStatus} />
-        <div className="no-drag flex-1">
-          <p className="font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 15 }}>
-            {contact.username}
-          </p>
+        <div className="no-drag flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 15 }}>
+              {contact.username}
+            </p>
+            {/* Clear chat button — next to name */}
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="no-drag flex-shrink-0 rounded-aero p-1 transition-all"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              title="Clear chat"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
           {contactTyping ? (
             <p className="flex items-center gap-1.5 text-[11px] italic" style={{ color: '#1a6fd4' }}>
               <span className="typing-dots" style={{ color: '#1a6fd4' }}>
@@ -318,36 +333,57 @@ export function ChatWindow({ contact }: Props) {
           <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
             <Lock className="h-3 w-3" />
           </div>
-          {/* Clear chat button */}
-          {!confirmClear ? (
-            <button
-              onClick={() => setConfirmClear(true)}
-              className="rounded-aero p-1.5 transition-all"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-              title="Clear chat"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5 rounded-aero px-2 py-1"
-              style={{ background: 'rgba(220,60,60,0.10)', border: '1px solid rgba(200,60,60,0.25)' }}>
-              <span className="text-[10px]" style={{ color: '#c03030' }}>Clear chat?</span>
-              <button
-                onClick={() => { clearChatCache(contact.id); setMessages([]); setConfirmClear(false); }}
-                className="text-[10px] font-bold rounded px-1.5 py-0.5 transition-colors"
-                style={{ color: '#fff', background: '#d03030' }}
-              >Yes</button>
-              <button
-                onClick={() => setConfirmClear(false)}
-                className="text-[10px] font-medium rounded px-1.5 py-0.5"
-                style={{ color: 'var(--text-muted)' }}
-              >No</button>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Clear chat confirmation modal */}
+      {showClearModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowClearModal(false)}
+        >
+          <div
+            className="glass-elevated mx-4 w-full max-w-sm p-6 animate-fade-in"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+                style={{ background: 'rgba(220,60,60,0.12)', border: '1px solid rgba(200,60,60,0.30)' }}>
+                <Trash2 className="h-5 w-5" style={{ color: '#d03030' }} />
+              </div>
+              <div>
+                <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Clear conversation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>with {contact.username}</p>
+              </div>
+            </div>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              This will permanently remove all messages in this conversation <strong>from your view only</strong>.
+              {contact.username} will still be able to see their copy of the chat.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowClearModal(false)}
+                className="aero-btn px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  saveClearTimestamp(user!.id, contact.id);
+                  clearChatCache(contact.id);
+                  setMessages([]);
+                  setShowClearModal(false);
+                }}
+                className="rounded-aero px-4 py-2 text-sm font-semibold transition-all active:scale-95"
+                style={{ background: 'linear-gradient(180deg,#f05050 0%,#c02020 100%)', color: '#fff', border: '1px solid rgba(200,60,60,0.60)', boxShadow: '0 3px 12px rgba(180,0,0,0.30)' }}
+              >
+                Clear chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="relative flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1" style={{ contain: 'layout paint' }}>
