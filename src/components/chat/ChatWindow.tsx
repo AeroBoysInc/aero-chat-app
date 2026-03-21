@@ -6,6 +6,7 @@ import { useAuthStore, type Profile } from '../../store/authStore';
 import { useUnreadStore } from '../../store/unreadStore';
 import { useTypingStore } from '../../store/typingStore';
 import { useFriendStore } from '../../store/friendStore';
+import { useCornerStore } from '../../store/cornerStore';
 import { loadChatCache, saveChatCache, clearChatCache, saveClearTimestamp, loadClearTimestamp } from '../../lib/chatCache';
 import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
@@ -122,6 +123,7 @@ export function ChatWindow({ contact }: Props) {
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
   const { friends } = useFriendStore();
+  const { gameViewActive } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
@@ -149,13 +151,14 @@ export function ChatWindow({ contact }: Props) {
   const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
   const audioChunksRef     = useRef<Blob[]>([]);
   const recordTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inputRef           = useRef<HTMLInputElement>(null);
 
   const hasPrivateKey = !!loadPrivateKey(user?.id);
 
-  // Clear unread when this chat is opened
+  // Clear unread when this chat is opened or when returning from game view
   useEffect(() => {
-    clear(contact.id);
-  }, [contact.id]);
+    if (!gameViewActive) clear(contact.id);
+  }, [contact.id, gameViewActive]);
 
   // Fetch contact key then load history
   useEffect(() => {
@@ -294,8 +297,10 @@ export function ChatWindow({ contact }: Props) {
           saveChatCache(contact.id, next);
           return next;
         });
-        clear(contact.id); // message arrived while viewing — keep at 0
-        markMessagesRead();
+        if (!useCornerStore.getState().gameViewActive) {
+          clear(contact.id); // message arrived while viewing — keep at 0
+          markMessagesRead();
+        }
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -417,6 +422,7 @@ export function ChatWindow({ contact }: Props) {
       setInput('');
     }
     setSending(false);
+    inputRef.current?.focus();
   }
 
   // ── Reactions ────────────────────────────────────────────────────────────────
@@ -819,6 +825,7 @@ export function ChatWindow({ contact }: Props) {
         ) : (
           <div className="flex items-center gap-3">
             <input
+              ref={inputRef}
               className="aero-input flex-1 py-2.5 text-sm"
               placeholder={`Message ${contact.username}…`}
               value={input}
