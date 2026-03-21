@@ -1,62 +1,76 @@
 import { create } from 'zustand';
 
-export type CornerPanel = 'games' | 'video' | null;
+export type CornerPanel = 'games' | 'music' | null;
+
+const SPOTIFY_KEY = 'aero_spotify_connected';
 
 interface CornerStore {
   activePanel: CornerPanel;
   setActivePanel: (p: CornerPanel) => void;
 
-  // Video state — persists while video plays even when panel is closed
-  videoInputUrl: string;
-  videoId: string | null;
-  videoTitle: string;
-  videoIsPlaying: boolean;
-  videoCurrentTime: number; // seconds
+  // Spotify connection — 'connected' persists to localStorage
+  spotifyConnected: boolean;
+  setSpotifyConnected: (v: boolean) => void;
 
-  setVideoInputUrl: (url: string) => void;
-  setVideoId: (id: string | null) => void;
-  setVideoTitle: (t: string) => void;
-  setVideoIsPlaying: (v: boolean) => void;
-  setVideoCurrentTime: (t: number) => void;
+  // Music player state — stays alive while panel is hidden
+  musicInputUrl: string;
+  musicEmbedUrl: string | null;
+  musicTitle: string;
+
+  setMusicInputUrl: (url: string) => void;
+  setMusicEmbedUrl: (url: string | null) => void;
+  setMusicTitle: (t: string) => void;
 }
 
 export const useCornerStore = create<CornerStore>()((set) => ({
   activePanel: null,
   setActivePanel: (activePanel) => set({ activePanel }),
 
-  videoInputUrl: '',
-  videoId: null,
-  videoTitle: '',
-  videoIsPlaying: false,
-  videoCurrentTime: 0,
+  spotifyConnected: false,          // true once user approves in current session
+  setSpotifyConnected: (spotifyConnected) => {
+    if (spotifyConnected) localStorage.setItem(SPOTIFY_KEY, '1');
+    else localStorage.removeItem(SPOTIFY_KEY);
+    set({ spotifyConnected });
+  },
 
-  setVideoInputUrl: (videoInputUrl) => set({ videoInputUrl }),
-  setVideoId: (videoId) => set({ videoId }),
-  setVideoTitle: (videoTitle) => set({ videoTitle }),
-  setVideoIsPlaying: (videoIsPlaying) => set({ videoIsPlaying }),
-  setVideoCurrentTime: (videoCurrentTime) => set({ videoCurrentTime }),
+  musicInputUrl: '',
+  musicEmbedUrl: null,
+  musicTitle: '',
+
+  setMusicInputUrl: (musicInputUrl) => set({ musicInputUrl }),
+  setMusicEmbedUrl: (musicEmbedUrl) => set({ musicEmbedUrl }),
+  setMusicTitle: (musicTitle) => set({ musicTitle }),
 }));
 
-export function parseYouTubeId(url: string): string | null {
+/** Returns true if the user approved Spotify in a previous session */
+export function wasSpotifyConnected(): boolean {
+  try { return localStorage.getItem('aero_spotify_connected') === '1'; } catch { return false; }
+}
+
+/** Parse any Spotify URL and return the embed URL + display info */
+export function parseSpotify(url: string): { embedUrl: string; type: string } | null {
   try {
     const u = new URL(url.trim());
-    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
-    if (u.hostname.includes('youtube.com')) {
-      // /watch?v=ID
-      const v = u.searchParams.get('v');
-      if (v) return v;
-      // /embed/ID or /shorts/ID
-      const parts = u.pathname.split('/').filter(Boolean);
-      if (parts[0] === 'embed' || parts[0] === 'shorts') return parts[1] ?? null;
-    }
+    if (!u.hostname.includes('spotify.com')) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    const validTypes = ['track', 'album', 'playlist', 'artist', 'episode', 'show'];
+    const type = parts[0];
+    const id = parts[1]?.split('?')[0];
+    if (!validTypes.includes(type) || !id) return null;
+    return {
+      embedUrl: `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`,
+      type,
+    };
   } catch {}
   return null;
 }
 
-export function fmtTime(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${m}:${String(sec).padStart(2, '0')}`;
+/** Fetch track/album/playlist title via Spotify oEmbed (no API key required) */
+export async function fetchSpotifyTitle(url: string): Promise<string> {
+  try {
+    const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`);
+    if (!res.ok) return '';
+    const data = await res.json();
+    return (data.title as string) ?? '';
+  } catch { return ''; }
 }

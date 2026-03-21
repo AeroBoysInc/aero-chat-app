@@ -6,7 +6,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
-import { VideoCorner } from '../corners/VideoCorner';
+import { MusicCorner } from '../corners/MusicCorner';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 
@@ -80,17 +80,17 @@ export function ChatLayout() {
         <GamesCorner />
       </div>
 
-      {/* Video panel — stays mounted so audio continues when panel is closed */}
+      {/* Music panel — stays mounted so Spotify keeps playing when panel is closed */}
       <div
         style={{
-          width: activePanel === 'video' ? PANEL_WIDTH : 0,
+          width: activePanel === 'music' ? PANEL_WIDTH : 0,
           flexShrink: 0,
           overflow: 'hidden',
           transition: 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        <VideoCorner />
+        <MusicCorner />
       </div>
 
       {/* ── Main content — clicking here closes the active panel ── */}
