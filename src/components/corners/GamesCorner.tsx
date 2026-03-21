@@ -1,18 +1,181 @@
-import { Gamepad2, Sword, Puzzle, Dices, Trophy } from 'lucide-react';
+import { Gamepad2, Puzzle, Dices, Sword, Trophy, ArrowLeft } from 'lucide-react';
+import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
+import { BubblePop } from './games/BubblePop';
 
-const COMING_SOON = [
-  { icon: Puzzle,   label: 'Word Puzzle',   desc: 'Guess the word in 6 tries'     },
-  { icon: Dices,    label: '2048',          desc: 'Slide tiles to reach 2048'     },
-  { icon: Sword,    label: 'Rock Paper Scissors', desc: 'Play against your friends' },
-  { icon: Trophy,   label: 'Trivia',        desc: 'Test your knowledge'           },
+interface GameEntry {
+  id: SelectedGame;
+  icon: string | React.FC<{ className?: string; style?: React.CSSProperties }>;
+  label: string;
+  desc: string;
+  available: boolean;
+  color: string;
+}
+
+const GAMES: GameEntry[] = [
+  {
+    id: 'bubblepop',
+    icon: '🫧',
+    label: 'Bubble Pop',
+    desc: 'Pop bubbles before they escape!',
+    available: true,
+    color: '#00d4ff',
+  },
+  {
+    id: null,
+    icon: Puzzle,
+    label: 'Word Puzzle',
+    desc: 'Guess the word in 6 tries',
+    available: false,
+    color: '#a78bfa',
+  },
+  {
+    id: null,
+    icon: Dices,
+    label: '2048',
+    desc: 'Slide tiles to reach 2048',
+    available: false,
+    color: '#fb923c',
+  },
+  {
+    id: null,
+    icon: Sword,
+    label: 'Rock Paper Scissors',
+    desc: 'Play against a friend',
+    available: false,
+    color: '#34d399',
+  },
+  {
+    id: null,
+    icon: Trophy,
+    label: 'Trivia',
+    desc: 'Test your knowledge',
+    available: false,
+    color: '#fbbf24',
+  },
 ];
 
+// ── Game Hub ─────────────────────────────────────────────────────────────────
+
+function GameHub() {
+  const { closeGameView, selectGame } = useCornerStore();
+
+  return (
+    <div className="flex h-full flex-col">
+
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-6 py-5 flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--panel-divider)' }}
+      >
+        <button
+          onClick={closeGameView}
+          className="flex h-8 w-8 items-center justify-center rounded-xl transition-all flex-shrink-0"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            color: 'var(--text-muted)',
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-xl flex-shrink-0"
+          style={{ background: 'rgba(0,212,255,0.15)', border: '1px solid rgba(0,212,255,0.30)' }}
+        >
+          <Gamepad2 className="h-5 w-5" style={{ color: '#00d4ff' }} />
+        </div>
+
+        <div>
+          <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Games Corner</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Mini-games while you chat</p>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="flex-1 overflow-y-auto scrollbar-aero p-6">
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          {GAMES.map(game => {
+            const IconEl = typeof game.icon !== 'string' ? game.icon : null;
+
+            return (
+              <button
+                key={game.label}
+                disabled={!game.available}
+                onClick={() => game.available && game.id && selectGame(game.id)}
+                className="flex flex-col items-center justify-center gap-3 rounded-aero-lg p-5 text-center transition-all"
+                style={{
+                  minHeight: 172,
+                  background: game.available
+                    ? `rgba(${hexToRgb(game.color)}, 0.07)`
+                    : 'rgba(255,255,255,0.03)',
+                  border: game.available
+                    ? `1px solid rgba(${hexToRgb(game.color)}, 0.25)`
+                    : '1px solid rgba(255,255,255,0.07)',
+                  cursor: game.available ? 'pointer' : 'default',
+                  opacity: game.available ? 1 : 0.55,
+                }}
+                onMouseEnter={e => {
+                  if (game.available)
+                    (e.currentTarget as HTMLElement).style.background = `rgba(${hexToRgb(game.color)}, 0.13)`;
+                }}
+                onMouseLeave={e => {
+                  if (game.available)
+                    (e.currentTarget as HTMLElement).style.background = `rgba(${hexToRgb(game.color)}, 0.07)`;
+                }}
+              >
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                  style={{
+                    background: `rgba(${hexToRgb(game.color)}, 0.15)`,
+                    border: `1px solid rgba(${hexToRgb(game.color)}, 0.30)`,
+                    boxShadow: game.available ? `0 0 20px rgba(${hexToRgb(game.color)}, 0.15)` : 'none',
+                    fontSize: typeof game.icon === 'string' ? 28 : undefined,
+                  }}
+                >
+                  {typeof game.icon === 'string'
+                    ? game.icon
+                    : IconEl && <IconEl className="h-7 w-7" style={{ color: game.color }} />
+                  }
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{game.label}</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{game.desc}</p>
+                </div>
+
+                <span
+                  className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
+                  style={{
+                    background: game.available
+                      ? `rgba(${hexToRgb(game.color)}, 0.20)`
+                      : 'rgba(255,255,255,0.06)',
+                    color: game.available ? game.color : 'var(--text-muted)',
+                    border: `1px solid rgba(${hexToRgb(game.color)}, ${game.available ? 0.35 : 0.12})`,
+                  }}
+                >
+                  {game.available ? 'Play' : 'Soon'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Root component ────────────────────────────────────────────────────────────
+
 export function GamesCorner() {
+  const { selectedGame } = useCornerStore();
+
   return (
     <div
       className="flex h-full flex-col"
       style={{
-        width: 300,
         background: 'var(--sidebar-bg)',
         borderRadius: 16,
         border: '1px solid var(--sidebar-border)',
@@ -20,75 +183,20 @@ export function GamesCorner() {
         overflow: 'hidden',
       }}
     >
-      {/* Header */}
-      <div
-        className="flex items-center gap-2.5 px-4 py-4"
-        style={{ borderBottom: '1px solid var(--panel-divider)' }}
-      >
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-xl"
-          style={{ background: 'rgba(0,212,255,0.15)', border: '1px solid rgba(0,212,255,0.30)' }}
-        >
-          <Gamepad2 className="h-4 w-4" style={{ color: '#00d4ff' }} />
-        </div>
-        <div>
-          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Games Corner</p>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Mini-games while you chat</p>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-6 gap-4">
-
-        {/* Hero */}
-        <div className="text-center mb-2">
-          <div
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, rgba(0,212,255,0.20), rgba(0,212,255,0.05))',
-              border: '1px solid rgba(0,212,255,0.25)',
-              boxShadow: '0 0 24px rgba(0,212,255,0.15)',
-            }}
-          >
-            <Gamepad2 className="h-8 w-8" style={{ color: '#00d4ff' }} />
-          </div>
-          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Coming Soon</p>
-          <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Quick mini-games to play while you chat — no leaving the app.
-          </p>
-        </div>
-
-        {/* Game list preview */}
-        <div className="w-full flex flex-col gap-2">
-          {COMING_SOON.map(({ icon: Icon, label, desc }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-aero px-3 py-2.5"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
-                style={{ background: 'rgba(0,212,255,0.10)', border: '1px solid rgba(0,212,255,0.18)' }}
-              >
-                <Icon className="h-4 w-4" style={{ color: 'rgba(0,212,255,0.70)' }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{desc}</p>
-              </div>
-              <span
-                className="ml-auto flex-shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.25)' }}
-              >
-                Soon
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {selectedGame === 'bubblepop' ? (
+        <BubblePop />
+      ) : (
+        <GameHub />
+      )}
     </div>
   );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r},${g},${b}`;
 }
