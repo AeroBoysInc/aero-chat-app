@@ -109,10 +109,9 @@ export function ChatWindow({ contact }: Props) {
         // fails (e.g. the local key was rotated), we preserve any previously
         // decrypted plaintext rather than overwriting it with "[decryption failed]".
         const cachedMap = new Map(loadChatCache(contact.id).map(m => [m.id, m.content]));
-        const decryptWithFallback = (m: { id: string; content: string }): string | null => {
+        const decryptWithFallback = (m: { id: string; content: string }): string => {
           const result = decrypt(m.content);
           if (result === '[decryption failed]' && cachedMap.has(m.id)) return cachedMap.get(m.id)!;
-          if (result === '[decryption failed]') return null; // unrecoverable — skip
           return result;
         };
 
@@ -122,9 +121,7 @@ export function ChatWindow({ contact }: Props) {
           ...pending
             .filter(p => !all.some(a => a.id === p.id))
             .map(m => ({ ...m, content: decryptWithFallback(m) })),
-        ]
-          .filter((m): m is typeof m & { content: string } => m.content !== null)
-          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         setMessages(allWithPending);
         saveChatCache(contact.id, allWithPending); // write to localStorage
@@ -399,7 +396,9 @@ export function ChatWindow({ contact }: Props) {
                     borderBottomLeftRadius: 4,
                   }}>
                   <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                    {msg.content}
+                    {msg.content === '[decryption failed]'
+                      ? <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
+                      : msg.content}
                   </p>
                   <p className="mt-0.5 flex items-center justify-end gap-0.5 text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.62)' : 'var(--recv-time)' }}>
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

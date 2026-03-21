@@ -32,10 +32,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data) set({ user: data });
   },
   signOut: async () => {
-    const { user } = get();
     await supabase.auth.signOut();
-    if (user?.id) localStorage.removeItem(`aero_private_key_${user.id}`);
-    localStorage.removeItem('aero_private_key'); // legacy fallback
+    // Private keys are kept in localStorage intentionally — they're scoped to userId
+    // and are needed to decrypt message history on next login. Removing them here
+    // triggers key rotation on re-login, making all previous messages unreadable.
     set({ user: null });
   },
 }));
