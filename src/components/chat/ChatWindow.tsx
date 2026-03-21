@@ -422,7 +422,7 @@ export function ChatWindow({ contact }: Props) {
       setInput('');
     }
     setSending(false);
-    inputRef.current?.focus();
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   // ── Reactions ────────────────────────────────────────────────────────────────
