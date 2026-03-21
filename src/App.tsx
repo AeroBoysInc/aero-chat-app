@@ -8,7 +8,7 @@ import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey } from './lib/crypto';
 import { requestNotificationPermission, showMessageNotification } from './lib/notifications';
-import { loadSelectedContactId } from './lib/chatCache';
+import { loadSelectedContactId, clearAllChatCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
 
@@ -44,6 +44,10 @@ export default function App() {
         savePrivateKey(kp.privateKey, userId);
         await supabase.from('profiles').update({ public_key: kp.publicKey }).eq('id', userId);
         profile.public_key = kp.publicKey;
+        // Old messages were encrypted with the previous key pair and are now
+        // unreadable. Clear the cache so users see empty history instead of
+        // a screen full of "[decryption failed]".
+        clearAllChatCaches();
       }
 
       setUser(profile);

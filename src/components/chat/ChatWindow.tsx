@@ -104,12 +104,23 @@ export function ChatWindow({ contact }: Props) {
 
         // Flush any realtime messages that arrived before the key was ready
         const pending = pendingDecrypt.current.splice(0);
+
+        // Build a fallback map from the existing cache so that if decryption
+        // fails (e.g. the local key was rotated), we preserve any previously
+        // decrypted plaintext rather than overwriting it with "[decryption failed]".
+        const cachedMap = new Map(loadChatCache(contact.id).map(m => [m.id, m.content]));
+        const decryptWithFallback = (m: { id: string; content: string }) => {
+          const result = decrypt(m.content);
+          if (result.startsWith('[') && cachedMap.has(m.id)) return cachedMap.get(m.id)!;
+          return result;
+        };
+
         const allWithPending = [
-          ...all.map(m => ({ ...m, content: decrypt(m.content) })),
+          ...all.map(m => ({ ...m, content: decryptWithFallback(m) })),
           // Pending messages might already be in `all` — deduplicate by id
           ...pending
             .filter(p => !all.some(a => a.id === p.id))
-            .map(m => ({ ...m, content: decrypt(m.content) })),
+            .map(m => ({ ...m, content: decryptWithFallback(m) })),
         ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         setMessages(allWithPending);
@@ -238,6 +249,13 @@ export function ChatWindow({ contact }: Props) {
     const privateKey = loadPrivateKey(user?.id);
     if (!privateKey) { setSendError('Encryption key missing. Please reload.'); setSending(false); return; }
     if (!contactKeyRef.current) { setSendError('Contact key not loaded yet. Please try again.'); setSending(false); return; }
+
+    // Re-fetch the contact's public key to ensure we encrypt with the latest
+    // version. If their key rotated since we opened the chat, using the stale
+    // cached key would produce a ciphertext the recipient can't decrypt.
+    const { data: freshKey } = await supabase
+      .from('profiles').select('public_key').eq('id', contact.id).single();
+    if (freshKey?.public_key) contactKeyRef.current = freshKey.public_key;
 
     const ciphertext = encryptMessage(input.trim(), contactKeyRef.current, privateKey);
     const { data, error } = await supabase.from('messages').insert({

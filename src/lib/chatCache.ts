@@ -51,3 +51,14 @@ export function saveChatCache(contactId: string, messages: CachedMessage[]) {
 export function clearChatCache(contactId: string) {
   try { localStorage.removeItem(msgKey(contactId)); } catch {}
 }
+
+export function clearAllChatCaches() {
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('aero-chat-')) toRemove.push(k);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+  } catch {}
+}

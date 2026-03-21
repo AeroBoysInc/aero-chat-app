@@ -32,8 +32,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data) set({ user: data });
   },
   signOut: async () => {
+    const { user } = get();
     await supabase.auth.signOut();
-    localStorage.removeItem('aero_private_key');
+    if (user?.id) localStorage.removeItem(`aero_private_key_${user.id}`);
+    localStorage.removeItem('aero_private_key'); // legacy fallback
     set({ user: null });
   },
 }));
