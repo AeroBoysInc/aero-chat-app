@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useFriendStore } from './store/friendStore';
 import { useChatStore } from './store/chatStore';
+import { useCornerStore } from './store/cornerStore';
 import { useUnreadStore } from './store/unreadStore';
 import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
@@ -114,7 +115,9 @@ export default function App() {
       }, (payload) => {
         const msg = payload.new as { sender_id: string };
         const activeId = useChatStore.getState().selectedContact?.id;
-        if (msg.sender_id !== activeId) {
+        const inGame   = useCornerStore.getState().gameViewActive;
+        // Treat as unread if sender isn't the open chat, OR if the user is in game view
+        if (msg.sender_id !== activeId || inGame) {
           increment(msg.sender_id);
           // Desktop notification
           const sender = useFriendStore.getState().friends.find(f => f.id === msg.sender_id);
