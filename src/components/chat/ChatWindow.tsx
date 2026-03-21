@@ -109,9 +109,10 @@ export function ChatWindow({ contact }: Props) {
         // fails (e.g. the local key was rotated), we preserve any previously
         // decrypted plaintext rather than overwriting it with "[decryption failed]".
         const cachedMap = new Map(loadChatCache(contact.id).map(m => [m.id, m.content]));
-        const decryptWithFallback = (m: { id: string; content: string }) => {
+        const decryptWithFallback = (m: { id: string; content: string }): string | null => {
           const result = decrypt(m.content);
-          if (result.startsWith('[') && cachedMap.has(m.id)) return cachedMap.get(m.id)!;
+          if (result === '[decryption failed]' && cachedMap.has(m.id)) return cachedMap.get(m.id)!;
+          if (result === '[decryption failed]') return null; // unrecoverable — skip
           return result;
         };
 
@@ -121,7 +122,9 @@ export function ChatWindow({ contact }: Props) {
           ...pending
             .filter(p => !all.some(a => a.id === p.id))
             .map(m => ({ ...m, content: decryptWithFallback(m) })),
-        ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        ]
+          .filter((m): m is typeof m & { content: string } => m.content !== null)
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         setMessages(allWithPending);
         saveChatCache(contact.id, allWithPending); // write to localStorage
@@ -160,7 +163,7 @@ export function ChatWindow({ contact }: Props) {
         schema: 'public',
         table: 'messages',
         filter: `recipient_id=eq.${user.id}`,
-      }, (payload) => {
+      }, async (payload) => {
         const m = payload.new as any;
         if (m.sender_id !== contact.id) return;
         if (!contactKeyRef.current) {
@@ -168,7 +171,18 @@ export function ChatWindow({ contact }: Props) {
           pendingDecrypt.current.push(m);
           return;
         }
-        const decoded: Message = { ...m, content: decrypt(m.content) };
+        let content = decrypt(m.content);
+        if (content === '[decryption failed]') {
+          // Sender's key may have rotated since the chat opened — refresh and retry once
+          const { data: fresh } = await supabase
+            .from('profiles').select('public_key').eq('id', contact.id).single();
+          if (fresh?.public_key && fresh.public_key !== contactKeyRef.current) {
+            contactKeyRef.current = fresh.public_key;
+            content = decrypt(m.content);
+          }
+        }
+        if (content === '[decryption failed]') return; // still undecryptable — drop silently
+        const decoded: Message = { ...m, content };
         setMessages(prev => {
           const next = [...prev, decoded];
           saveChatCache(contact.id, next);
@@ -257,7 +271,7 @@ export function ChatWindow({ contact }: Props) {
       .from('profiles').select('public_key').eq('id', contact.id).single();
     if (freshKey?.public_key) contactKeyRef.current = freshKey.public_key;
 
-    const ciphertext = encryptMessage(input.trim(), contactKeyRef.current, privateKey);
+    const ciphertext = encryptMessage(input.trim(), contactKeyRef.current!, privateKey);
     const { data, error } = await supabase.from('messages').insert({
       sender_id: user.id, recipient_id: contact.id, content: ciphertext,
     }).select('id, sender_id, content, created_at').single();
