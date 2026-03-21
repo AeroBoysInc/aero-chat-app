@@ -311,6 +311,38 @@
     box-shadow: 0 0 0 3px var(--input-focus-ring), inset 0 1px 3px rgba(0,0,0,0.04);
   }
 
+  /* ── Range slider (General / audio settings) ── */
+  .aero-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+    cursor: pointer;
+  }
+  .aero-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00d4ff;
+    box-shadow: 0 0 6px rgba(0,212,255,0.55);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .aero-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  .aero-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    background: #00d4ff;
+    box-shadow: 0 0 6px rgba(0,212,255,0.55);
+    cursor: pointer;
+  }
+
   /* ── Soap bubble decoration ── */
   .soap-bubble {
     position: absolute;

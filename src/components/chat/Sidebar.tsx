@@ -12,6 +12,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { FriendRequestModal } from './FriendRequestModal';
 import { SettingsPanel } from '../settings/SettingsPanel';
 import { SecurityPanel } from '../settings/SecurityPanel';
+import { GeneralPanel } from '../settings/GeneralPanel';
 
 interface Props {
   selectedUser: Profile | null;
@@ -34,7 +35,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
   const [results,        setResults]        = useState<Profile[]>([]);
   const [searching,      setSearching]      = useState(false);
   const [requestsOpen,   setRequestsOpen]   = useState(false);
-  const [settingsView,   setSettingsView]   = useState<null | 'menu' | 'profile' | 'security'>(null);
+  const [settingsView,   setSettingsView]   = useState<null | 'menu' | 'profile' | 'security' | 'general'>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [hoveredFriend,  setHoveredFriend]  = useState<string | null>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -368,6 +369,14 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
             </button>
             <div className="mx-3 h-px bg-white/10" />
             <button
+              onClick={() => setSettingsView('general')}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 18v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+              General
+            </button>
+            <div className="mx-3 h-px bg-white/10" />
+            <button
               onClick={() => setSettingsView('security')}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
             >
@@ -377,6 +386,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
           </div>
         )}
         {settingsView === 'profile'  && <SettingsPanel  onClose={() => setSettingsView(null)} />}
+        {settingsView === 'general'  && <GeneralPanel   onClose={() => setSettingsView(null)} />}
         {settingsView === 'security' && <SecurityPanel  onClose={() => setSettingsView(null)} />}
       </div>
 

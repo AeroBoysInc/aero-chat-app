@@ -10,6 +10,7 @@ import { loadChatCache, saveChatCache, clearChatCache, saveClearTimestamp, loadC
 import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
+import { useAudioStore } from '../../store/audioStore';
 
 interface Message {
   id: string;
@@ -41,7 +42,7 @@ function fmtDuration(s: number): string {
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 }
 
-function VoicePlayer({ content, isMine }: { content: string; isMine: boolean }) {
+function VoicePlayer({ content, isMine, outputVolume, outputDeviceId }: { content: string; isMine: boolean; outputVolume: number; outputDeviceId: string }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -53,13 +54,18 @@ function VoicePlayer({ content, isMine }: { content: string; isMine: boolean }) 
       const blob = base64ToBlob(data, 'audio/webm');
       url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      audio.volume = outputVolume / 100;
+      // Set output device if browser supports it and a device is selected
+      if (outputDeviceId && typeof (audio as any).setSinkId === 'function') {
+        (audio as any).setSinkId(outputDeviceId).catch(() => {});
+      }
       audioRef.current = audio;
       audio.ontimeupdate = () => setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
       audio.onended = () => { setPlaying(false); setProgress(0); };
       (audio as any)._dur = dur;
     } catch {}
     return () => { audioRef.current?.pause(); if (url) URL.revokeObjectURL(url); };
-  }, [content]);
+  }, [content, outputVolume, outputDeviceId]);
 
   function toggle() {
     if (!audioRef.current) return;
@@ -116,6 +122,7 @@ export function ChatWindow({ contact }: Props) {
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
   const { friends } = useFriendStore();
+  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
 
@@ -438,7 +445,13 @@ export function ChatWindow({ contact }: Props) {
   // ── Voice recording ──────────────────────────────────────────────────────────
   async function startRecording() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioConstraints: MediaTrackConstraints = {
+        noiseSuppression: noiseCancellation,
+        echoCancellation: noiseCancellation,
+        ...(inputVolume !== 80 ? { } : {}), // volume is applied at playback side
+        ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus' : 'audio/webm';
       const mr = new MediaRecorder(stream, { mimeType });
@@ -664,7 +677,7 @@ export function ChatWindow({ contact }: Props) {
                       borderBottomLeftRadius: 4,
                     }}>
                     {isVoiceMessage(msg.content)
-                      ? <VoicePlayer content={msg.content} isMine={isMine} />
+                      ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
                       : (
                         <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
                           {msg.content === '[decryption failed]'
