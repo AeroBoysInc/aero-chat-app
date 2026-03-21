@@ -8,6 +8,9 @@ import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
+import { useUnreadStore } from '../../store/unreadStore';
+import { useAuthStore } from '../../store/authStore';
+import { useFriendStore } from '../../store/friendStore';
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
@@ -22,7 +25,10 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive } = useCornerStore();
+  const { gameViewActive, closeGameView } = useCornerStore();
+  const { counts: unreadCounts } = useUnreadStore();
+  const { user: me } = useAuthStore();
+  const { friends } = useFriendStore();
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -51,6 +57,18 @@ export function ChatLayout() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [sidebarWidth]);
+
+  // Compute unread senders while in game view
+  const unreadSenders = gameViewActive
+    ? Object.entries(unreadCounts)
+        .filter(([id, count]) => count > 0 && id !== me?.id)
+        .map(([id, count]) => {
+          const friend = friends.find(f => f.id === id);
+          return { id, count, username: friend?.username ?? '?' };
+        })
+    : [];
+
+  const totalUnread = unreadSenders.reduce((s, u) => s + u.count, 0);
 
   return (
     <div className="relative flex h-screen overflow-hidden p-3 gap-2">
@@ -149,6 +167,92 @@ export function ChatLayout() {
         >
           <GamesCorner />
         </div>
+
+        {/* ── In-game message notification ── */}
+        {gameViewActive && totalUnread > 0 && (
+          <button
+            onClick={closeGameView}
+            className="animate-fade-in"
+            style={{
+              position: 'absolute',
+              bottom: 28,
+              right: 24,
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 16px 10px 12px',
+              borderRadius: 999,
+              background: 'radial-gradient(circle at 30% 28%, rgba(255,255,255,0.22) 0%, rgba(0,180,255,0.18) 35%, rgba(0,100,220,0.12) 70%, rgba(0,60,180,0.06) 100%)',
+              border: '1px solid rgba(255,255,255,0.55)',
+              boxShadow: '0 0 18px rgba(0,180,255,0.35), inset 0 0 12px rgba(255,255,255,0.18), inset -1px -2px 6px rgba(120,190,255,0.22)',
+              backdropFilter: 'blur(14px)',
+              cursor: 'pointer',
+              animation: 'bubble-notify-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            }}
+          >
+            {/* Bubble highlight */}
+            <div style={{
+              position: 'absolute', top: '14%', left: '10%',
+              width: '28%', height: '32%',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.55)',
+              filter: 'blur(3px)',
+              pointerEvents: 'none',
+            }} />
+
+            {/* Avatar stack or single */}
+            <div className="relative flex-shrink-0" style={{ width: 32, height: 32 }}>
+              {unreadSenders.slice(0, 2).map((s, i) => (
+                <div
+                  key={s.id}
+                  style={{
+                    position: 'absolute',
+                    top: i * 6,
+                    left: i * 6,
+                    width: 26 - i * 4,
+                    height: 26 - i * 4,
+                    borderRadius: '50%',
+                    background: `hsl(${(s.username.charCodeAt(0) * 37) % 360}, 65%, 55%)`,
+                    border: '1.5px solid rgba(255,255,255,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11 - i, fontWeight: 700, color: '#fff',
+                    zIndex: 2 - i,
+                  }}
+                >
+                  {s.username[0].toUpperCase()}
+                </div>
+              ))}
+            </div>
+
+            {/* Text */}
+            <div style={{ lineHeight: 1.25 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.95)', whiteSpace: 'nowrap' }}>
+                {unreadSenders.length === 1
+                  ? unreadSenders[0].username
+                  : `${unreadSenders.length} chats`}
+              </p>
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', whiteSpace: 'nowrap' }}>
+                {totalUnread} new {totalUnread === 1 ? 'message' : 'messages'} · tap to view
+              </p>
+            </div>
+
+            {/* Unread badge */}
+            <div style={{
+              position: 'absolute',
+              top: -4, right: -4,
+              minWidth: 18, height: 18,
+              borderRadius: 9,
+              background: '#ff4757',
+              border: '2px solid rgba(2,13,36,0.8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 800, color: '#fff',
+              padding: '0 4px',
+            }}>
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </div>
+          </button>
+        )}
 
       </div>
     </div>

@@ -170,20 +170,20 @@ export function BubblePop() {
   const scheduleSpawn = useCallback(() => {
     if (gsRef.current !== 'playing') return;
     // Time-based continuous difficulty curve:
-    // t=0s  → ~2500ms between spawns (gentle start)
-    // t=15s → ~1300ms
-    // t=30s → ~350ms  (hectic — ~8-12 bubbles on screen)
-    // t=45s → ~280ms min (stays intense)
+    // t=0s  → ~1400ms between spawns (~3 bubbles on screen)
+    // t=20s → ~950ms  (~5 bubbles)
+    // t=40s → ~600ms  (~7-8 bubbles)
+    // t=60s → ~350ms min (challenging)
     const elapsed = (performance.now() - gameStartRef.current) / 1000;
-    const delay = Math.max(280, 2500 - elapsed * 74) + Math.random() * 300;
+    const delay = Math.max(350, 1400 - elapsed * 17) + Math.random() * 200;
     spawnTimer.current = setTimeout(() => {
       if (gsRef.current !== 'playing') return;
       const id        = ++nextId.current;
       const size      = 30 + Math.random() * 44;
       const col       = 0.05 + Math.random() * 0.88;
-      // Bubbles also get slightly faster over time
+      // Bubbles get slightly faster over time (start slow and floaty)
       const elapsedNow = (performance.now() - gameStartRef.current) / 1000;
-      const duration  = Math.max(2000, 4000 - elapsedNow * 35) + Math.random() * 500;
+      const duration  = Math.max(2800, 5200 - elapsedNow * 28) + Math.random() * 600;
       const hue       = Math.random() * 360;
       const points    = size < 42 ? 30 : size < 58 ? 20 : 10;
       const amplitude = 18 + Math.random() * 22;
