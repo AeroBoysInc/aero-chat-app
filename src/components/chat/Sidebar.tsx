@@ -11,6 +11,7 @@ import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/Avatar
 import { AeroLogo } from '../ui/AeroLogo';
 import { FriendRequestModal } from './FriendRequestModal';
 import { SettingsPanel } from '../settings/SettingsPanel';
+import { SecurityPanel } from '../settings/SecurityPanel';
 
 interface Props {
   selectedUser: Profile | null;
@@ -33,7 +34,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
   const [results,        setResults]        = useState<Profile[]>([]);
   const [searching,      setSearching]      = useState(false);
   const [requestsOpen,   setRequestsOpen]   = useState(false);
-  const [settingsOpen,   setSettingsOpen]   = useState(false);
+  const [settingsView,   setSettingsView]   = useState<null | 'menu' | 'profile' | 'security'>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [hoveredFriend,  setHoveredFriend]  = useState<string | null>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -341,11 +342,11 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
             </button>
           </div>
           <button
-            onClick={() => setSettingsOpen(o => !o)}
+            onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
             className="rounded-aero p-1.5 transition-all"
-            style={{ color: 'var(--text-muted)' }}
+            style={{ color: settingsView ? 'var(--text-primary)' : 'var(--text-muted)', background: settingsView === 'menu' ? 'var(--hover-bg)' : '' }}
             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+            onMouseLeave={e => { if (settingsView !== 'menu') (e.currentTarget as HTMLElement).style.background = ''; }}
             title="Settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -354,7 +355,29 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
             </svg>
           </button>
         </div>
-        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+
+        {/* Settings dropdown menu */}
+        {settingsView === 'menu' && (
+          <div className="absolute bottom-14 left-2 z-50 w-52 rounded-aero-lg border border-white/20 bg-aero-deep/90 py-1.5 shadow-xl backdrop-blur-xl animate-fade-in">
+            <button
+              onClick={() => setSettingsView('profile')}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              Profile Settings
+            </button>
+            <div className="mx-3 h-px bg-white/10" />
+            <button
+              onClick={() => setSettingsView('security')}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Security
+            </button>
+          </div>
+        )}
+        {settingsView === 'profile'  && <SettingsPanel  onClose={() => setSettingsView(null)} />}
+        {settingsView === 'security' && <SecurityPanel  onClose={() => setSettingsView(null)} />}
       </div>
 
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
