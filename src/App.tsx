@@ -15,7 +15,7 @@ import { ChatLayout } from './components/chat/ChatLayout';
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
   const { loadFriends, subscribeToRequests } = useFriendStore();
-  const { increment } = useUnreadStore();
+  const { increment, seed } = useUnreadStore();
 
   useEffect(() => {
     let settled = false;
@@ -81,6 +81,24 @@ export default function App() {
       if (live) useChatStore.getState().setSelectedContact(live);
     });
     return unsub;
+  }, [user?.id]);
+
+  // Seed unread counts from DB on login (covers messages received while offline)
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('messages')
+      .select('sender_id')
+      .eq('recipient_id', user.id)
+      .is('read_at', null)
+      .then(({ data }) => {
+        if (!data) return;
+        const counts: Record<string, number> = {};
+        for (const { sender_id } of data) {
+          counts[sender_id] = (counts[sender_id] ?? 0) + 1;
+        }
+        seed(counts);
+      });
   }, [user?.id]);
 
   // Global unread counter + desktop notifications
