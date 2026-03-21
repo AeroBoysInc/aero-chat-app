@@ -831,7 +831,7 @@ export function ChatWindow({ contact }: Props) {
               value={input}
               onChange={handleInputChange}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }}
-              disabled={sending || !hasPrivateKey}
+              disabled={!hasPrivateKey}
             />
             <button
               type="button"
@@ -843,7 +843,12 @@ export function ChatWindow({ contact }: Props) {
             >
               <Mic className="h-4 w-4" />
             </button>
-            <button type="submit" disabled={sending || !input.trim() || !hasPrivateKey} className="aero-btn-send">
+            <button
+              type="submit"
+              disabled={sending || !input.trim() || !hasPrivateKey}
+              onMouseDown={e => e.preventDefault()}
+              className="aero-btn-send"
+            >
               Send <Send className="h-3.5 w-3.5" />
             </button>
           </div>
