@@ -172,12 +172,11 @@ export function ChatLayout() {
         {gameViewActive && totalUnread > 0 && (
           <button
             onClick={closeGameView}
-            className="animate-fade-in"
             style={{
-              position: 'absolute',
+              position: 'fixed',
               bottom: 28,
-              right: 24,
-              zIndex: 100,
+              right: 28,
+              zIndex: 9999,
               display: 'flex',
               alignItems: 'center',
               gap: 10,
@@ -188,7 +187,7 @@ export function ChatLayout() {
               boxShadow: '0 0 18px rgba(0,180,255,0.35), inset 0 0 12px rgba(255,255,255,0.18), inset -1px -2px 6px rgba(120,190,255,0.22)',
               backdropFilter: 'blur(14px)',
               cursor: 'pointer',
-              animation: 'bubble-notify-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              animation: 'bubble-notify-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, bubble-notify-pulse 2.2s 0.5s ease-in-out infinite',
             }}
           >
             {/* Bubble highlight */}
