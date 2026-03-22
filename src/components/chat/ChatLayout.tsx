@@ -6,6 +6,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
+import { DevCorner } from '../corners/DevCorner';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 
@@ -22,7 +23,8 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive } = useCornerStore();
+  const { gameViewActive, devViewActive } = useCornerStore();
+  const anyViewActive = gameViewActive || devViewActive;
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -55,8 +57,8 @@ export function ChatLayout() {
   return (
     <div className="relative flex h-screen overflow-hidden p-3 gap-2">
 
-      {/* Theme switcher — hidden during game view so it doesn't overlap */}
-      {!gameViewActive && (
+      {/* Theme switcher — hidden during any corner view */}
+      {!anyViewActive && (
         <div className="fixed top-4 right-5 z-50 drag-region">
           <ThemeSwitcher />
         </div>
@@ -75,10 +77,10 @@ export function ChatLayout() {
             inset: 0,
             display: 'flex',
             gap: 0,
-            transform: gameViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
-            opacity: gameViewActive ? 0 : 1,
+            transform: anyViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
+            opacity: anyViewActive ? 0 : 1,
             transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
-            pointerEvents: gameViewActive ? 'none' : 'auto',
+            pointerEvents: anyViewActive ? 'none' : 'auto',
             willChange: 'transform, opacity',
           }}
         >
@@ -150,6 +152,22 @@ export function ChatLayout() {
           <GamesCorner />
         </div>
 
+        {/* DEV LAYER — only rendered in dev builds */}
+        {import.meta.env.DEV && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              transform: devViewActive ? 'translateX(0)' : 'translateX(102%)',
+              opacity: devViewActive ? 1 : 0,
+              transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+              pointerEvents: devViewActive ? 'auto' : 'none',
+              willChange: 'transform',
+            }}
+          >
+            <DevCorner />
+          </div>
+        )}
 
       </div>
     </div>
