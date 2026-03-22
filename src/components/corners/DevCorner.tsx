@@ -47,23 +47,23 @@ const INITIAL_TASKS: Task[] = [
   { id:'AC-11', title:'Fix Tropico canvas scaling (ResizeObserver)',   sprint:2, status:'done',       priority:'high',   labels:['bug','game'] },
   { id:'AC-12', title:'Redesign levels 1-6 difficulty curve',         sprint:2, status:'done',       priority:'medium', labels:['game'] },
   { id:'AC-13', title:'Platform + floor glassy navy visuals',         sprint:2, status:'done',       priority:'low',    labels:['ui','game'] },
-  { id:'AC-14', title:'Dev task board',                               sprint:2, status:'inprogress', priority:'medium', labels:['ui','infra'] },
-  { id:'AC-15', title:'Push notifications for new messages',          sprint:2, status:'todo',       priority:'high',   labels:['feature','backend'] },
+  { id:'AC-14', title:'Dev task board',                               sprint:2, status:'done',       priority:'medium', labels:['ui','infra'] },
+  { id:'AC-15', title:'Push notifications for new messages',          sprint:2, status:'done',       priority:'high',   labels:['feature','backend'] },
   { id:'AC-16', title:'File / image sharing in chat',                 sprint:2, status:'todo',       priority:'high',   labels:['feature','backend','ui'] },
   { id:'AC-17', title:'Voice message recording & playback',           sprint:2, status:'todo',       priority:'medium', labels:['feature','ui'] },
-  { id:'AC-18', title:'User avatar upload',                           sprint:2, status:'todo',       priority:'medium', labels:['feature','ui','backend'] },
-  { id:'AC-19', title:'Message reactions (emoji)',                    sprint:2, status:'todo',       priority:'low',    labels:['feature','ui'] },
+  { id:'AC-18', title:'User avatar upload',                           sprint:2, status:'done',       priority:'medium', labels:['feature','ui','backend'] },
+  { id:'AC-19', title:'Message reactions (emoji)',                    sprint:2, status:'done',       priority:'low',    labels:['feature','ui'] },
 
   // ── Sprint 3 ────────────────────────────────────────────────────────────────
   { id:'AC-20', title:'Group chat support',                           sprint:3, status:'todo', priority:'high',   labels:['feature','backend','ui'] },
-  { id:'AC-21', title:'Desktop installer build & sign',               sprint:3, status:'todo', priority:'high',   labels:['release','infra'] },
+  { id:'AC-21', title:'Desktop installer build & sign',               sprint:3, status:'done', priority:'high',   labels:['release','infra'] },
   { id:'AC-22', title:'Auto-updater via Tauri',                       sprint:3, status:'todo', priority:'high',   labels:['release','infra'] },
   { id:'AC-23', title:'Onboarding / first-run flow',                  sprint:3, status:'todo', priority:'medium', labels:['ui','feature'] },
   { id:'AC-24', title:'Performance profiling & bundle splitting',     sprint:3, status:'todo', priority:'medium', labels:['perf','infra'] },
   { id:'AC-25', title:'Landing page download section (live)',         sprint:3, status:'todo', priority:'low',    labels:['release','ui'] },
 ];
 
-const STORAGE_KEY = 'aero_dev_tasks';
+const STORAGE_KEY = 'aero_dev_tasks_v2';
 
 function loadTasks(): Task[] {
   try {

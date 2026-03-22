@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -29,6 +29,16 @@ const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 function isVoiceMessage(content: string): boolean {
   try { return JSON.parse(content)._voice === true; } catch { return false; }
+}
+
+function isFileMessage(content: string): boolean {
+  try { return JSON.parse(content)._file === true; } catch { return false; }
+}
+
+function fmtBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function base64ToBlob(b64: string, mime: string): Blob {
@@ -99,6 +109,44 @@ function VoicePlayer({ content, isMine, outputVolume, outputDeviceId }: { conten
   );
 }
 
+function FileMessage({ content, isMine }: { content: string; isMine: boolean }) {
+  const { url, name, size, mime } = JSON.parse(content) as { url: string; name: string; size: number; mime: string };
+  const isImage = mime?.startsWith('image/');
+  const textColor = isMine ? 'rgba(255,255,255,0.90)' : 'var(--recv-text)';
+  const subColor  = isMine ? 'rgba(255,255,255,0.60)' : 'var(--recv-time)';
+
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={url} alt={name}
+          className="rounded-aero block"
+          style={{ maxWidth: 220, maxHeight: 220, objectFit: 'cover', display: 'block' }}
+        />
+        <p style={{ fontSize: 10, color: subColor, marginTop: 4 }}>{name}</p>
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={url} download={name} target="_blank" rel="noopener noreferrer"
+      className="flex items-center gap-2.5 no-underline"
+      style={{ minWidth: 180 }}
+    >
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-aero"
+        style={{ background: isMine ? 'rgba(255,255,255,0.18)' : 'rgba(0,100,200,0.12)', border: `1px solid ${isMine ? 'rgba(255,255,255,0.30)' : 'rgba(0,100,200,0.22)'}` }}>
+        <FileIcon style={{ width: 16, height: 16, color: isMine ? '#fff' : '#1a6fd4' }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="truncate text-sm font-medium" style={{ color: textColor }}>{name}</p>
+        <p style={{ fontSize: 10, color: subColor }}>{fmtBytes(size)}</p>
+      </div>
+      <Download style={{ width: 14, height: 14, flexShrink: 0, color: isMine ? 'rgba(255,255,255,0.70)' : '#1a6fd4' }} />
+    </a>
+  );
+}
+
 interface Props { contact: Profile; }
 
 function SoapBubbles() {
@@ -140,6 +188,7 @@ export function ChatWindow({ contact }: Props) {
   const [hoveredMsgId,      setHoveredMsgId]      = useState<string | null>(null);
   const [isRecording,       setIsRecording]       = useState(false);
   const [recordDuration,    setRecordDuration]    = useState(0);
+  const [isUploading,       setIsUploading]       = useState(false);
 
   const bottomRef          = useRef<HTMLDivElement>(null);
   const contactKeyRef      = useRef<string | null>(null);
@@ -152,6 +201,7 @@ export function ChatWindow({ contact }: Props) {
   const audioChunksRef     = useRef<Blob[]>([]);
   const recordTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef           = useRef<HTMLInputElement>(null);
+  const fileInputRef       = useRef<HTMLInputElement>(null);
 
   const hasPrivateKey = !!loadPrivateKey(user?.id);
 
@@ -532,6 +582,40 @@ export function ChatWindow({ contact }: Props) {
     setSending(false);
   }
 
+  // ── File / image sharing ──────────────────────────────────────────────────────
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (file.size > 10 * 1024 * 1024) {
+      setSendError('File too large. Maximum size is 10 MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    setSendError('');
+
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('chat-files').upload(path, file, { contentType: file.type });
+
+    if (uploadError) {
+      setSendError('Upload failed. Please try again.');
+      setIsUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(path);
+    await sendEncryptedContent(JSON.stringify({
+      _file: true, url: publicUrl,
+      name: file.name, size: file.size,
+      mime: file.type || 'application/octet-stream',
+    }));
+    setIsUploading(false);
+  }
+
   return (
     <div className="flex h-full flex-col">
 
@@ -684,6 +768,8 @@ export function ChatWindow({ contact }: Props) {
                     }}>
                     {isVoiceMessage(msg.content)
                       ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
+                      : isFileMessage(msg.content)
+                      ? <FileMessage content={msg.content} isMine={isMine} />
                       : (
                         <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
                           {msg.content === '[decryption failed]'
@@ -824,6 +910,10 @@ export function ChatWindow({ contact }: Props) {
           </div>
         ) : (
           <div className="flex items-center gap-3">
+            <input ref={fileInputRef} type="file" className="hidden"
+              accept="image/*,.pdf,.txt,.doc,.docx,.zip,.csv"
+              onChange={handleFileSelect}
+            />
             <input
               ref={inputRef}
               className="aero-input flex-1 py-2.5 text-sm"
@@ -835,8 +925,20 @@ export function ChatWindow({ contact }: Props) {
             />
             <button
               type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || isUploading || !hasPrivateKey}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-aero transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+              style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.28)', color: '#00d4ff' }}
+              title={isUploading ? 'Uploading…' : 'Send file or image'}
+            >
+              {isUploading
+                ? <span className="h-4 w-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#00d4ff', borderTopColor: 'transparent' }} />
+                : <Paperclip className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
               onClick={startRecording}
-              disabled={sending || !hasPrivateKey}
+              disabled={sending || isUploading || !hasPrivateKey}
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-aero transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.28)', color: '#00d4ff' }}
               title="Voice message"
