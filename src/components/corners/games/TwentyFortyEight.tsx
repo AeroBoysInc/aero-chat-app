@@ -222,24 +222,58 @@ export function TwentyFortyEight() {
     else if (!canMove(withNew))                              setStatus('over');
   }, []);
 
-  // Mouse / touch drag
-  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  // ── Per-tile drag ────────────────────────────────────────────────────────────
+  interface DragState { tileKey: number; tileRow: number; tileCol: number; x: number; y: number }
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
-  function onPointerDown(e: React.PointerEvent) {
-    dragStart.current = { x: e.clientX, y: e.clientY };
+  function tileLeft(c: number) { return GAP + c * (CELL + GAP); }
+  function tileTop(r: number)  { return GAP + r * (CELL + GAP); }
+
+  function nearestCell(bx: number, by: number) {
+    // bx/by = board-local cursor position
+    const c = Math.max(0, Math.min(SIZE - 1, Math.round((bx - GAP - CELL / 2) / (CELL + GAP))));
+    const r = Math.max(0, Math.min(SIZE - 1, Math.round((by - GAP - CELL / 2) / (CELL + GAP))));
+    return { r, c };
+  }
+
+  function onTilePointerDown(e: React.PointerEvent, tile: TileAnim) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (statusRef.current === 'over') return;
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDrag({
+      tileKey: tile.key, tileRow: tile.r, tileCol: tile.c,
+      x: e.clientX - rect.left - CELL / 2,
+      y: e.clientY - rect.top  - CELL / 2,
+    });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
-  function onPointerUp(e: React.PointerEvent) {
-    if (!dragStart.current) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    dragStart.current = null;
-    const THRESHOLD = 24;
-    if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
-    const dir: Dir = Math.abs(dx) >= Math.abs(dy)
-      ? (dx > 0 ? 'right' : 'left')
-      : (dy > 0 ? 'down'  : 'up');
+  function onBoardPointerMove(e: React.PointerEvent) {
+    if (!drag) return;
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDrag(d => d ? {
+      ...d,
+      x: e.clientX - rect.left - CELL / 2,
+      y: e.clientY - rect.top  - CELL / 2,
+    } : null);
+  }
+
+  function onBoardPointerUp(e: React.PointerEvent) {
+    if (!drag) return;
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const { r: tr, c: tc } = nearestCell(e.clientX - rect.left, e.clientY - rect.top);
+    const dr = tr - drag.tileRow;
+    const dc = tc - drag.tileCol;
+    setDrag(null);
+    if (dr === 0 && dc === 0) return;
+    const dir: Dir = Math.abs(dc) >= Math.abs(dr)
+      ? (dc > 0 ? 'right' : 'left')
+      : (dr > 0 ? 'down'  : 'up');
     move(dir);
   }
 
@@ -311,9 +345,11 @@ export function TwentyFortyEight() {
       {/* ── Board ── */}
       <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
         <div
-          onPointerDown={onPointerDown}
-          onPointerUp={onPointerUp}
-          style={{ position: 'relative', width: BOARD, height: BOARD, flexShrink: 0, cursor: 'grab', touchAction: 'none' }}
+          ref={boardRef}
+          onPointerMove={onBoardPointerMove}
+          onPointerUp={onBoardPointerUp}
+          onPointerLeave={onBoardPointerUp}
+          style={{ position: 'relative', width: BOARD, height: BOARD, flexShrink: 0, touchAction: 'none' }}
         >
 
           {/* Grid cell backgrounds */}
@@ -323,8 +359,7 @@ export function TwentyFortyEight() {
                 key={`bg-${r}-${c}`}
                 style={{
                   position: 'absolute',
-                  left: GAP + c * (CELL + GAP),
-                  top:  GAP + r * (CELL + GAP),
+                  left: tileLeft(c), top: tileTop(r),
                   width: CELL, height: CELL,
                   borderRadius: 14,
                   background: 'rgba(0,0,0,0.10)',
@@ -334,43 +369,83 @@ export function TwentyFortyEight() {
             ))
           )}
 
-          {/* Tiles */}
+          {/* Tiles — ghost at grid position + floating copy while dragging */}
           {anims.map(tile => {
-            const cfg = getTile(tile.value);
-            return (
-              <div
-                key={tile.key}
-                style={{
-                  position: 'absolute',
-                  left: GAP + tile.c * (CELL + GAP),
-                  top:  GAP + tile.r * (CELL + GAP),
-                  width: CELL, height: CELL,
-                  borderRadius: 14,
-                  background: cfg.bg,
-                  boxShadow: cfg.glow !== 'none' ? cfg.glow : undefined,
-                  border: '1px solid rgba(255,255,255,0.38)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: cfg.fs,
-                  color: cfg.color,
-                  fontFamily: 'Inter, system-ui, sans-serif',
-                  overflow: 'hidden',
-                  animation: tile.isNew
-                    ? 'tile2048-spawn 0.20s cubic-bezier(0.34,1.56,0.64,1) both'
-                    : tile.isMerged
-                    ? 'tile2048-merge 0.18s cubic-bezier(0.34,1.56,0.64,1) both'
-                    : 'none',
-                }}
-              >
-                {/* Gloss sheen */}
+            const cfg        = getTile(tile.value);
+            const isDragging = drag?.tileKey === tile.key;
+
+            const tileBody = (floating: boolean) => (
+              <>
                 <div style={{
                   position: 'absolute', inset: 0, pointerEvents: 'none',
                   background: 'linear-gradient(168deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.20) 42%, rgba(255,255,255,0) 65%)',
                   borderRadius: 14,
                 }} />
-                <span style={{ position: 'relative', zIndex: 1, lineHeight: 1, letterSpacing: '-0.5px' }}>
+                <span style={{
+                  position: 'relative', zIndex: 1, lineHeight: 1, letterSpacing: '-0.5px',
+                  fontSize: floating ? cfg.fs * 1.05 : cfg.fs,
+                }}>
                   {tile.value}
                 </span>
+              </>
+            );
+
+            return (
+              <div key={tile.key}>
+                {/* Ghost / resting tile */}
+                <div
+                  onPointerDown={e => onTilePointerDown(e, tile)}
+                  style={{
+                    position: 'absolute',
+                    left: tileLeft(tile.c), top: tileTop(tile.r),
+                    width: CELL, height: CELL,
+                    borderRadius: 14,
+                    background: cfg.bg,
+                    boxShadow: cfg.glow !== 'none' ? cfg.glow : undefined,
+                    border: '1px solid rgba(255,255,255,0.38)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 800, color: cfg.color,
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    overflow: 'hidden',
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    opacity: isDragging ? 0.25 : 1,
+                    transform: isDragging ? 'scale(0.90)' : undefined,
+                    transition: isDragging ? 'none' : 'opacity 0.1s, transform 0.1s',
+                    animation: !isDragging
+                      ? (tile.isNew    ? 'tile2048-spawn 0.20s cubic-bezier(0.34,1.56,0.64,1) both'
+                        : tile.isMerged ? 'tile2048-merge 0.18s cubic-bezier(0.34,1.56,0.64,1) both'
+                        : 'none')
+                      : 'none',
+                  }}
+                >
+                  {tileBody(false)}
+                </div>
+
+                {/* Floating tile — follows cursor */}
+                {isDragging && drag && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: drag.x, top: drag.y,
+                      width: CELL, height: CELL,
+                      borderRadius: 14,
+                      background: cfg.bg,
+                      boxShadow: `${cfg.glow !== 'none' ? cfg.glow + ', ' : ''}0 16px 40px rgba(0,0,0,0.40)`,
+                      border: '1px solid rgba(255,255,255,0.55)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 800, color: cfg.color,
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      overflow: 'hidden',
+                      transform: 'scale(1.12)',
+                      zIndex: 50,
+                      pointerEvents: 'none',
+                      cursor: 'grabbing',
+                      animation: 'tile2048-spawn 0.12s cubic-bezier(0.34,1.56,0.64,1) both',
+                    }}
+                  >
+                    {tileBody(true)}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -439,7 +514,7 @@ export function TwentyFortyEight() {
 
       {/* ── Footer hint ── */}
       <p className="pb-4 text-center flex-shrink-0" style={{ fontSize: 11, color: 'var(--text-muted)', opacity: 0.65 }}>
-        Click and drag on the board to move tiles
+        Drag any tile in the direction you want to move
       </p>
     </div>
   );
