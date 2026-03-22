@@ -167,6 +167,83 @@ function GameHub() {
   );
 }
 
+// ── Games strip (shown below any active game) ─────────────────────────────────
+
+function GamesStrip() {
+  const { selectedGame, selectGame } = useCornerStore();
+
+  return (
+    <div
+      className="flex-shrink-0"
+      style={{ borderTop: '1px solid var(--panel-divider)', background: 'rgba(0,0,0,0.18)' }}
+    >
+      <div
+        className="flex items-center gap-1 overflow-x-auto px-3 py-2.5"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        <span
+          className="flex-shrink-0 text-[10px] uppercase tracking-widest pr-2"
+          style={{ color: 'var(--text-muted)', opacity: 0.6, borderRight: '1px solid rgba(255,255,255,0.10)', marginRight: 4 }}
+        >
+          More
+        </span>
+        {GAMES.map(game => {
+          const isActive = game.id === selectedGame;
+          const IconEl = typeof game.icon !== 'string' ? game.icon : null;
+          return (
+            <button
+              key={game.label}
+              disabled={!game.available}
+              onClick={() => game.available && game.id && selectGame(game.id)}
+              className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl px-3 py-2 transition-all"
+              style={{
+                minWidth: 72,
+                background: isActive
+                  ? `rgba(${hexToRgb(game.color)}, 0.18)`
+                  : game.available ? 'rgba(255,255,255,0.04)' : 'transparent',
+                border: isActive
+                  ? `1px solid rgba(${hexToRgb(game.color)}, 0.45)`
+                  : game.available ? '1px solid rgba(255,255,255,0.09)' : '1px solid transparent',
+                cursor: game.available ? 'pointer' : 'default',
+                opacity: game.available ? 1 : 0.38,
+                boxShadow: isActive ? `0 0 12px rgba(${hexToRgb(game.color)}, 0.25)` : 'none',
+              }}
+              onMouseEnter={e => {
+                if (game.available && !isActive)
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+              }}
+              onMouseLeave={e => {
+                if (game.available && !isActive)
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+              }}
+            >
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{
+                  background: `rgba(${hexToRgb(game.color)}, 0.15)`,
+                  border: `1px solid rgba(${hexToRgb(game.color)}, 0.28)`,
+                  fontSize: typeof game.icon === 'string' ? 16 : undefined,
+                }}
+              >
+                {typeof game.icon === 'string'
+                  ? game.icon
+                  : IconEl && <IconEl className="h-4 w-4" style={{ color: game.color }} />
+                }
+              </div>
+              <span className="text-[10px] font-semibold leading-tight text-center" style={{ color: isActive ? game.color : 'var(--text-muted)', maxWidth: 64 }}>
+                {game.label}
+              </span>
+              {!game.available && (
+                <span className="text-[9px]" style={{ color: 'var(--text-muted)', opacity: 0.55 }}>Soon</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Root component ────────────────────────────────────────────────────────────
 
 export function GamesCorner() {
@@ -183,8 +260,13 @@ export function GamesCorner() {
         overflow: 'hidden',
       }}
     >
-      {selectedGame === 'bubblepop' ? (
-        <BubblePop />
+      {selectedGame ? (
+        <>
+          <div className="flex-1 min-h-0">
+            {selectedGame === 'bubblepop' && <BubblePop />}
+          </div>
+          <GamesStrip />
+        </>
       ) : (
         <GameHub />
       )}

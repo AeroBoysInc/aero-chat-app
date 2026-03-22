@@ -280,14 +280,17 @@ export function BubblePop() {
   const scheduleSpawn = useCallback(() => {
     if (gsRef.current !== 'playing') return;
     const elapsed = (performance.now() - gameStartRef.current) / 1000;
-    const delay = Math.max(350, 1400 - elapsed * 17) + Math.random() * 200;
+    // t=0s  → ~680ms between spawns   (steady stream from the start)
+    // t=30s → ~425ms                  (~3-4 bubbles always visible)
+    // t=60s → ~190ms min              (frantic)
+    const delay = Math.max(180, 680 - elapsed * 8.3) + Math.random() * 80;
     spawnTimer.current = setTimeout(() => {
       if (gsRef.current !== 'playing') return;
       const id         = ++nextId.current;
-      const size       = 30 + Math.random() * 44;
+      const size       = 44 + Math.random() * 50;   // 44-94px — noticeably bigger
       const col        = 0.05 + Math.random() * 0.88;
       const elapsedNow = (performance.now() - gameStartRef.current) / 1000;
-      const duration   = Math.max(2800, 5200 - elapsedNow * 28) + Math.random() * 600;
+      const duration   = Math.max(2400, 4800 - elapsedNow * 28) + Math.random() * 600;
       const hue        = Math.random() * 360;
       const points     = size < 42 ? 30 : size < 58 ? 20 : 10;
       const amplitude  = 18 + Math.random() * 22;
