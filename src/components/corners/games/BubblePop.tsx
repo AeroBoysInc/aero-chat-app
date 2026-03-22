@@ -6,22 +6,23 @@ import { useCornerStore } from '../../../store/cornerStore';
 
 interface Bubble {
   id: number;
-  col: number;       // 0–1 starting X fraction of area width
-  size: number;      // diameter px
+  col: number;
+  size: number;
   hue: number;
   points: number;
-  startTime: number; // performance.now()
-  duration: number;  // ms to travel full height
-  amplitude: number; // px of lateral sway
-  phase: number;     // sine wave phase offset
+  startTime: number;
+  duration: number;
+  amplitude: number;
+  phase: number;
 }
 
 interface RenderBubble extends Bubble {
-  cx: number;      // center X in px (game area coords)
-  cy: number;      // center Y in px (game area coords)
+  cx: number;
+  cy: number;
   opacity: number;
   sx: number;
   sy: number;
+  danger: boolean;
 }
 
 interface FloatText {
@@ -32,13 +33,39 @@ interface FloatText {
   color: string;
 }
 
+interface PopParticle {
+  angle: number;
+  dist: number;
+  size: number;
+  hueOffset: number;
+}
+
+interface PopEffect {
+  id: number;
+  x: number;
+  y: number;
+  hue: number;
+  bubbleSize: number;
+  particles: PopParticle[];
+}
+
 type GameState = 'idle' | 'playing' | 'gameover';
 
 const HS_KEY    = 'aero_bubblepop_hs';
 const MAX_LIVES = 5;
-const HIT_PAD   = 14; // extra px forgiveness beyond bubble radius
+const HIT_PAD   = 14;
 
 const COMBO_COLORS = ['#ffffff', '#00d4ff', '#ffd700', '#ff8c00', '#ff4040'];
+
+const MILESTONES = [
+  { score: 100,  text: 'NICE!',          color: '#00d4ff' },
+  { score: 300,  text: 'GREAT! ✨',       color: '#00d4ff' },
+  { score: 600,  text: 'AWESOME! 🔥',    color: '#ffd700' },
+  { score: 1000, text: 'INCREDIBLE! 💥', color: '#ffd700' },
+  { score: 1500, text: 'INSANE! ⚡',      color: '#ff8c00' },
+  { score: 2500, text: 'LEGENDARY! 🏆',  color: '#ff8c00' },
+  { score: 5000, text: 'GODLIKE! 🌟',    color: '#ff4040' },
+];
 
 const IDLE_BUBBLES = [
   { col: 0.10, size: 52, hue: 195, delay: 0    },
@@ -63,35 +90,111 @@ function bubbleGradient(hue: number) {
   )`;
 }
 
+// ── Audio ─────────────────────────────────────────────────────────────────────
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  try {
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioContext();
+    }
+    return sharedAudioCtx;
+  } catch { return null; }
+}
+
+function playPopSound(bubbleSize: number) {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    // Small bubbles = higher pitch, large = lower pitch
+    const base = 180 + (80 - Math.min(bubbleSize, 80)) * 9;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(base * 2.2, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(base * 0.4, ctx.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+  } catch {}
+}
+
+function playMissSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.14);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.16);
+  } catch {}
+}
+
+function playLifeLostSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    for (let i = 0; i < 2; i++) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      const t = ctx.currentTime + i * 0.13;
+      osc.frequency.setValueAtTime(320 - i * 90, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.18);
+      gain.gain.setValueAtTime(0.09, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    }
+  } catch {}
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function BubblePop() {
   const { selectGame } = useCornerStore();
   const onBack = () => selectGame(null);
 
-  const [gameState,    setGameState]    = useState<GameState>('idle');
-  const [score,        setScore]        = useState(0);
-  const [lives,        setLives]        = useState(MAX_LIVES);
-  const [level,        setLevel]        = useState(1);
-  const [combo,        setCombo]        = useState(0);
-  const [hits,         setHits]         = useState(0);
-  const [misses,       setMisses]       = useState(0);
-  const [renderBubs,   setRenderBubs]   = useState<RenderBubble[]>([]);
-  const [floatTexts,   setFloatTexts]   = useState<FloatText[]>([]);
-  const [highScore,    setHighScore]    = useState(getHS);
+  const [gameState,  setGameState]  = useState<GameState>('idle');
+  const [score,      setScore]      = useState(0);
+  const [lives,      setLives]      = useState(MAX_LIVES);
+  const [level,      setLevel]      = useState(1);
+  const [combo,      setCombo]      = useState(0);
+  const [hits,       setHits]       = useState(0);
+  const [misses,     setMisses]     = useState(0);
+  const [renderBubs, setRenderBubs] = useState<RenderBubble[]>([]);
+  const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
+  const [popEffects, setPopEffects] = useState<PopEffect[]>([]);
+  const [highScore,  setHighScore]  = useState(getHS);
+  const [milestone,  setMilestone]  = useState<{ text: string; color: string } | null>(null);
 
   // Canonical refs (used inside RAF / timeouts without stale closure issues)
-  const bubblesRef    = useRef<Bubble[]>([]);
-  const poppedRef     = useRef<Set<number>>(new Set());
-  const rafRef        = useRef<number>(0);
-  const spawnTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const levelTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const comboTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const areaRef       = useRef<HTMLDivElement>(null);
-  const renderBubsRef = useRef<RenderBubble[]>([]);
-  const nextId        = useRef(0);
-  const floatId       = useRef(0);
-  const gameStartRef  = useRef(0); // performance.now() when game started
+  const bubblesRef       = useRef<Bubble[]>([]);
+  const poppedRef        = useRef<Set<number>>(new Set());
+  const rafRef           = useRef<number>(0);
+  const spawnTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const levelTimer       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const comboTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const areaRef          = useRef<HTMLDivElement>(null);
+  const renderBubsRef    = useRef<RenderBubble[]>([]);
+  const nextId           = useRef(0);
+  const floatId          = useRef(0);
+  const popEffectId      = useRef(0);
+  const gameStartRef     = useRef(0);
+  const lastMilestoneRef = useRef(-1);
 
   // Sync hot refs
   const gsRef    = useRef<GameState>('idle');
@@ -101,14 +204,25 @@ export function BubblePop() {
   const comboRef = useRef(0);
   const hitsRef  = useRef(0);
   const missesRef = useRef(0);
-  gsRef.current    = gameState;
-  livesRef.current = lives;
-  scoreRef.current = score;
-  levelRef.current = level;
-  comboRef.current = combo;
-  hitsRef.current  = hits;
+  gsRef.current     = gameState;
+  livesRef.current  = lives;
+  scoreRef.current  = score;
+  levelRef.current  = level;
+  comboRef.current  = combo;
+  hitsRef.current   = hits;
   missesRef.current = misses;
   renderBubsRef.current = renderBubs;
+
+  // ── Screen shake (direct DOM — avoids React re-render overhead) ────────────
+
+  function triggerShake() {
+    const el = areaRef.current;
+    if (!el) return;
+    el.classList.remove('game-shake');
+    void el.offsetWidth; // force reflow to restart animation
+    el.classList.add('game-shake');
+    setTimeout(() => el.classList.remove('game-shake'), 450);
+  }
 
   // ── RAF loop ───────────────────────────────────────────────────────────────
 
@@ -127,25 +241,19 @@ export function BubblePop() {
       if (poppedRef.current.has(b.id)) continue;
       const progress = (now - b.startTime) / b.duration;
 
-      if (progress >= 1) {
-        escaped++;
-        continue;
-      }
+      if (progress >= 1) { escaped++; continue; }
 
-      // Y: starts at H + size/2 (below screen), rises to -size/2 (above screen)
       const cy = (H + b.size) * (1 - progress) - b.size / 2;
-      // X: sinusoidal sway
       const cx = b.col * W + b.amplitude * Math.sin(progress * Math.PI * 2 + b.phase);
-      // Opacity: fade in / fade out
       const opacity = progress < 0.05 ? progress / 0.05
                     : progress > 0.88 ? (1 - progress) / 0.12
                     : 1;
-      // Subtle organic wobble
       const wobble = Math.sin(progress * Math.PI * 5 + b.phase);
       const sx = 1 + wobble * 0.018;
       const sy = 1 - wobble * 0.018;
+      const danger = progress > 0.78;
 
-      rendered.push({ ...b, cx, cy, opacity, sx, sy });
+      rendered.push({ ...b, cx, cy, opacity, sx, sy, danger });
     }
 
     setRenderBubs(rendered);
@@ -159,6 +267,8 @@ export function BubblePop() {
       const newLives = Math.max(0, livesRef.current - escaped);
       livesRef.current = newLives;
       setLives(newLives);
+      playLifeLostSound();
+      triggerShake();
       if (newLives <= 0) { endGame(); return; }
     }
 
@@ -169,25 +279,19 @@ export function BubblePop() {
 
   const scheduleSpawn = useCallback(() => {
     if (gsRef.current !== 'playing') return;
-    // Time-based continuous difficulty curve:
-    // t=0s  → ~1400ms between spawns (~3 bubbles on screen)
-    // t=20s → ~950ms  (~5 bubbles)
-    // t=40s → ~600ms  (~7-8 bubbles)
-    // t=60s → ~350ms min (challenging)
     const elapsed = (performance.now() - gameStartRef.current) / 1000;
     const delay = Math.max(350, 1400 - elapsed * 17) + Math.random() * 200;
     spawnTimer.current = setTimeout(() => {
       if (gsRef.current !== 'playing') return;
-      const id        = ++nextId.current;
-      const size      = 30 + Math.random() * 44;
-      const col       = 0.05 + Math.random() * 0.88;
-      // Bubbles get slightly faster over time (start slow and floaty)
+      const id         = ++nextId.current;
+      const size       = 30 + Math.random() * 44;
+      const col        = 0.05 + Math.random() * 0.88;
       const elapsedNow = (performance.now() - gameStartRef.current) / 1000;
-      const duration  = Math.max(2800, 5200 - elapsedNow * 28) + Math.random() * 600;
-      const hue       = Math.random() * 360;
-      const points    = size < 42 ? 30 : size < 58 ? 20 : 10;
-      const amplitude = 18 + Math.random() * 22;
-      const phase     = Math.random() * Math.PI * 2;
+      const duration   = Math.max(2800, 5200 - elapsedNow * 28) + Math.random() * 600;
+      const hue        = Math.random() * 360;
+      const points     = size < 42 ? 30 : size < 58 ? 20 : 10;
+      const amplitude  = 18 + Math.random() * 22;
+      const phase      = Math.random() * Math.PI * 2;
       bubblesRef.current = [...bubblesRef.current, { id, col, size, hue, points, startTime: performance.now(), duration, amplitude, phase }];
       scheduleSpawn();
     }, delay);
@@ -198,13 +302,15 @@ export function BubblePop() {
   function startGame() {
     bubblesRef.current = [];
     poppedRef.current.clear();
-    setRenderBubs([]); setFloatTexts([]);
-    setScore(0);     scoreRef.current  = 0;
-    setLives(MAX_LIVES); livesRef.current = MAX_LIVES;
-    setLevel(1);     levelRef.current  = 1;
-    setCombo(0);     comboRef.current  = 0;
-    setHits(0);      hitsRef.current   = 0;
-    setMisses(0);    missesRef.current = 0;
+    setRenderBubs([]); setFloatTexts([]); setPopEffects([]);
+    setScore(0);         scoreRef.current  = 0;
+    setLives(MAX_LIVES); livesRef.current  = MAX_LIVES;
+    setLevel(1);         levelRef.current  = 1;
+    setCombo(0);         comboRef.current  = 0;
+    setHits(0);          hitsRef.current   = 0;
+    setMisses(0);        missesRef.current = 0;
+    setMilestone(null);
+    lastMilestoneRef.current = -1;
     gameStartRef.current = performance.now();
     gsRef.current = 'playing';
     setGameState('playing');
@@ -241,7 +347,6 @@ export function BubblePop() {
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
 
-    // Find nearest bubble within hit radius
     let best: RenderBubble | null = null;
     let bestDist = Infinity;
     for (const rb of renderBubsRef.current) {
@@ -256,6 +361,7 @@ export function BubblePop() {
       const m = missesRef.current + 1;
       missesRef.current = m;
       setMisses(m);
+      playMissSound();
     }
   }
 
@@ -263,6 +369,7 @@ export function BubblePop() {
     poppedRef.current.add(rb.id);
     bubblesRef.current = bubblesRef.current.filter(b => b.id !== rb.id);
 
+    // Combo
     const newCombo = comboRef.current + 1;
     comboRef.current = newCombo;
     setCombo(newCombo);
@@ -271,7 +378,8 @@ export function BubblePop() {
 
     const multiplier = Math.min(newCombo, 5);
     const earned     = rb.points * multiplier;
-    const newScore   = scoreRef.current + earned;
+    const prevScore  = scoreRef.current;
+    const newScore   = prevScore + earned;
     scoreRef.current = newScore;
     setScore(newScore);
 
@@ -279,12 +387,37 @@ export function BubblePop() {
     hitsRef.current = newHits;
     setHits(newHits);
 
+    // Sound
+    playPopSound(rb.size);
+
+    // Pop particle effect (particles pre-computed so they're stable across renders)
+    const particles: PopParticle[] = Array.from({ length: 8 }, (_, i) => ({
+      angle:     (i / 8) * 360 + (Math.random() * 22 - 11),
+      dist:      26 + Math.random() * 22,
+      size:      3.5 + Math.random() * 5,
+      hueOffset: (i % 3) * 30,
+    }));
+    const eid = ++popEffectId.current;
+    setPopEffects(prev => [...prev, { id: eid, x: clickX, y: clickY, hue: rb.hue, bubbleSize: rb.size, particles }]);
+    setTimeout(() => setPopEffects(prev => prev.filter(p => p.id !== eid)), 520);
+
     // Float text
     const fid   = ++floatId.current;
     const color = COMBO_COLORS[Math.min(newCombo - 1, 4)];
     const text  = multiplier > 1 ? `×${multiplier} +${earned}` : `+${earned}`;
     setFloatTexts(prev => [...prev, { id: fid, x: clickX, y: clickY, text, color }]);
     setTimeout(() => setFloatTexts(prev => prev.filter(f => f.id !== fid)), 700);
+
+    // Milestone check
+    for (let i = MILESTONES.length - 1; i >= 0; i--) {
+      const m = MILESTONES[i];
+      if (prevScore < m.score && newScore >= m.score && lastMilestoneRef.current < i) {
+        lastMilestoneRef.current = i;
+        setMilestone({ text: m.text, color: m.color });
+        setTimeout(() => setMilestone(null), 1500);
+        break;
+      }
+    }
   }
 
   // Derived
@@ -321,9 +454,9 @@ export function BubblePop() {
         {gameState === 'playing' && (
           <div className="flex items-center gap-5">
             {[
-              { label: 'Level',    value: String(level),                    color: '#00d4ff' },
-              { label: 'Score',    value: score.toLocaleString(),           color: 'var(--text-primary)' },
-              { label: 'Accuracy', value: `${accuracy}%`,                  color: accuracy >= 80 ? '#00d4ff' : accuracy >= 55 ? '#ffd700' : '#ff6060' },
+              { label: 'Level',    value: String(level),          color: '#00d4ff' },
+              { label: 'Score',    value: score.toLocaleString(), color: 'var(--text-primary)' },
+              { label: 'Accuracy', value: `${accuracy}%`,         color: accuracy >= 80 ? '#00d4ff' : accuracy >= 55 ? '#ffd700' : '#ff6060' },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex flex-col items-center" style={{ minWidth: 44 }}>
                 <span className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
@@ -349,41 +482,25 @@ export function BubblePop() {
 
         {/* ── Frutiger Aero background ── */}
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-          {/* Deep navy base */}
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(165deg, #020d24 0%, #041533 45%, #071f42 100%)' }} />
-          {/* Cyan glow — top right */}
-          <div style={{
-            position: 'absolute', top: '-20%', right: '-10%',
-            width: '60%', height: '60%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,190,255,0.22) 0%, transparent 68%)',
-            filter: 'blur(55px)',
-          }} />
-          {/* Royal blue — bottom left */}
-          <div style={{
-            position: 'absolute', bottom: '-20%', left: '-12%',
-            width: '65%', height: '65%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,80,230,0.28) 0%, transparent 68%)',
-            filter: 'blur(65px)',
-          }} />
-          {/* Teal accent — mid */}
-          <div style={{
-            position: 'absolute', top: '30%', left: '28%',
-            width: '40%', height: '40%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,220,195,0.13) 0%, transparent 65%)',
-            filter: 'blur(70px)',
-          }} />
-          {/* Subtle grid */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: 'linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }} />
-          {/* Bottom shimmer line */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
-            background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.25) 50%, transparent 100%)',
-          }} />
+          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '60%', height: '60%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,190,255,0.22) 0%, transparent 68%)', filter: 'blur(55px)' }} />
+          <div style={{ position: 'absolute', bottom: '-20%', left: '-12%', width: '65%', height: '65%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,80,230,0.28) 0%, transparent 68%)', filter: 'blur(65px)' }} />
+          <div style={{ position: 'absolute', top: '30%', left: '28%', width: '40%', height: '40%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,220,195,0.13) 0%, transparent 65%)', filter: 'blur(70px)' }} />
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.25) 50%, transparent 100%)' }} />
         </div>
+
+        {/* ── Low-life danger vignette ── */}
+        {gameState === 'playing' && lives <= 2 && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 3,
+              background: 'radial-gradient(ellipse at center, transparent 38%, rgba(255,30,30,0.40) 100%)',
+              animation: 'danger-pulse 0.75s ease-in-out infinite',
+            }}
+          />
+        )}
 
         {/* ── Idle screen ── */}
         {gameState === 'idle' && (
@@ -449,10 +566,11 @@ export function BubblePop() {
               height: rb.size,
               borderRadius: '50%',
               background: bubbleGradient(rb.hue),
-              border: '1px solid rgba(255,255,255,0.72)',
-              boxShadow: `inset 0 0 ${rb.size * 0.28}px rgba(255,255,255,0.55), inset -2px -3px 6px rgba(120,190,255,0.30), 0 3px 14px rgba(0,100,200,0.22)`,
+              border: `1px solid ${rb.danger ? 'rgba(255,110,110,0.85)' : 'rgba(255,255,255,0.72)'}`,
+              boxShadow: rb.danger
+                ? `inset 0 0 ${rb.size * 0.28}px rgba(255,255,255,0.55), 0 0 16px rgba(255,60,60,0.65), 0 0 32px rgba(255,0,0,0.28)`
+                : `inset 0 0 ${rb.size * 0.28}px rgba(255,255,255,0.55), inset -2px -3px 6px rgba(120,190,255,0.30), 0 3px 14px rgba(0,100,200,0.22)`,
               opacity: rb.opacity,
-              // Single GPU-composited transform — also what the hit zone matches
               transform: `translate(${rb.cx - rb.size / 2}px, ${rb.cy - rb.size / 2}px) scale(${rb.sx}, ${rb.sy})`,
               willChange: 'transform, opacity',
               pointerEvents: 'none',
@@ -460,6 +578,48 @@ export function BubblePop() {
             }}
           >
             <div style={{ position: 'absolute', top: '16%', left: '20%', width: '30%', height: '20%', borderRadius: '50%', background: 'rgba(255,255,255,0.80)', filter: 'blur(2px)', pointerEvents: 'none' }} />
+            {rb.danger && (
+              <div style={{
+                position: 'absolute', inset: -3,
+                borderRadius: '50%',
+                border: '2px solid rgba(255,80,80,0.75)',
+                animation: 'bubble-danger-ring 0.45s ease-in-out infinite',
+                pointerEvents: 'none',
+              }} />
+            )}
+          </div>
+        ))}
+
+        {/* ── Pop effects — particles + shockwave ring ── */}
+        {popEffects.map(pe => (
+          <div key={pe.id} style={{ position: 'absolute', left: pe.x, top: pe.y, pointerEvents: 'none', zIndex: 25 }}>
+            {/* Shockwave ring */}
+            <div style={{
+              position: 'absolute',
+              width: pe.bubbleSize * 0.85,
+              height: pe.bubbleSize * 0.85,
+              borderRadius: '50%',
+              border: `2px solid hsla(${pe.hue},90%,80%,0.9)`,
+              transform: 'translate(-50%, -50%)',
+              animation: 'pop-ring 0.45s ease-out forwards',
+            }} />
+            {/* Particles */}
+            {pe.particles.map((p, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  width: p.size,
+                  height: p.size,
+                  borderRadius: '50%',
+                  background: `hsla(${pe.hue + p.hueOffset},90%,75%,1)`,
+                  transform: 'translate(-50%, -50%)',
+                  ['--a' as string]: `${p.angle}deg`,
+                  ['--d' as string]: `${p.dist}px`,
+                  animation: 'particle-fly 0.5s ease-out forwards',
+                } as React.CSSProperties}
+              />
+            ))}
           </div>
         ))}
 
@@ -486,6 +646,26 @@ export function BubblePop() {
                 {combo >= 5 ? '🔥 ULTRA COMBO!' : '✨ COMBO!'}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Milestone flash ── */}
+        {milestone && (
+          <div
+            key={milestone.text}
+            className="absolute pointer-events-none"
+            style={{ top: '40%', left: '50%', zIndex: 22, animation: 'milestone-pop 1.5s ease-out forwards' }}
+          >
+            <div style={{
+              fontSize: 30,
+              fontWeight: 900,
+              color: milestone.color,
+              textShadow: `0 0 22px ${milestone.color}, 0 0 44px ${milestone.color}99`,
+              whiteSpace: 'nowrap',
+              letterSpacing: '0.04em',
+            }}>
+              {milestone.text}
+            </div>
           </div>
         )}
 
@@ -520,7 +700,6 @@ export function BubblePop() {
                 <p className="mt-2 text-sm font-bold" style={{ color: '#ffd700' }}>🏆 New High Score!</p>
               )}
             </div>
-            {/* Stats row */}
             <div className="flex items-center gap-8 text-sm">
               {[
                 { label: 'Accuracy', value: `${accuracy}%` },
