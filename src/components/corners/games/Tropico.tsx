@@ -562,13 +562,18 @@ export function Tropico() {
     // Platforms
     for (const p of lv.platforms) {
       const px = p._cx ?? p.x, py = p._cy ?? p.y;
+      // Dark base so platforms pop against the bright sky
       rr(ctx, px, py, p.w, p.h, 5);
-      ctx.fillStyle = 'rgba(0,210,255,0.28)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.40)'; ctx.lineWidth = 1; ctx.stroke();
+      const base = ctx.createLinearGradient(px, py, px, py+p.h);
+      base.addColorStop(0,'rgba(0,60,140,0.92)');
+      base.addColorStop(1,'rgba(0,30,90,0.96)');
+      ctx.fillStyle = base; ctx.fill();
+      // Bright white border
+      ctx.strokeStyle = 'rgba(255,255,255,0.80)'; ctx.lineWidth = 1.5; ctx.stroke();
       // Top gloss
       rr(ctx, px+1, py+1, p.w-2, p.h*0.55, 4);
       const g = ctx.createLinearGradient(px, py, px, py+p.h*0.55);
-      g.addColorStop(0,'rgba(255,255,255,0.60)'); g.addColorStop(1,'rgba(255,255,255,0)');
+      g.addColorStop(0,'rgba(255,255,255,0.55)'); g.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle = g; ctx.fill();
     }
 
