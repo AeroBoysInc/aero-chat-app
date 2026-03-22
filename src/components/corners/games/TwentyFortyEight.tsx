@@ -222,19 +222,26 @@ export function TwentyFortyEight() {
     else if (!canMove(withNew))                              setStatus('over');
   }, []);
 
-  // Keyboard
-  useEffect(() => {
-    const MAP: Record<string, Dir> = {
-      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
-      w: 'up', s: 'down', a: 'left', d: 'right',
-      W: 'up', S: 'down', A: 'left', D: 'right',
-    };
-    function onKey(e: KeyboardEvent) {
-      if (MAP[e.key]) { e.preventDefault(); move(MAP[e.key]); }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [move]);
+  // Mouse / touch drag
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+
+  function onPointerDown(e: React.PointerEvent) {
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (!dragStart.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    dragStart.current = null;
+    const THRESHOLD = 24;
+    if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+    const dir: Dir = Math.abs(dx) >= Math.abs(dy)
+      ? (dx > 0 ? 'right' : 'left')
+      : (dy > 0 ? 'down'  : 'up');
+    move(dir);
+  }
 
   function restart() {
     const g = freshGame();
@@ -303,7 +310,11 @@ export function TwentyFortyEight() {
 
       {/* ── Board ── */}
       <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
-        <div style={{ position: 'relative', width: BOARD, height: BOARD, flexShrink: 0 }}>
+        <div
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          style={{ position: 'relative', width: BOARD, height: BOARD, flexShrink: 0, cursor: 'grab', touchAction: 'none' }}
+        >
 
           {/* Grid cell backgrounds */}
           {Array.from({ length: SIZE }, (_, r) =>
@@ -428,7 +439,7 @@ export function TwentyFortyEight() {
 
       {/* ── Footer hint ── */}
       <p className="pb-4 text-center flex-shrink-0" style={{ fontSize: 11, color: 'var(--text-muted)', opacity: 0.65 }}>
-        Arrow keys or WASD to move tiles
+        Click and drag on the board to move tiles
       </p>
     </div>
   );
