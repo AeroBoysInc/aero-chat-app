@@ -279,7 +279,7 @@ export function Tropico() {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const obs = new ResizeObserver(() => {
+    const resize = () => {
       const { clientWidth: cw, clientHeight: ch } = container;
       if (cw <= 0 || ch <= 0) return;
       const s  = Math.min(cw / CW, ch / CH);
@@ -291,10 +291,12 @@ export function Tropico() {
         if (canvas.height !== bh) canvas.height = bh;
       }
       scaleRef.current = s;
-    });
+    };
+    resize(); // size immediately so the first frame is correct
+    const obs = new ResizeObserver(resize);
     obs.observe(container);
     return () => obs.disconnect();
-  }, []);
+  }, [screen]);
 
   // ── Level init ──────────────────────────────────────────────────────────────
   function initLevel(idx: number) {
