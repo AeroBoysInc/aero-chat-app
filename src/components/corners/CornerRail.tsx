@@ -33,9 +33,9 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
           borderRadius: isActive || hovered ? '30%' : '50%',
           background: isActive
             ? `linear-gradient(135deg, ${color}35, ${color}18)`
-            : hovered ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
-          border: `1px solid ${isActive ? `${color}55` : 'rgba(255,255,255,0.12)'}`,
-          color: isActive ? color : hovered ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)',
+            : hovered ? 'var(--rail-bg-hover)' : 'var(--rail-bg-idle)',
+          border: `1px solid ${isActive ? `${color}55` : 'var(--rail-border)'}`,
+          color: isActive ? color : hovered ? 'var(--rail-icon-hover)' : 'var(--rail-icon)',
           boxShadow: isActive ? `0 0 14px ${color}40` : 'none',
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',

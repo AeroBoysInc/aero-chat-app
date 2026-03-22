@@ -16,28 +16,34 @@
     linear-gradient(170deg, #72d8fa 0%, #3dbce8 40%, #1aa8de 100%);
 
   --sidebar-bg:      rgba(255,255,255,0.86);
-  --sidebar-border:  rgba(255,255,255,0.92);
+  --sidebar-border:  rgba(150,200,235,0.70);
   --sidebar-shadow:  0 8px 32px rgba(0,80,160,0.18), inset 0 1px 0 rgba(255,255,255,1);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.28) 40%, rgba(255,255,255,0) 65%);
 
   --chat-bg:         rgba(215,238,255,0.55);
-  --chat-border:     rgba(255,255,255,0.75);
+  --chat-border:     rgba(150,200,235,0.60);
   --chat-shadow:     0 8px 32px rgba(0,80,160,0.14), inset 0 1px 0 rgba(255,255,255,0.90);
   --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0) 55%);
 
   --card-bg:         rgba(255,255,255,0.80);
-  --card-border:     rgba(255,255,255,0.95);
+  --card-border:     rgba(150,200,235,0.75);
   --card-shadow:     0 12px 48px rgba(0,80,160,0.24), inset 0 1px 0 rgba(255,255,255,1);
   --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.30) 42%, rgba(255,255,255,0) 65%);
 
   --panel-header-bg: rgba(255,255,255,0.62);
-  --panel-divider:   rgba(150,195,228,0.40);
+  --panel-divider:   rgba(120,175,215,0.55);
 
-  --text-primary:    #1a3553;
-  --text-secondary:  #3a6585;
-  --text-muted:      #7aaac8;
-  --text-label:      #7aaac8;
-  --text-title:      #1a4a7a;
+  --text-primary:    #112840;
+  --text-secondary:  #2d5878;
+  --text-muted:      #5a88a8;
+  --text-label:      #4a7898;
+  --text-title:      #0f3d6e;
+
+  --rail-icon:       rgba(22, 62, 112, 0.58);
+  --rail-icon-hover: rgba(14, 44, 88, 0.92);
+  --rail-bg-idle:    rgba(0, 85, 165, 0.07);
+  --rail-bg-hover:   rgba(0, 85, 165, 0.14);
+  --rail-border:     rgba(100, 158, 210, 0.38);
 
   --input-bg:        rgba(255,255,255,0.88);
   --input-border:    rgba(150,198,230,0.80);
@@ -60,6 +66,7 @@
   --switcher-bg:     rgba(255,255,255,0.70);
   --switcher-border: rgba(180,215,240,0.70);
 }
+
 
 [data-theme="night"] {
   /* Aero Night */
@@ -114,6 +121,12 @@
 
   --switcher-bg:     rgba(12,25,58,0.85);
   --switcher-border: rgba(80,145,255,0.30);
+
+  --rail-icon:       rgba(255, 255, 255, 0.38);
+  --rail-icon-hover: rgba(255, 255, 255, 0.82);
+  --rail-bg-idle:    rgba(255, 255, 255, 0.07);
+  --rail-bg-hover:   rgba(255, 255, 255, 0.16);
+  --rail-border:     rgba(255, 255, 255, 0.12);
 }
 
 /* ═══════════════════════════════════════════════
