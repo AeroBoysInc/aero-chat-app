@@ -535,46 +535,49 @@ export function Tropico() {
     // Floor
     if (lv.hasFloor) {
       const floorGrad = ctx.createLinearGradient(0,FLOOR_Y,0,CH);
-      floorGrad.addColorStop(0,'rgba(0,210,255,0.35)');
-      floorGrad.addColorStop(1,'rgba(0,100,180,0.15)');
-      ctx.fillStyle = floorGrad;
+      floorGrad.addColorStop(0,'rgba(0,55,130,0.90)');
+      floorGrad.addColorStop(1,'rgba(0,20,75,0.96)');
+      const floorGloss = ctx.createLinearGradient(0,FLOOR_Y,0,FLOOR_Y+10);
+      floorGloss.addColorStop(0,'rgba(255,255,255,0.55)');
+      floorGloss.addColorStop(1,'rgba(255,255,255,0)');
+      function drawFloorSegment(c: CanvasRenderingContext2D, x: number, w: number) {
+        c.fillStyle = floorGrad;  c.fillRect(x, FLOOR_Y, w, CH - FLOOR_Y);
+        c.fillStyle = 'rgba(255,255,255,0.82)'; c.fillRect(x, FLOOR_Y, w, 1.5);
+        c.fillStyle = floorGloss; c.fillRect(x, FLOOR_Y+1.5, w, 10);
+      }
       if (lv.floorGaps.length === 0) {
-        ctx.fillRect(0, FLOOR_Y, lv.worldWidth, CH - FLOOR_Y);
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(0, FLOOR_Y, lv.worldWidth, 2);
+        drawFloorSegment(ctx, 0, lv.worldWidth);
       } else {
-        // Draw floor with gaps
         let cursor = 0;
         for (const gap of lv.floorGaps) {
-          ctx.fillStyle = floorGrad;
-          ctx.fillRect(cursor, FLOOR_Y, gap.x1 - cursor, CH - FLOOR_Y);
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.fillRect(cursor, FLOOR_Y, gap.x1 - cursor, 2);
+          drawFloorSegment(ctx, cursor, gap.x1 - cursor);
           cursor = gap.x2;
         }
-        ctx.fillStyle = floorGrad;
-        ctx.fillRect(cursor, FLOOR_Y, lv.worldWidth - cursor, CH - FLOOR_Y);
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(cursor, FLOOR_Y, lv.worldWidth - cursor, 2);
+        drawFloorSegment(ctx, cursor, lv.worldWidth - cursor);
       }
     }
 
     // Platforms
     for (const p of lv.platforms) {
       const px = p._cx ?? p.x, py = p._cy ?? p.y;
-      // Dark base so platforms pop against the bright sky
+      // Dark navy base — pops against the bright sky
       rr(ctx, px, py, p.w, p.h, 5);
       const base = ctx.createLinearGradient(px, py, px, py+p.h);
-      base.addColorStop(0,'rgba(0,60,140,0.92)');
-      base.addColorStop(1,'rgba(0,30,90,0.96)');
+      base.addColorStop(0,'rgba(10,70,155,0.82)');
+      base.addColorStop(1,'rgba(0,25,85,0.92)');
       ctx.fillStyle = base; ctx.fill();
-      // Bright white border
+      // Bright border
       ctx.strokeStyle = 'rgba(255,255,255,0.80)'; ctx.lineWidth = 1.5; ctx.stroke();
-      // Top gloss
-      rr(ctx, px+1, py+1, p.w-2, p.h*0.55, 4);
-      const g = ctx.createLinearGradient(px, py, px, py+p.h*0.55);
-      g.addColorStop(0,'rgba(255,255,255,0.55)'); g.addColorStop(1,'rgba(255,255,255,0)');
+      // Strong top gloss — this is what makes it read as glassy
+      rr(ctx, px+1, py+1, p.w-2, p.h*0.52, 4);
+      const g = ctx.createLinearGradient(px, py, px, py+p.h*0.52);
+      g.addColorStop(0,'rgba(255,255,255,0.72)');
+      g.addColorStop(0.5,'rgba(255,255,255,0.18)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle = g; ctx.fill();
+      // Subtle bottom rim light for depth
+      ctx.fillStyle = 'rgba(120,190,255,0.28)';
+      ctx.fillRect(px+2, py+p.h-3, p.w-4, 2);
     }
 
     // Spikes
