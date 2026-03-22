@@ -28,93 +28,140 @@ function mkPlat(x:number,y:number,w:number,h:number,m?:Moving): Platform { retur
 function mkSpike(x:number,y:number,w:number,h:number,m?:Moving): Spike   { return {x,y,w,h,moving:m}; }
 
 const LEVELS: LevelDef[] = [
-  // ── L1 – Warm Welcome ─────────────────────────────────────────────────────
-  { worldWidth:3000, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[],
+  // ── L1 – Warm Breeze ──────────────────────────────────────────────────────
+  // First gap to learn the mechanic; wider platforms (130-140) to ease in
+  { worldWidth:3200, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:650,x2:960}],
     platforms:[
-      mkPlat(400,330,200,14), mkPlat(700,300,180,14), mkPlat(1000,270,160,14),
-      mkPlat(1280,300,200,14), mkPlat(1580,330,220,14), mkPlat(1900,280,180,14),
-      mkPlat(2200,310,160,14), mkPlat(2550,340,200,14),
+      mkPlat(420,330,140,14), mkPlat(680,295,140,14), mkPlat(850,315,130,14),
+      mkPlat(1010,285,135,14), mkPlat(1250,305,130,14),
+      mkPlat(1480,275,130,14), mkPlat(1720,305,130,14),
+      mkPlat(1960,278,130,14), mkPlat(2200,305,135,14),
+      mkPlat(2450,278,130,14), mkPlat(2690,305,130,14),
+      mkPlat(2930,278,130,14),
     ],
-    spikes:[], goal:{x:2900,y:370} },
+    spikes:[
+      mkSpike(540,376,42,14), mkSpike(1080,376,28,14), mkSpike(1360,376,42,14),
+      mkSpike(1810,376,28,14), mkSpike(2290,376,42,14),
+    ],
+    goal:{x:3150,y:370} },
 
-  // ── L2 – Island Hop ───────────────────────────────────────────────────────
-  { worldWidth:3200, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[],
+  // ── L2 – Coral Run ────────────────────────────────────────────────────────
+  // Wider gap, narrower platforms (115-130), 1 slow mover, more spikes
+  { worldWidth:3400, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:820,x2:1290}],
     platforms:[
-      mkPlat(350,340,160,14), mkPlat(620,310,140,14), mkPlat(870,280,120,14),
-      mkPlat(1080,310,130,14), mkPlat(1320,340,150,14), mkPlat(1580,290,120,14),
-      mkPlat(1820,260,110,14), mkPlat(2050,300,140,14), mkPlat(2300,330,160,14),
-      mkPlat(2580,300,130,14), mkPlat(2820,340,180,14),
+      mkPlat(320,320,130,14), mkPlat(540,295,120,14), mkPlat(710,312,125,14),
+      mkPlat(860,278,120,14), mkPlat(1050,298,118,14,{axis:'x',range:70,speed:55}),
+      mkPlat(1200,275,118,14),
+      mkPlat(1350,305,128,14), mkPlat(1580,278,122,14),
+      mkPlat(1810,300,125,14), mkPlat(2040,275,120,14),
+      mkPlat(2270,300,122,14), mkPlat(2510,275,120,14),
+      mkPlat(2750,300,122,14), mkPlat(2990,275,122,14),
     ],
-    spikes:[mkSpike(820,376,42,14), mkSpike(1450,376,28,14), mkSpike(2150,376,42,14)],
-    goal:{x:3100,y:370} },
-
-  // ── L3 – Palm Canopy ──────────────────────────────────────────────────────
-  { worldWidth:3400, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[],
-    platforms:[
-      mkPlat(300,320,140,14), mkPlat(530,280,130,14), mkPlat(750,240,120,14),
-      mkPlat(960,200,110,14), mkPlat(1160,240,130,14), mkPlat(1380,280,140,14),
-      mkPlat(1620,310,150,14,{axis:'x',range:120,speed:80}),
-      mkPlat(1950,290,130,14), mkPlat(2200,260,120,14), mkPlat(2440,300,140,14),
-      mkPlat(2700,330,160,14), mkPlat(2960,290,130,14), mkPlat(3200,340,150,14),
+    spikes:[
+      mkSpike(420,376,28,14), mkSpike(620,376,42,14),
+      mkSpike(1360,376,28,14), mkSpike(1650,376,42,14), mkSpike(1890,376,28,14),
+      mkSpike(2160,376,42,14), mkSpike(2620,376,28,14), mkSpike(2860,376,42,14),
     ],
-    spikes:[mkSpike(700,376,28,14), mkSpike(1800,376,42,14), mkSpike(2350,376,28,14), mkSpike(2620,376,42,14)],
     goal:{x:3350,y:370} },
 
-  // ── L4 – Coral Gauntlet ───────────────────────────────────────────────────
-  { worldWidth:3600, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[],
+  // ── L3 – Palm Gauntlet ────────────────────────────────────────────────────
+  // Two gaps, 105-125px platforms, 2 movers at moderate speed, 8 spikes
+  { worldWidth:3600, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:550,x2:830},{x1:2100,x2:2570}],
     platforms:[
-      mkPlat(280,330,150,14), mkPlat(530,300,130,14), mkPlat(760,270,120,14),
-      mkPlat(980,300,130,14), mkPlat(1220,270,110,14,{axis:'x',range:90,speed:70}),
-      mkPlat(1500,300,140,14), mkPlat(1730,260,120,14), mkPlat(1960,300,130,14),
-      mkPlat(2200,270,110,14,{axis:'y',range:80,speed:60}),
-      mkPlat(2450,300,140,14), mkPlat(2700,330,160,14), mkPlat(2950,290,130,14),
-      mkPlat(3200,310,150,14), mkPlat(3450,340,160,14),
+      mkPlat(295,305,125,14), mkPlat(575,272,118,14), mkPlat(740,292,115,14),
+      mkPlat(900,272,120,14), mkPlat(1130,292,118,14),
+      mkPlat(1350,268,115,14), mkPlat(1580,290,118,14,{axis:'x',range:90,speed:65}),
+      mkPlat(1800,268,115,14), mkPlat(1980,285,115,14),
+      mkPlat(2130,262,112,14), mkPlat(2305,282,110,14,{axis:'y',range:70,speed:60}),
+      mkPlat(2480,262,110,14),
+      mkPlat(2620,282,118,14), mkPlat(2855,262,115,14),
+      mkPlat(3080,278,118,14), mkPlat(3300,262,118,14),
     ],
     spikes:[
-      mkSpike(650,376,42,14), mkSpike(870,376,42,14), mkSpike(1350,376,28,14),
-      mkSpike(1630,376,28,14), mkSpike(2080,376,56,14), mkSpike(2330,376,42,14),
-      mkSpike(2600,376,28,14), mkSpike(3000,376,28,14,{axis:'x',range:100,speed:90}),
+      mkSpike(455,376,28,14), mkSpike(960,376,42,14), mkSpike(1220,376,28,14),
+      mkSpike(1450,376,42,14), mkSpike(1870,376,28,14), mkSpike(2640,376,42,14),
+      mkSpike(2920,376,28,14), mkSpike(3160,376,42,14),
     ],
-    goal:{x:3550,y:370} },
+    goal:{x:3560,y:370} },
 
-  // ── L5 – Monsoon Descent ──────────────────────────────────────────────────
-  { worldWidth:3800, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:1700,x2:2700}],
+  // ── L4 – Reef Rush ────────────────────────────────────────────────────────
+  // 930px gap bridged by 5 platforms (90-108px), 4 movers speed 65-85, 10 spikes + 1 moving
+  { worldWidth:3800, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:1350,x2:2290}],
     platforms:[
-      mkPlat(250,240,160,14), mkPlat(490,260,140,14), mkPlat(720,220,120,14),
-      mkPlat(940,250,110,14,{axis:'y',range:70,speed:55}),
-      mkPlat(1180,230,130,14), mkPlat(1420,260,120,14,{axis:'x',range:110,speed:85}),
-      mkPlat(1700,240,110,14),
-      mkPlat(1950,280,100,14,{axis:'y',range:60,speed:50}),
-      mkPlat(2180,300,120,14), mkPlat(2420,270,110,14,{axis:'x',range:100,speed:80}),
-      mkPlat(2680,300,130,14), mkPlat(2920,270,120,14),
-      mkPlat(3180,310,140,14), mkPlat(3440,330,160,14), mkPlat(3680,350,150,14),
+      mkPlat(250,308,125,14), mkPlat(475,278,118,14), mkPlat(695,305,115,14),
+      mkPlat(912,278,115,14), mkPlat(1130,298,115,14),
+      mkPlat(1385,270,108,14),
+      mkPlat(1568,290,105,14,{axis:'x',range:80,speed:70}),
+      mkPlat(1748,268,102,14),
+      mkPlat(1928,290,105,14,{axis:'y',range:75,speed:65}),
+      mkPlat(2108,268,108,14),
+      mkPlat(2340,305,118,14), mkPlat(2565,278,115,14),
+      mkPlat(2785,302,118,14), mkPlat(3020,278,115,14),
+      mkPlat(3255,298,118,14), mkPlat(3490,278,115,14),
     ],
     spikes:[
-      mkSpike(600,376,42,14), mkSpike(840,376,42,14), mkSpike(1100,376,28,14),
-      mkSpike(1310,376,56,14), mkSpike(2800,376,42,14), mkSpike(3050,376,28,14), mkSpike(3300,376,56,14),
+      mkSpike(380,376,42,14), mkSpike(590,376,28,14), mkSpike(810,376,42,14),
+      mkSpike(1030,376,28,14), mkSpike(1215,376,56,14),
+      mkSpike(2395,376,42,14), mkSpike(2630,376,28,14), mkSpike(2870,376,56,14),
+      mkSpike(3130,376,42,14), mkSpike(3350,376,28,14,{axis:'x',range:90,speed:80}),
     ],
     goal:{x:3760,y:370} },
 
-  // ── L6 – Typhoon Towers ───────────────────────────────────────────────────
-  { worldWidth:4000, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[],
+  // ── L5 – Monsoon Surge ────────────────────────────────────────────────────
+  // Two gaps (second is 850px), 85-108px platforms, 5 movers speed 75-100, 11 spikes + 1 moving
+  { worldWidth:4000, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:850,x2:1310},{x1:2340,x2:3190}],
     platforms:[
-      mkPlat(200,310,140,14), mkPlat(430,270,120,14), mkPlat(640,220,110,14),
-      mkPlat(640,160,110,14,{axis:'x',range:80,speed:75}),
-      mkPlat(840,280,120,14), mkPlat(1060,240,110,14), mkPlat(1270,200,100,14),
-      mkPlat(1270,140,100,14,{axis:'y',range:50,speed:60}),
-      mkPlat(1530,250,120,14), mkPlat(1780,210,110,14,{axis:'x',range:120,speed:90}),
-      mkPlat(2050,240,120,14), mkPlat(2300,180,100,14), mkPlat(2520,220,110,14),
-      mkPlat(2760,260,120,14), mkPlat(3000,200,100,14,{axis:'x',range:100,speed:85}),
-      mkPlat(3280,240,120,14), mkPlat(3540,280,140,14), mkPlat(3790,330,160,14),
+      mkPlat(230,298,118,14), mkPlat(450,268,112,14),
+      mkPlat(880,258,108,14,{axis:'y',range:65,speed:60}),
+      mkPlat(1055,278,105,14), mkPlat(1228,258,105,14),
+      mkPlat(1390,290,112,14), mkPlat(1615,258,108,14,{axis:'x',range:100,speed:80}),
+      mkPlat(1820,278,108,14), mkPlat(2060,258,105,14,{axis:'y',range:80,speed:70}),
+      mkPlat(2215,278,108,14),
+      mkPlat(2370,258,100,14,{axis:'x',range:85,speed:85}),
+      mkPlat(2548,278,95,14),
+      mkPlat(2722,258,96,14,{axis:'y',range:70,speed:75}),
+      mkPlat(2892,278,100,14),
+      mkPlat(3062,258,96,14,{axis:'x',range:90,speed:80}),
+      mkPlat(3248,290,110,14), mkPlat(3462,268,110,14),
+      mkPlat(3682,290,112,14), mkPlat(3892,268,112,14),
     ],
     spikes:[
-      mkSpike(380,376,42,14), mkSpike(590,376,28,14), mkSpike(780,376,42,14),
-      mkSpike(1000,376,42,14), mkSpike(1200,376,56,14), mkSpike(1460,376,42,14),
-      mkSpike(1700,376,56,14), mkSpike(1950,376,42,14), mkSpike(2200,376,28,14),
-      mkSpike(2440,376,56,14), mkSpike(2680,376,42,14), mkSpike(2920,376,56,14),
-      mkSpike(3180,376,42,14), mkSpike(3440,376,28,14),
+      mkSpike(340,376,42,14), mkSpike(640,376,28,14), mkSpike(775,376,56,14),
+      mkSpike(1385,376,42,14), mkSpike(1700,376,28,14,{axis:'x',range:80,speed:70}),
+      mkSpike(1960,376,42,14), mkSpike(2140,376,28,14),
+      mkSpike(3310,376,56,14), mkSpike(3555,376,42,14),
+      mkSpike(3760,376,28,14), mkSpike(3955,376,42,14,{axis:'x',range:100,speed:90}),
     ],
-    goal:{x:3950,y:370} },
+    goal:{x:3970,y:370} },
+
+  // ── L6 – Typhoon's Edge ───────────────────────────────────────────────────
+  // 1440px gap (same scale as L7), 80-100px platforms, 6 movers speed 80-110, 12 spikes + 2 moving
+  { worldWidth:4200, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:1580,x2:3020}],
+    platforms:[
+      mkPlat(200,298,112,14), mkPlat(415,268,108,14), mkPlat(625,295,108,14),
+      mkPlat(838,268,105,14), mkPlat(1050,292,108,14,{axis:'x',range:90,speed:75}),
+      mkPlat(1260,268,105,14), mkPlat(1400,292,108,14),
+      mkPlat(1612,258,100,14,{axis:'y',range:80,speed:80}),
+      mkPlat(1792,278,95,14,{axis:'x',range:95,speed:90}),
+      mkPlat(1968,258,92,14),
+      mkPlat(2140,278,95,14,{axis:'y',range:75,speed:85}),
+      mkPlat(2318,258,90,14,{axis:'x',range:100,speed:95}),
+      mkPlat(2496,278,90,14),
+      mkPlat(2668,258,90,14,{axis:'y',range:80,speed:80}),
+      mkPlat(2845,278,92,14,{axis:'x',range:90,speed:90}),
+      mkPlat(3072,295,110,14), mkPlat(3285,268,110,14),
+      mkPlat(3502,292,112,14), mkPlat(3718,268,110,14),
+      mkPlat(3935,295,112,14),
+    ],
+    spikes:[
+      mkSpike(318,376,42,14), mkSpike(525,376,28,14), mkSpike(724,376,56,14),
+      mkSpike(948,376,42,14), mkSpike(1142,376,28,14), mkSpike(1340,376,42,14),
+      mkSpike(1478,376,56,14),
+      mkSpike(3132,376,42,14), mkSpike(3382,376,28,14,{axis:'x',range:100,speed:95}),
+      mkSpike(3590,376,56,14), mkSpike(3808,376,42,14),
+      mkSpike(3995,376,28,14,{axis:'x',range:110,speed:100}),
+    ],
+    goal:{x:4165,y:370} },
 
   // ── L7 – Volcanic Reef ────────────────────────────────────────────────────
   { worldWidth:4200, startX:60, startY:FLOOR_Y-PR, hasFloor:true, floorGaps:[{x1:1800,x2:3200}],
