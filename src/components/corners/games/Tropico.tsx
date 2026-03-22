@@ -263,6 +263,8 @@ export function Tropico() {
   const [levelProgress, setLevelProgress] = useState<LevelProgress[]>(loadProgress);
 
   const canvasRef      = useRef<HTMLCanvasElement>(null);
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const scaleRef       = useRef(1);
   const rafRef         = useRef<number>(0);
   const bgRef          = useRef<HTMLImageElement | null>(null);
   const keysRef        = useRef<Set<string>>(new Set());
@@ -272,6 +274,27 @@ export function Tropico() {
   const gsRef          = useRef<GState>({ player:{x:60,y:370,vx:0,vy:0,onGround:false,jumpsLeft:2}, cameraX:0, timer:0 });
   curLvlRef.current = currentLevel;
   screenRef.current = screen;
+
+  // ── Responsive canvas — maintain 800:420 aspect ratio at any container size ─
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const obs = new ResizeObserver(() => {
+      const { clientWidth: cw, clientHeight: ch } = container;
+      if (cw <= 0 || ch <= 0) return;
+      const s  = Math.min(cw / CW, ch / CH);
+      const bw = Math.round(CW * s);
+      const bh = Math.round(CH * s);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        if (canvas.width  !== bw) canvas.width  = bw;
+        if (canvas.height !== bh) canvas.height = bh;
+      }
+      scaleRef.current = s;
+    });
+    obs.observe(container);
+    return () => obs.disconnect();
+  }, []);
 
   // ── Level init ──────────────────────────────────────────────────────────────
   function initLevel(idx: number) {
@@ -434,6 +457,12 @@ export function Tropico() {
     const lv  = LEVELS[curLvlRef.current];
     const cam = gs.cameraX;
 
+    // Clear the full physical buffer (which may be larger than 800×420)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Scale all draw calls so that logical coords (800×420) map to the physical buffer
+    ctx.save();
+    ctx.scale(scaleRef.current, scaleRef.current);
+
     // Background
     const bg = bgRef.current;
     if (bg && bg.complete && bg.naturalWidth > 0) {
@@ -552,6 +581,8 @@ export function Tropico() {
     ctx.fillText(`🌴 Tropico · Level ${curLvlRef.current+1}`, 20, 28);
     ctx.fillStyle='#00ffcc'; ctx.font='bold 12px monospace';
     ctx.fillText(fmtTime(gs.timer), 178, 28);
+
+    ctx.restore(); // undo scale
   }
 
   // ── Game loop ─────────────────────────────────────────────────────────────────
@@ -670,12 +701,13 @@ export function Tropico() {
 
   // ── Dead / Complete overlays over canvas ──────────────────────────────────────
   return (
-    <div className="relative flex h-full flex-col" style={{userSelect:'none', background:'#020d24'}}>
-      <canvas
-        ref={canvasRef}
-        width={CW} height={CH}
-        style={{width:'100%', height:'100%', display:'block'}}
-      />
+    <div
+      ref={containerRef}
+      className="relative flex h-full items-center justify-center"
+      style={{userSelect:'none', background:'#020d24', overflow:'hidden'}}
+    >
+      {/* Canvas — buffer size set by ResizeObserver, always 800:420 aspect ratio */}
+      <canvas ref={canvasRef} style={{display:'block', flexShrink:0}} />
 
       {/* Controls hint */}
       {screen==='playing' && (
