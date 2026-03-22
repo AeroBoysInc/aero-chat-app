@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
 import { useCornerStore } from '../../../store/cornerStore';
 
@@ -8,6 +8,8 @@ const CELL     = 80;
 const GAP      = 10;
 const BOARD    = SIZE * CELL + (SIZE + 1) * GAP;
 const HS_KEY   = 'aero_2048_best';
+const SLIDE_MS = 150;
+const CLEANUP  = SLIDE_MS + 80;
 
 // ── Tile visuals ──────────────────────────────────────────────────────────────
 interface TileCfg { bg: string; color: string; glow: string; fs: number }
@@ -30,183 +32,159 @@ function getTile(v: number): TileCfg {
   return TILE_CFG[v] ?? { bg: 'rgba(100,0,200,0.88)', color: '#fff', glow: '0 6px 32px rgba(110,0,200,0.66)', fs: 18 };
 }
 
-// ── Pure game logic ────────────────────────────────────────────────────────────
-type Grid = number[][];
-type Dir  = 'up' | 'down' | 'left' | 'right';
+// ── Game types ────────────────────────────────────────────────────────────────
+type Dir    = 'up' | 'down' | 'left' | 'right';
+type Status = 'playing' | 'won' | 'over';
 
-function emptyGrid(): Grid {
-  return Array.from({ length: SIZE }, () => new Array(SIZE).fill(0));
+let _tid = 1;
+
+interface Tile {
+  id:    number;
+  value: number;
+  r:     number;
+  c:     number;
+  /** idle = normal; new = spawn anim; merged = pop anim; dying = invisible, removed after CLEANUP */
+  state: 'idle' | 'new' | 'merged' | 'dying';
 }
 
-function emptyCells(g: Grid): { r: number; c: number }[] {
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+function tileLeft(c: number) { return GAP + c * (CELL + GAP); }
+function tileTop(r: number)  { return GAP + r * (CELL + GAP); }
+
+function adjacentCells(r: number, c: number): { r: number; c: number }[] {
   const out: { r: number; c: number }[] = [];
-  for (let r = 0; r < SIZE; r++)
-    for (let c = 0; c < SIZE; c++)
-      if (g[r][c] === 0) out.push({ r, c });
+  if (r > 0)      out.push({ r: r - 1, c });
+  if (r < SIZE-1) out.push({ r: r + 1, c });
+  if (c > 0)      out.push({ r, c: c - 1 });
+  if (c < SIZE-1) out.push({ r, c: c + 1 });
   return out;
 }
 
-function spawnTile(g: Grid): { grid: Grid; pos: { r: number; c: number } | null } {
-  const cells = emptyCells(g);
-  if (cells.length === 0) return { grid: g, pos: null };
-  const pos = cells[Math.floor(Math.random() * cells.length)];
-  const next = g.map(row => [...row]);
-  next[pos.r][pos.c] = Math.random() < 0.88 ? 2 : 4;
-  return { grid: next, pos };
+function live(tiles: Tile[]) { return tiles.filter(t => t.state !== 'dying'); }
+
+function buildGrid(tiles: Tile[]): (Tile | null)[][] {
+  const g: (Tile | null)[][] = Array.from({ length: SIZE }, () => new Array(SIZE).fill(null));
+  for (const t of tiles) g[t.r][t.c] = t;
+  return g;
 }
 
-function slideLine(line: number[]): { out: number[]; gained: number; mergeIdx: Set<number> } {
-  const nums  = line.filter(n => n > 0);
-  const out   = new Array(SIZE).fill(0);
-  const mergeIdx = new Set<number>();
-  let gained = 0, i = 0, oi = 0;
-  while (i < nums.length) {
-    if (i + 1 < nums.length && nums[i] === nums[i + 1]) {
-      out[oi] = nums[i] * 2;
-      mergeIdx.add(oi);
-      gained += out[oi];
-      i += 2;
-    } else {
-      out[oi] = nums[i++];
+function emptySpots(tiles: Tile[]): { r: number; c: number }[] {
+  const occ = new Set(live(tiles).map(t => `${t.r},${t.c}`));
+  const out: { r: number; c: number }[] = [];
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (!occ.has(`${r},${c}`)) out.push({ r, c });
+  return out;
+}
+
+function spawnTile(tiles: Tile[]): Tile[] {
+  const spots = emptySpots(tiles);
+  if (!spots.length) return tiles;
+  const pos = spots[Math.floor(Math.random() * spots.length)];
+  return [...tiles, { id: _tid++, value: Math.random() < 0.88 ? 2 : 4, r: pos.r, c: pos.c, state: 'new' }];
+}
+
+function moveTiles(tiles: Tile[], dir: Dir): { result: Tile[]; gained: number; moved: boolean } {
+  const liveTiles = live(tiles);
+  const grid      = buildGrid(liveTiles);
+  const survivors: Tile[] = [];
+  const dying:     Tile[] = [];
+  let gained = 0;
+
+  // processLine: `line` is already ordered in the slide direction (leading edge first).
+  // `pos(oi)` returns the destination grid coords for output index oi.
+  const processLine = (
+    line: (Tile | null)[],
+    pos:  (oi: number) => { r: number; c: number },
+  ) => {
+    const ts = line.filter(Boolean) as Tile[];
+    let oi = 0, i = 0;
+    while (i < ts.length) {
+      const dest = pos(oi);
+      if (i + 1 < ts.length && ts[i].value === ts[i + 1].value) {
+        // ts[i] = survivor (first in slide dir), ts[i+1] = dying (absorbed)
+        survivors.push({ ...ts[i],     ...dest, value: ts[i].value * 2, state: 'merged' });
+        dying.push(    { ...ts[i + 1],           state: 'dying' });   // keeps original r,c
+        gained += ts[i].value * 2;
+        i += 2;
+      } else {
+        survivors.push({ ...ts[i], ...dest, state: 'idle' });
+        i++;
+      }
+      oi++;
     }
-    oi++;
-  }
-  return { out, gained, mergeIdx };
-}
-
-function moveGrid(g: Grid, dir: Dir): { grid: Grid; gained: number; moved: boolean; mergedAt: Set<string> } {
-  const next     = emptyGrid();
-  const mergedAt = new Set<string>();
-  let gained = 0, moved = false;
+  };
 
   if (dir === 'left' || dir === 'right') {
+    const fwd = dir === 'right';
     for (let r = 0; r < SIZE; r++) {
-      const fwd   = dir === 'right';
-      const line  = fwd ? [...g[r]].reverse() : [...g[r]];
-      const { out, gained: g2, mergeIdx } = slideLine(line);
-      gained += g2;
-      for (let c = 0; c < SIZE; c++) {
-        const pc = fwd ? SIZE - 1 - c : c;
-        next[r][pc] = fwd ? out[SIZE - 1 - c] : out[c];
-        if (mergeIdx.has(c)) mergedAt.add(`${r},${pc}`);
-        if (next[r][pc] !== g[r][pc]) moved = true;
-      }
+      const row = fwd ? [...grid[r]].reverse() : grid[r];
+      processLine(row, oi => ({ r, c: fwd ? SIZE - 1 - oi : oi }));
     }
   } else {
+    const fwd = dir === 'down';
     for (let c = 0; c < SIZE; c++) {
-      const fwd  = dir === 'down';
-      const col  = g.map(row => row[c]);
+      const col  = grid.map(row => row[c]);
       const line = fwd ? [...col].reverse() : col;
-      const { out, gained: g2, mergeIdx } = slideLine(line);
-      gained += g2;
-      for (let r = 0; r < SIZE; r++) {
-        const pr = fwd ? SIZE - 1 - r : r;
-        next[pr][c] = fwd ? out[SIZE - 1 - r] : out[r];
-        if (mergeIdx.has(r)) mergedAt.add(`${pr},${c}`);
-        if (next[pr][c] !== g[pr][c]) moved = true;
-      }
+      processLine(line, oi => ({ r: fwd ? SIZE - 1 - oi : oi, c }));
     }
   }
 
-  return { grid: next, gained, moved, mergedAt };
+  // Detect if anything actually changed
+  let moved = dying.length > 0;
+  if (!moved) {
+    for (const s of survivors) {
+      const orig = liveTiles.find(t => t.id === s.id);
+      if (orig && (orig.r !== s.r || orig.c !== s.c)) { moved = true; break; }
+    }
+  }
+
+  return { result: [...survivors, ...dying], gained, moved };
 }
 
-function canMove(g: Grid): boolean {
+function canMove(tiles: Tile[]): boolean {
+  const lt = live(tiles);
+  if (lt.length < SIZE * SIZE) return true;
+  const g = buildGrid(lt);
   for (let r = 0; r < SIZE; r++)
     for (let c = 0; c < SIZE; c++) {
-      if (g[r][c] === 0) return true;
-      if (c + 1 < SIZE && g[r][c] === g[r][c + 1]) return true;
-      if (r + 1 < SIZE && g[r][c] === g[r + 1][c]) return true;
+      if (c + 1 < SIZE && g[r][c]?.value === g[r][c + 1]?.value) return true;
+      if (r + 1 < SIZE && g[r][c]?.value === g[r + 1][c]?.value) return true;
     }
   return false;
 }
 
-function hasWon(g: Grid): boolean {
-  return g.some(row => row.some(v => v >= 2048));
+function hasWon(tiles: Tile[]): boolean {
+  return live(tiles).some(t => t.value >= 2048);
 }
 
-// ── Tile animation record ─────────────────────────────────────────────────────
-let _uid = 1;
-
-interface TileAnim {
-  key:      number;
-  value:    number;
-  r:        number;
-  c:        number;
-  isNew:    boolean;
-  isMerged: boolean;
-}
-
-function gridToAnims(g: Grid, mergedAt: Set<string>, newAt: Set<string>): TileAnim[] {
-  const out: TileAnim[] = [];
-  for (let r = 0; r < SIZE; r++)
-    for (let c = 0; c < SIZE; c++)
-      if (g[r][c] > 0)
-        out.push({ key: _uid++, value: g[r][c], r, c,
-          isNew:    newAt.has(`${r},${c}`),
-          isMerged: mergedAt.has(`${r},${c}`),
-        });
-  return out;
+function freshTiles(): Tile[] {
+  return spawnTile(spawnTile([]));
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-type Status = 'playing' | 'won' | 'over';
-
 export function TwentyFortyEight() {
   const { selectGame } = useCornerStore();
 
-  function freshGame() {
-    let g = emptyGrid();
-    g = spawnTile(g).grid;
-    g = spawnTile(g).grid;
-    return g;
-  }
-
-  const [grid,   setGrid]   = useState<Grid>(freshGame);
+  const [tiles,  setTiles]  = useState<Tile[]>(freshTiles);
   const [score,  setScore]  = useState(0);
   const [best,   setBest]   = useState(() => Number(localStorage.getItem(HS_KEY) ?? '0'));
   const [status, setStatus] = useState<Status>('playing');
-  const [anims,  setAnims]  = useState<TileAnim[]>([]);
 
-  const gridRef   = useRef(grid);
+  const tilesRef  = useRef(tiles);
   const statusRef = useRef(status);
-  gridRef.current   = grid;
+  tilesRef.current  = tiles;
   statusRef.current = status;
 
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function applyAnims(g: Grid, mergedAt: Set<string>, newAt: Set<string>) {
-    setAnims(gridToAnims(g, mergedAt, newAt));
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(
-      () => setAnims(prev => prev.map(t => ({ ...t, isNew: false, isMerged: false }))),
-      220,
-    );
-  }
-
-  // Initial board
-  useEffect(() => {
-    const allNew = new Set<string>();
-    for (let r = 0; r < SIZE; r++)
-      for (let c = 0; c < SIZE; c++)
-        if (grid[r][c] > 0) allNew.add(`${r},${c}`);
-    applyAnims(grid, new Set(), allNew);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const move = useCallback((dir: Dir) => {
     if (statusRef.current === 'over') return;
-
-    const cur = gridRef.current;
-    const { grid: next, gained, moved, mergedAt } = moveGrid(cur, dir);
+    const { result, gained, moved } = moveTiles(tilesRef.current, dir);
     if (!moved) return;
 
-    const { grid: withNew, pos } = spawnTile(next);
-    const newAt = new Set<string>();
-    if (pos) newAt.add(`${pos.r},${pos.c}`);
-
-    setGrid(withNew);
-    applyAnims(withNew, mergedAt, newAt);
+    const withNew = spawnTile(result);
+    setTiles(withNew);
 
     setScore(s => {
       const ns = s + gained;
@@ -220,31 +198,37 @@ export function TwentyFortyEight() {
 
     if (hasWon(withNew) && statusRef.current === 'playing') setStatus('won');
     else if (!canMove(withNew))                              setStatus('over');
+
+    // Remove dying tiles + reset animation states after slide finishes
+    if (animTimer.current) clearTimeout(animTimer.current);
+    animTimer.current = setTimeout(() => {
+      setTiles(prev =>
+        prev
+          .filter(t => t.state !== 'dying')
+          .map(t => ({ ...t, state: 'idle' })),
+      );
+    }, CLEANUP);
   }, []);
 
-  // ── Per-tile drag ────────────────────────────────────────────────────────────
-  interface DragState { tileKey: number; tileRow: number; tileCol: number; x: number; y: number }
+  // ── Per-tile drag ─────────────────────────────────────────────────────────
+  interface DragState { tileId: number; tileRow: number; tileCol: number; x: number; y: number }
   const [drag, setDrag] = useState<DragState | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
-  function tileLeft(c: number) { return GAP + c * (CELL + GAP); }
-  function tileTop(r: number)  { return GAP + r * (CELL + GAP); }
-
   function nearestCell(bx: number, by: number) {
-    // bx/by = board-local cursor position
     const c = Math.max(0, Math.min(SIZE - 1, Math.round((bx - GAP - CELL / 2) / (CELL + GAP))));
     const r = Math.max(0, Math.min(SIZE - 1, Math.round((by - GAP - CELL / 2) / (CELL + GAP))));
     return { r, c };
   }
 
-  function onTilePointerDown(e: React.PointerEvent, tile: TileAnim) {
+  function onTilePointerDown(e: React.PointerEvent, tile: Tile) {
     e.preventDefault();
     e.stopPropagation();
-    if (statusRef.current === 'over') return;
+    if (statusRef.current === 'over' || tile.state === 'dying') return;
     const rect = boardRef.current?.getBoundingClientRect();
     if (!rect) return;
     setDrag({
-      tileKey: tile.key, tileRow: tile.r, tileCol: tile.c,
+      tileId: tile.id, tileRow: tile.r, tileCol: tile.c,
       x: e.clientX - rect.left - CELL / 2,
       y: e.clientY - rect.top  - CELL / 2,
     });
@@ -278,18 +262,16 @@ export function TwentyFortyEight() {
   }
 
   function restart() {
-    const g = freshGame();
-    setGrid(g);
+    if (animTimer.current) clearTimeout(animTimer.current);
+    setTiles(freshTiles());
     setScore(0);
     setStatus('playing');
-    const allNew = new Set<string>();
-    for (let r = 0; r < SIZE; r++)
-      for (let c = 0; c < SIZE; c++)
-        if (g[r][c] > 0) allNew.add(`${r},${c}`);
-    applyAnims(g, new Set(), allNew);
   }
 
   function keepPlaying() { setStatus('playing'); }
+
+  // Drop-target hint cells (4 adjacent to the dragged tile)
+  const hintCells = drag ? adjacentCells(drag.tileRow, drag.tileCol) : [];
 
   return (
     <div className="flex h-full flex-col select-none">
@@ -315,7 +297,6 @@ export function TwentyFortyEight() {
           </div>
         </div>
 
-        {/* Score chips + restart */}
         <div className="flex items-center gap-2">
           {([{ label: 'SCORE', value: score }, { label: 'BEST', value: best }] as const).map(chip => (
             <div
@@ -352,7 +333,7 @@ export function TwentyFortyEight() {
           style={{ position: 'relative', width: BOARD, height: BOARD, flexShrink: 0, touchAction: 'none' }}
         >
 
-          {/* Grid cell backgrounds */}
+          {/* Cell backgrounds */}
           {Array.from({ length: SIZE }, (_, r) =>
             Array.from({ length: SIZE }, (_, c) => (
               <div
@@ -369,83 +350,109 @@ export function TwentyFortyEight() {
             ))
           )}
 
-          {/* Tiles — ghost at grid position + floating copy while dragging */}
-          {anims.map(tile => {
-            const cfg        = getTile(tile.value);
-            const isDragging = drag?.tileKey === tile.key;
+          {/* Drop-target hint cells — shown when a tile is held */}
+          {hintCells.map(({ r, c }) => (
+            <div
+              key={`hint-${r}-${c}`}
+              style={{
+                position: 'absolute',
+                left: tileLeft(c), top: tileTop(r),
+                width: CELL, height: CELL,
+                borderRadius: 14,
+                border: '2px solid rgba(0,212,255,0.80)',
+                boxShadow: '0 0 16px rgba(0,212,255,0.45), inset 0 0 12px rgba(0,212,255,0.12)',
+                background: 'rgba(0,212,255,0.07)',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+          ))}
 
-            const tileBody = (floating: boolean) => (
-              <>
-                <div style={{
-                  position: 'absolute', inset: 0, pointerEvents: 'none',
-                  background: 'linear-gradient(168deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.20) 42%, rgba(255,255,255,0) 65%)',
-                  borderRadius: 14,
-                }} />
-                <span style={{
-                  position: 'relative', zIndex: 1, lineHeight: 1, letterSpacing: '-0.5px',
-                  fontSize: floating ? cfg.fs * 1.05 : cfg.fs,
-                }}>
-                  {tile.value}
-                </span>
-              </>
+          {/* Tiles */}
+          {tiles.map(tile => {
+            const cfg        = getTile(tile.value);
+            const isDragging = drag?.tileId === tile.id;
+            const isDying    = tile.state === 'dying';
+
+            const gloss = (
+              <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: 'linear-gradient(168deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.20) 42%, rgba(255,255,255,0) 65%)',
+                borderRadius: 14,
+              }} />
             );
 
+            // Slide transition for all live, non-new tiles
+            const slideTransition = (tile.state === 'new' || isDying)
+              ? 'none'
+              : `left ${SLIDE_MS}ms ease, top ${SLIDE_MS}ms ease`;
+
             return (
-              <div key={tile.key}>
-                {/* Ghost / resting tile */}
+              <div key={tile.id}>
+
+                {/* Grid tile (ghost while dragging) */}
                 <div
                   onPointerDown={e => onTilePointerDown(e, tile)}
                   style={{
                     position: 'absolute',
-                    left: tileLeft(tile.c), top: tileTop(tile.r),
+                    left: tileLeft(tile.c),
+                    top:  tileTop(tile.r),
                     width: CELL, height: CELL,
                     borderRadius: 14,
                     background: cfg.bg,
                     boxShadow: cfg.glow !== 'none' ? cfg.glow : undefined,
-                    border: '1px solid rgba(255,255,255,0.38)',
+                    border: `1px solid ${isDying ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.38)'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontWeight: 800, color: cfg.color,
                     fontFamily: 'Inter, system-ui, sans-serif',
                     overflow: 'hidden',
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                    opacity: isDragging ? 0.25 : 1,
+                    cursor: isDying ? 'default' : isDragging ? 'grabbing' : 'grab',
+                    zIndex: isDying ? 1 : isDragging ? 5 : 10,
+                    opacity: isDying ? 0 : isDragging ? 0.25 : 1,
                     transform: isDragging ? 'scale(0.90)' : undefined,
-                    transition: isDragging ? 'none' : 'opacity 0.1s, transform 0.1s',
-                    animation: !isDragging
-                      ? (tile.isNew    ? 'tile2048-spawn 0.20s cubic-bezier(0.34,1.56,0.64,1) both'
-                        : tile.isMerged ? 'tile2048-merge 0.18s cubic-bezier(0.34,1.56,0.64,1) both'
-                        : 'none')
+                    transition: isDragging
+                      ? `opacity 0.08s, transform 0.08s, ${slideTransition}`
+                      : slideTransition,
+                    animation: (!isDragging && !isDying)
+                      ? (tile.state === 'new'    ? 'tile2048-spawn 0.20s cubic-bezier(0.34,1.56,0.64,1) both'
+                       : tile.state === 'merged' ? 'tile2048-merge 0.18s cubic-bezier(0.34,1.56,0.64,1) both'
+                       : 'none')
                       : 'none',
+                    pointerEvents: isDying ? 'none' : 'auto',
                   }}
                 >
-                  {tileBody(false)}
+                  {gloss}
+                  <span style={{ position: 'relative', zIndex: 1, lineHeight: 1, letterSpacing: '-0.5px', fontSize: cfg.fs }}>
+                    {tile.value}
+                  </span>
                 </div>
 
-                {/* Floating tile — follows cursor */}
+                {/* Floating copy that follows the cursor while dragging */}
                 {isDragging && drag && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: drag.x, top: drag.y,
-                      width: CELL, height: CELL,
-                      borderRadius: 14,
-                      background: cfg.bg,
-                      boxShadow: `${cfg.glow !== 'none' ? cfg.glow + ', ' : ''}0 16px 40px rgba(0,0,0,0.40)`,
-                      border: '1px solid rgba(255,255,255,0.55)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 800, color: cfg.color,
-                      fontFamily: 'Inter, system-ui, sans-serif',
-                      overflow: 'hidden',
-                      transform: 'scale(1.12)',
-                      zIndex: 50,
-                      pointerEvents: 'none',
-                      cursor: 'grabbing',
-                      animation: 'tile2048-spawn 0.12s cubic-bezier(0.34,1.56,0.64,1) both',
-                    }}
-                  >
-                    {tileBody(true)}
+                  <div style={{
+                    position: 'absolute',
+                    left: drag.x, top: drag.y,
+                    width: CELL, height: CELL,
+                    borderRadius: 14,
+                    background: cfg.bg,
+                    boxShadow: `${cfg.glow !== 'none' ? cfg.glow + ', ' : ''}0 16px 40px rgba(0,0,0,0.40)`,
+                    border: '1px solid rgba(255,255,255,0.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 800, color: cfg.color,
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    overflow: 'hidden',
+                    transform: 'scale(1.12)',
+                    zIndex: 50,
+                    pointerEvents: 'none',
+                    animation: 'tile2048-spawn 0.12s cubic-bezier(0.34,1.56,0.64,1) both',
+                  }}>
+                    {gloss}
+                    <span style={{ position: 'relative', zIndex: 1, lineHeight: 1, letterSpacing: '-0.5px', fontSize: cfg.fs * 1.05 }}>
+                      {tile.value}
+                    </span>
                   </div>
                 )}
+
               </div>
             );
           })}
@@ -459,6 +466,7 @@ export function TwentyFortyEight() {
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 14,
               animation: 'tile2048-spawn 0.25s cubic-bezier(0.34,1.20,0.64,1) both',
+              zIndex: 100,
             }}>
               <Trophy className="h-14 w-14" style={{ color: '#7a4200', filter: 'drop-shadow(0 4px 8px rgba(100,40,0,0.35))' }} />
               <p style={{ fontSize: 32, fontWeight: 900, color: '#5a3000', letterSpacing: '-1px' }}>You Win!</p>
@@ -495,6 +503,7 @@ export function TwentyFortyEight() {
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 14,
               animation: 'tile2048-spawn 0.25s cubic-bezier(0.34,1.20,0.64,1) both',
+              zIndex: 100,
             }}>
               <p style={{ fontSize: 32, fontWeight: 900, color: '#dce8ff', letterSpacing: '-1px' }}>Game Over</p>
               <p style={{ fontSize: 13, color: '#8aabde' }}>Score: {score}</p>
@@ -509,12 +518,13 @@ export function TwentyFortyEight() {
               </button>
             </div>
           )}
+
         </div>
       </div>
 
       {/* ── Footer hint ── */}
       <p className="pb-4 text-center flex-shrink-0" style={{ fontSize: 11, color: 'var(--text-muted)', opacity: 0.65 }}>
-        Drag any tile in the direction you want to move
+        Drag any tile — highlighted cells show valid moves
       </p>
     </div>
   );
