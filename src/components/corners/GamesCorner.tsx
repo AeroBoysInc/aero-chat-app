@@ -1,6 +1,7 @@
 import { Gamepad2, Puzzle, Dices, Sword, Trophy, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { BubblePop } from './games/BubblePop';
+import { Tropico } from './games/Tropico';
 
 interface GameEntry {
   id: SelectedGame;
@@ -19,6 +20,14 @@ const GAMES: GameEntry[] = [
     desc: 'Pop bubbles before they escape!',
     available: true,
     color: '#00d4ff',
+  },
+  {
+    id: 'tropico',
+    icon: '🌴',
+    label: 'Tropico',
+    desc: 'Jump through 10 tropical levels!',
+    available: true,
+    color: '#34d399',
   },
   {
     id: null,
@@ -264,6 +273,7 @@ export function GamesCorner() {
         <>
           <div className="flex-1 min-h-0">
             {selectedGame === 'bubblepop' && <BubblePop />}
+            {selectedGame === 'tropico'   && <Tropico />}
           </div>
           <GamesStrip />
         </>
