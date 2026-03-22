@@ -1,7 +1,8 @@
-import { Gamepad2, Puzzle, Dices, Sword, Trophy, ArrowLeft } from 'lucide-react';
+import { Gamepad2, Puzzle, Sword, Trophy, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { BubblePop } from './games/BubblePop';
 import { Tropico } from './games/Tropico';
+import { TwentyFortyEight } from './games/TwentyFortyEight';
 
 interface GameEntry {
   id: SelectedGame;
@@ -38,11 +39,11 @@ const GAMES: GameEntry[] = [
     color: '#a78bfa',
   },
   {
-    id: null,
-    icon: Dices,
+    id: 'twentyfortyeight',
+    icon: '🔢',
     label: '2048',
-    desc: 'Slide tiles to reach 2048',
-    available: false,
+    desc: 'Slide tiles to reach 2048!',
+    available: true,
     color: '#fb923c',
   },
   {
@@ -272,8 +273,9 @@ export function GamesCorner() {
       {selectedGame ? (
         <>
           <div className="flex-1 min-h-0">
-            {selectedGame === 'bubblepop' && <BubblePop />}
-            {selectedGame === 'tropico'   && <Tropico />}
+            {selectedGame === 'bubblepop'        && <BubblePop />}
+            {selectedGame === 'tropico'          && <Tropico />}
+            {selectedGame === 'twentyfortyeight' && <TwentyFortyEight />}
           </div>
           <GamesStrip />
         </>

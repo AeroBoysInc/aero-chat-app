@@ -524,6 +524,17 @@
   100% { transform: translateX(-50%) scale(1.05) translateY(-14px); opacity: 0; }
 }
 
+/* 2048 tile animations */
+@keyframes tile2048-spawn {
+  0%   { transform: scale(0);    opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes tile2048-merge {
+  0%   { transform: scale(1);    }
+  45%  { transform: scale(1.20); }
+  100% { transform: scale(1);    }
+}
+
 /* ═══════════════════════════════════════════════
    UTILITIES
 ═══════════════════════════════════════════════ */
