@@ -13,6 +13,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
+import { ImageLightbox } from './ImageLightbox';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -112,7 +113,7 @@ function VoicePlayer({ content, isMine, outputVolume, outputDeviceId }: { conten
   );
 }
 
-function FileMessage({ content, isMine }: { content: string; isMine: boolean }) {
+function FileMessage({ content, isMine, onImageClick }: { content: string; isMine: boolean; onImageClick: (img: { url: string; name: string; size: number }) => void }) {
   const { url, name, size, mime } = JSON.parse(content) as { url: string; name: string; size: number; mime: string };
   const isImage = mime?.startsWith('image/');
   const textColor = isMine ? 'rgba(255,255,255,0.90)' : 'var(--recv-text)';
@@ -120,14 +121,18 @@ function FileMessage({ content, isMine }: { content: string; isMine: boolean }) 
 
   if (isImage) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+      <button
+        type="button"
+        className="block cursor-pointer text-left"
+        onClick={() => onImageClick({ url, name, size })}
+      >
         <img
           src={url} alt={name}
           className="rounded-aero block"
           style={{ maxWidth: 220, maxHeight: 220, objectFit: 'cover', display: 'block' }}
         />
         <p style={{ fontSize: 10, color: subColor, marginTop: 4 }}>{name}</p>
-      </a>
+      </button>
     );
   }
 
@@ -192,6 +197,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [isRecording,       setIsRecording]       = useState(false);
   const [recordDuration,    setRecordDuration]    = useState(0);
   const [isUploading,       setIsUploading]       = useState(false);
+  const [lightboxImage,     setLightboxImage]     = useState<{ url: string; name: string; size: number } | null>(null);
 
   const bottomRef          = useRef<HTMLDivElement>(null);
   const contactKeyRef      = useRef<string | null>(null);
@@ -783,7 +789,7 @@ export function ChatWindow({ contact, onBack }: Props) {
                     {isVoiceMessage(msg.content)
                       ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
                       : isFileMessage(msg.content)
-                      ? <FileMessage content={msg.content} isMine={isMine} />
+                      ? <FileMessage content={msg.content} isMine={isMine} onImageClick={setLightboxImage} />
                       : msg.content.startsWith(CHESS_INVITE_PREFIX) && !isMine
                       ? (() => {
                           const parts = msg.content.split(':');
@@ -981,6 +987,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           </div>
         )}
       </form>
+      <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
     </div>
   );
 }
