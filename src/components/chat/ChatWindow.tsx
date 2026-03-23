@@ -12,6 +12,9 @@ import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/Avatar
 import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
+import { ChessInviteCard } from '../chess/ChessInviteCard';
+
+const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
 interface Message {
   id: string;
@@ -781,6 +784,17 @@ export function ChatWindow({ contact, onBack }: Props) {
                       ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
                       : isFileMessage(msg.content)
                       ? <FileMessage content={msg.content} isMine={isMine} />
+                      : msg.content.startsWith(CHESS_INVITE_PREFIX) && !isMine
+                      ? (() => {
+                          const parts = msg.content.split(':');
+                          const gameId = parts[1] ?? '';
+                          const inviter = parts.slice(2).join(':');
+                          return <ChessInviteCard gameId={gameId} inviterUsername={inviter} />;
+                        })()
+                      : msg.content.startsWith(CHESS_INVITE_PREFIX) && isMine
+                      ? <p className="text-sm leading-relaxed break-words" style={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                          ♟️ Chess invite sent
+                        </p>
                       : (
                         <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
                           {msg.content === '[decryption failed]'

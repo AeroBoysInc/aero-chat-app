@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SelectedGame = 'bubblepop' | 'tropico' | 'twentyfortyeight' | 'typingtest' | null;
+export type SelectedGame = 'bubblepop' | 'tropico' | 'twentyfortyeight' | 'typingtest' | 'wordle' | 'chess' | null;
 
 interface CornerStore {
   gameViewActive: boolean;

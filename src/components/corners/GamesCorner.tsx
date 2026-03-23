@@ -1,9 +1,12 @@
 import { Gamepad2, Sword, Trophy, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
+import { useChessStore } from '../../store/chessStore';
+import { AeroChess } from '../chess/AeroChess';
 import { BubblePop } from './games/BubblePop';
 import { Tropico } from './games/Tropico';
 import { TwentyFortyEight } from './games/TwentyFortyEight';
 import { TypingTest } from './games/TypingTest';
+import { Wordle } from './games/Wordle';
 
 interface GameEntry {
   id: SelectedGame;
@@ -48,6 +51,22 @@ const GAMES: GameEntry[] = [
     color: '#fb923c',
   },
   {
+    id: 'wordle',
+    icon: '🟩',
+    label: 'Wordle',
+    desc: 'Guess the word in 6 tries!',
+    available: true,
+    color: '#a855f7',
+  },
+  {
+    id: 'chess' as SelectedGame,
+    icon: '♟️',
+    label: 'AeroChess',
+    desc: 'Real-time 1v1 — 🔵 Blue vs 🟢 Green',
+    available: true,
+    color: '#00d4ff',
+  },
+  {
     id: null,
     icon: Sword,
     label: 'Rock Paper Scissors',
@@ -69,6 +88,7 @@ const GAMES: GameEntry[] = [
 
 function GameHub() {
   const { closeGameView, selectGame } = useCornerStore();
+  const { openLobby } = useChessStore();
 
   return (
     <div className="flex h-full flex-col">
@@ -115,7 +135,11 @@ function GameHub() {
               <button
                 key={game.label}
                 disabled={!game.available}
-                onClick={() => game.available && game.id && selectGame(game.id)}
+                onClick={() => {
+                  if (!game.available || !game.id) return;
+                  if (game.id === 'chess') { selectGame('chess'); openLobby(); return; }
+                  selectGame(game.id);
+                }}
                 className="flex flex-col items-center justify-center gap-3 rounded-aero-lg p-5 text-center transition-all"
                 style={{
                   minHeight: 172,
@@ -278,8 +302,10 @@ export function GamesCorner() {
             {selectedGame === 'tropico'          && <Tropico />}
             {selectedGame === 'twentyfortyeight' && <TwentyFortyEight />}
             {selectedGame === 'typingtest'       && <TypingTest />}
+            {selectedGame === 'wordle'           && <Wordle />}
+            {selectedGame === 'chess'            && <AeroChess />}
           </div>
-          <GamesStrip />
+          {selectedGame !== 'chess' && <GamesStrip />}
         </>
       ) : (
         <GameHub />
