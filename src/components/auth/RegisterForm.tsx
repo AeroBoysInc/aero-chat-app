@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { generateKeyPair, savePrivateKey } from '../../lib/crypto';
+import { generateKeyPair, savePrivateKey, encryptPrivateKey } from '../../lib/crypto';
 
 interface Props { onSuccess: () => void; }
 
@@ -33,11 +33,16 @@ export function RegisterForm({ onSuccess }: Props) {
     // Scope private key to this user so multiple accounts on the same browser don't conflict
     savePrivateKey(privateKey, data.user.id);
 
-    // Insert profile with public key
+    // Encrypt the private key with the user's password and store it in Supabase
+    // so the keypair can be restored on any new device they log in from.
+    const encryptedPrivateKey = await encryptPrivateKey(privateKey, password);
+
+    // Insert profile with public key + encrypted key backup
     const { error: profileErr } = await supabase.from('profiles').insert({
-      id:         data.user.id,
-      username:   username.trim(),
-      public_key: publicKey,
+      id:                   data.user.id,
+      username:             username.trim(),
+      public_key:           publicKey,
+      encrypted_private_key: encryptedPrivateKey,
     });
 
     if (profileErr) {
@@ -69,7 +74,7 @@ export function RegisterForm({ onSuccess }: Props) {
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserPlus className="h-4 w-4" /> Create Account</>}
       </button>
       <p className="text-center text-xs" style={{ color: '#8ab4cc' }}>
-        A unique encryption keypair is generated on your device. Your private key never leaves it.
+        A unique encryption keypair is generated and encrypted with your password — sign in on any device to restore it.
       </p>
     </form>
   );

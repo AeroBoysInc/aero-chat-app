@@ -7,7 +7,8 @@ import { useCornerStore } from './store/cornerStore';
 import { useUnreadStore } from './store/unreadStore';
 import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
-import { generateKeyPair, savePrivateKey, loadPrivateKey } from './lib/crypto';
+import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
+import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification } from './lib/notifications';
 import { loadSelectedContactId, clearAllChatCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
@@ -26,32 +27,59 @@ export default function App() {
       // Use maybeSingle so we get null (not a 406 error) when the profile row
       // doesn't exist yet — this happens when onAuthStateChange fires during
       // registration before RegisterForm has finished inserting the profile.
-      const { data: profile } = await supabase
+      const { data: row } = await supabase
         .from('profiles')
-        .select('id, username, public_key, avatar_url, status')
+        .select('id, username, public_key, avatar_url, status, encrypted_private_key')
         .eq('id', userId)
         .maybeSingle();
 
-      if (!profile) {
+      if (!row) {
         // Profile not created yet (mid-registration). Leave settled = false so
         // the next auth event (SIGNED_IN after login) will try again.
         setUser(null);
         return;
       }
 
-      // Ensure a keypair exists for this session. Generates a new one only if
-      // the private key is missing (new device, cleared storage, post-sign-out).
+      const pendingPw = consumePendingPassword();
+
       if (!loadPrivateKey(userId)) {
-        const kp = generateKeyPair();
-        savePrivateKey(kp.privateKey, userId);
-        await supabase.from('profiles').update({ public_key: kp.publicKey }).eq('id', userId);
-        profile.public_key = kp.publicKey;
-        // Old messages were encrypted with the previous key pair and are now
-        // unreadable. Clear the cache so users see empty history instead of
-        // a screen full of "[decryption failed]".
-        clearAllChatCaches();
+        // No local key — try to restore from the encrypted backup in Supabase.
+        let restored = false;
+        if (row.encrypted_private_key && pendingPw) {
+          const privateKey = await decryptPrivateKey(row.encrypted_private_key, pendingPw);
+          if (privateKey) {
+            savePrivateKey(privateKey, userId);
+            restored = true;
+          }
+        }
+
+        if (!restored) {
+          // No backup or decryption failed — generate a fresh keypair.
+          // This happens for brand-new accounts (backup was just created by
+          // RegisterForm) or for very old accounts that predate this feature.
+          const kp = generateKeyPair();
+          savePrivateKey(kp.privateKey, userId);
+          await supabase.from('profiles').update({ public_key: kp.publicKey }).eq('id', userId);
+          row.public_key = kp.publicKey;
+          // Old messages can no longer be decrypted — clear the cache.
+          clearAllChatCaches();
+
+          // Save an encrypted backup so future new-device logins can restore.
+          if (pendingPw) {
+            const blob = await encryptPrivateKey(kp.privateKey, pendingPw);
+            await supabase.from('profiles').update({ encrypted_private_key: blob }).eq('id', userId);
+          }
+        }
+      } else if (!row.encrypted_private_key && pendingPw) {
+        // Key is already in localStorage but no backup exists yet (existing user
+        // who registered before this feature). Backfill the encrypted blob now.
+        const blob = await encryptPrivateKey(loadPrivateKey(userId)!, pendingPw);
+        await supabase.from('profiles').update({ encrypted_private_key: blob }).eq('id', userId);
       }
 
+      // Strip the encrypted blob before storing in app state — it's not needed
+      // anywhere in the UI and we don't want it floating around in memory.
+      const { encrypted_private_key: _epk, ...profile } = row;
       setUser(profile);
       settled = true;
       // Push locally-stored status to Supabase so other users see it immediately

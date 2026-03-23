@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { setPendingPassword } from '../../lib/keyRestoration';
 export function LoginForm() {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -12,6 +13,9 @@ export function LoginForm() {
     setError('');
     setLoading(true);
 
+    // Make the password available to App.tsx's resolveSession so it can decrypt
+    // the stored encrypted private key blob on a new device.
+    setPendingPassword(password);
     const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
     if (authErr || !data.user) {
       setError(authErr?.message ?? 'Login failed');
