@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, ChevronDown, Sparkles } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -11,6 +12,7 @@ interface Task {
   id: string;
   title: string;
   description?: string;
+  detail?: string[];
   status: Status;
   priority: Priority;
   sprint: number;
@@ -61,9 +63,25 @@ const INITIAL_TASKS: Task[] = [
   { id:'AC-23', title:'Onboarding / first-run flow',                  sprint:3, status:'todo', priority:'medium', labels:['ui','feature'] },
   { id:'AC-24', title:'Performance profiling & bundle splitting',     sprint:3, status:'todo', priority:'medium', labels:['perf','infra'] },
   { id:'AC-25', title:'Landing page download section (live)',         sprint:3, status:'todo', priority:'low',    labels:['release','ui'] },
+
+  // ── Sprint 2 additions ───────────────────────────────────────────────────────
+  {
+    id: 'AC-26',
+    title: 'Aero Chess Enhancements',
+    sprint: 2,
+    status: 'todo',
+    priority: 'high',
+    labels: ['game', 'ui'],
+    detail: [
+      'Add a skybox of a clear blue crystal sky.',
+      'Bubbles needs to be scattered.',
+      'The chess table needs to sit on volumetric clouds.',
+      'Options to lower settings.',
+    ],
+  },
 ];
 
-const STORAGE_KEY = 'aero_dev_tasks_v2';
+const STORAGE_KEY = 'aero_dev_tasks_v3';
 
 function loadTasks(): Task[] {
   try {
@@ -102,13 +120,83 @@ const LABEL_CFG: Record<Label, { color: string; bg: string }> = {
 };
 
 // ── Task card ──────────────────────────────────────────────────────────────────
+function DetailModal({ task, onClose }: { task: Task; onClose: () => void }) {
+  return createPortal(
+    <div
+      style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center',
+        background:'rgba(0,0,0,0.70)', backdropFilter:'blur(10px)' }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background:'rgba(5,12,38,0.97)',
+          border:'1px solid rgba(0,212,255,0.28)',
+          borderRadius:18, padding:'28px 28px 24px',
+          maxWidth:420, width:'calc(100% - 40px)',
+          boxShadow:'0 24px 80px rgba(0,0,0,0.65), 0 0 50px rgba(0,212,255,0.10)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:20 }}>
+          <div style={{
+            width:38, height:38, borderRadius:10, flexShrink:0,
+            background:'rgba(0,212,255,0.12)', border:'1px solid rgba(0,212,255,0.25)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }}>
+            <Sparkles style={{ width:18, height:18, color:'#00d4ff' }} />
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <p style={{ fontSize:15, fontWeight:800, color:'#fff', lineHeight:1.2 }}>{task.title}</p>
+            <p style={{ fontSize:10, color:'rgba(255,255,255,0.32)', marginTop:3, fontFamily:'monospace' }}>
+              {task.id} · {LABEL_CFG['game'].color && 'Game Enhancement'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width:26, height:26, borderRadius:7, background:'rgba(255,255,255,0.06)',
+              border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.45)',
+              display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background='rgba(255,80,80,0.15)'; (e.currentTarget as HTMLElement).style.color='#ff6060'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color='rgba(255,255,255,0.45)'; }}
+          >
+            <X style={{ width:12, height:12 }} />
+          </button>
+        </div>
+
+        {/* Items */}
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {task.detail?.map((item, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
+              <div style={{
+                width:22, height:22, borderRadius:7, flexShrink:0, marginTop:1,
+                background:'rgba(0,212,255,0.10)', border:'1px solid rgba(0,212,255,0.20)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:10, fontWeight:800, color:'#00d4ff', fontFamily:'monospace',
+              }}>
+                {i + 1}
+              </div>
+              <p style={{ fontSize:13, color:'rgba(255,255,255,0.78)', lineHeight:1.5, flex:1 }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, s: Status) => void }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen,    setMenuOpen]    = useState(false);
+  const [showDetail,  setShowDetail]  = useState(false);
   const col = COL_CFG[task.status];
   const pri = PRI_CFG[task.priority];
 
   return (
+    <>
+    {showDetail && task.detail && <DetailModal task={task} onClose={() => setShowDetail(false)} />}
     <div
+      onClick={() => { if (task.detail) setShowDetail(true); }}
       style={{
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(255,255,255,0.07)',
@@ -116,13 +204,22 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, s: Status
         borderRadius: 10,
         padding: '10px 12px',
         position: 'relative',
+        cursor: task.detail ? 'pointer' : 'default',
+        transition: 'background 0.15s, border-color 0.15s',
       }}
+      onMouseEnter={e => { if (task.detail) (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.06)'; }}
+      onMouseLeave={e => { if (task.detail) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
     >
-      {/* Top row: ID + priority */}
+      {/* Top row: ID + priority + sparkle if has detail */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
-        <span style={{ fontSize:10, fontFamily:'monospace', color:'rgba(255,255,255,0.30)', letterSpacing:'0.04em' }}>
-          {task.id}
-        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ fontSize:10, fontFamily:'monospace', color:'rgba(255,255,255,0.30)', letterSpacing:'0.04em' }}>
+            {task.id}
+          </span>
+          {task.detail && (
+            <Sparkles style={{ width:9, height:9, color:'#00d4ff', opacity:0.75 }} />
+          )}
+        </div>
         <span style={{ fontSize:10, fontWeight:700, color: pri.color, background:`${pri.color}22`, padding:'1px 7px', borderRadius:20 }}>
           {pri.label}
         </span>
@@ -160,7 +257,7 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, s: Status
         </div>
 
         {/* Move dropdown */}
-        <div style={{ position:'relative', flexShrink:0 }}>
+        <div style={{ position:'relative', flexShrink:0 }} onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setMenuOpen(o => !o)}
             style={{
@@ -206,6 +303,7 @@ function TaskCard({ task, onMove }: { task: Task; onMove: (id: string, s: Status
         </div>
       </div>
     </div>
+    </>
   );
 }
 
