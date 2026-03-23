@@ -33,7 +33,7 @@ export function ChessInviteCard({ gameId, inviterUsername }: ChessInviteCardProp
     // Activate the game and update status to active
     await supabase
       .from('chess_games')
-      .update({ status: 'active' })
+      .update({ status: 'active', updated_at: new Date().toISOString() })
       .eq('id', gameId);
 
     const myColor = game.blue_player_id === user.id ? 'blue' : 'green';

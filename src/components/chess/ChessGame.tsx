@@ -65,8 +65,8 @@ export function ChessGame() {
         .select('*')
         .eq('id', gameData.id)
         .single();
-      if (data && data.updated_at !== gameData.updated_at) setGameData(data);
-    }, 2500);
+      if (data && (data.updated_at !== gameData.updated_at || data.status !== gameData.status)) setGameData(data);
+    }, 500);
     return () => clearInterval(id);
   }, [gameData?.id, gameData?.status, gameData?.updated_at, setGameData]);
 
@@ -154,6 +154,31 @@ export function ChessGame() {
 
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
+      <style>{`
+        @keyframes chess-knight-float {
+          0%, 100% { transform: translateY(0) rotate(-5deg); }
+          50%       { transform: translateY(-10px) rotate(5deg); }
+        }
+      `}</style>
+
+      {/* Waiting for invite acceptance */}
+      {gameData.status === 'pending' && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}>
+          <div className="flex flex-col items-center gap-4 rounded-2xl p-10 text-center"
+            style={{ background: 'rgba(0,20,50,0.92)', border: '1px solid rgba(0,212,255,0.30)', boxShadow: '0 0 60px rgba(0,212,255,0.20)' }}>
+            <div style={{ fontSize: 48, animation: 'chess-knight-float 3.5s ease-in-out infinite' }}>♟️</div>
+            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>Waiting for opponent…</h2>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Your invite is on its way. The game will start when they accept.</p>
+            <button
+              onClick={backToLobby}
+              className="rounded-xl px-6 py-2.5 text-sm font-bold"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)' }}>
+              Cancel invite
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Result overlay */}
       {finished && result && (
