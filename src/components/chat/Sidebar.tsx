@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus } from 'lucide-react';
+import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -9,20 +9,23 @@ import { useStatusStore } from '../../store/statusStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
+import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { FriendRequestModal } from './FriendRequestModal';
 import { SettingsPanel } from '../settings/SettingsPanel';
 import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
+import { useCornerStore } from '../../store/cornerStore';
 
 interface Props {
   selectedUser: Profile | null;
   onSelectUser: (user: Profile) => void;
+  isMobile?: boolean;
 }
 
 
 const ALL_STATUSES: Status[] = ['online', 'busy', 'away', 'offline'];
 
-export function Sidebar({ selectedUser, onSelectUser }: Props) {
+export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props) {
   const { user, signOut } = useAuthStore();
   const { friends, pendingIncoming, pendingSent, sendFriendRequest, removeFriend } = useFriendStore();
   const { counts, clear } = useUnreadStore();
@@ -30,6 +33,7 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
   const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
+  const { openGameHub } = useCornerStore();
 
   const [query,          setQuery]          = useState('');
   const [results,        setResults]        = useState<Profile[]>([]);
@@ -85,16 +89,32 @@ export function Sidebar({ selectedUser, onSelectUser }: Props) {
     >
       {/* ── Header ── */}
       <div
-        className="drag-region flex items-center justify-between px-4 py-4"
+        className="flex items-center justify-between px-4 py-4"
         style={{ borderBottom: '1px solid var(--panel-divider)' }}
       >
-        <div className="flex items-center gap-2.5 no-drag">
+        <div className="flex items-center gap-2.5">
           <AeroLogo size={30} />
           <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
             AeroChat
           </span>
         </div>
-        <div className="flex items-center gap-0.5 no-drag">
+        <div className="flex items-center gap-0.5">
+          {/* Mobile-only: theme switcher + games button */}
+          {isMobile && (
+            <>
+              <ThemeSwitcher />
+              <button
+                onClick={openGameHub}
+                className="relative rounded-aero p-2 transition-all duration-150"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                title="Games"
+              >
+                <Gamepad2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
           <button
             onClick={() => setRequestsOpen(true)}
             className="relative rounded-aero p-2 transition-all duration-150"

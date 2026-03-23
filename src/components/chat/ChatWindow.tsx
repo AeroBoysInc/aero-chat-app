@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -147,7 +147,7 @@ function FileMessage({ content, isMine }: { content: string; isMine: boolean }) 
   );
 }
 
-interface Props { contact: Profile; }
+interface Props { contact: Profile; onBack?: () => void; }
 
 function SoapBubbles() {
   const bubbles = [
@@ -166,7 +166,7 @@ function SoapBubbles() {
   );
 }
 
-export function ChatWindow({ contact }: Props) {
+export function ChatWindow({ contact, onBack }: Props) {
   const { user } = useAuthStore();
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
@@ -620,8 +620,19 @@ export function ChatWindow({ contact }: Props) {
     <div className="flex h-full flex-col">
 
       {/* Header */}
-      <div className="drag-region flex items-center gap-3 px-6 py-3.5"
+      <div className="drag-region flex items-center gap-3 px-4 py-3.5"
         style={{ borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="no-drag flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl transition-all"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" status={liveStatus} />
         <div className="no-drag flex-1 min-w-0">
           <div className="flex items-center gap-2">

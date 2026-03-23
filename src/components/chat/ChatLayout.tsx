@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from './ChatWindow';
 import { AeroLogo } from '../ui/AeroLogo';
@@ -9,6 +9,7 @@ import { GamesCorner } from '../corners/GamesCorner';
 import { DevCorner } from '../corners/DevCorner';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
+import { useIsMobile } from '../../lib/useIsMobile';
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
@@ -29,6 +30,13 @@ export function ChatLayout() {
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const isMobile = useIsMobile();
+  const [mobilePaneShowChat, setMobilePaneShowChat] = useState(false);
+
+  // Slide to chat pane whenever a contact is selected on mobile
+  useEffect(() => {
+    if (isMobile && selectedContact) setMobilePaneShowChat(true);
+  }, [selectedContact, isMobile]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
@@ -54,6 +62,48 @@ export function ChatLayout() {
     document.addEventListener('mouseup', onUp);
   }, [sidebarWidth]);
 
+  // ── Mobile layout — single-pane slide navigation ──────────────────────────
+  if (isMobile) {
+    return (
+      <div className="relative h-screen overflow-hidden" style={{ background: 'var(--sidebar-bg)' }}>
+
+        {/* Theme switcher — top right */}
+        <div className="fixed top-3 right-3 z-50">
+          <ThemeSwitcher />
+        </div>
+
+        {/* Sidebar pane — slides out left when chat opens */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          transform: mobilePaneShowChat ? 'translateX(-100%)' : 'translateX(0)',
+          transition: 'transform 0.30s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
+        }}>
+          <Sidebar selectedUser={selectedContact} onSelectUser={setSelectedContact} isMobile />
+        </div>
+
+        {/* Chat pane — slides in from right */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          transform: mobilePaneShowChat ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.30s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
+        }}>
+          {selectedContact && (
+            <div className="flex h-full flex-col" style={{ background: 'var(--sidebar-bg)' }}>
+              <ChatWindow
+                contact={selectedContact}
+                onBack={() => setMobilePaneShowChat(false)}
+              />
+            </div>
+          )}
+        </div>
+
+      </div>
+    );
+  }
+
+  // ── Desktop layout ──────────────────────────────────────────────────────────
   return (
     <div className="relative flex h-screen overflow-hidden p-3 gap-2">
 
