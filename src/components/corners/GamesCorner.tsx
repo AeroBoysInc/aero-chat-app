@@ -1,7 +1,12 @@
+import { lazy, Suspense } from 'react';
 import { Gamepad2, Sword, Trophy, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { useChessStore } from '../../store/chessStore';
-import { AeroChess } from '../chess/AeroChess';
+
+// Lazy-load chess: Three.js + drei + postprocessing are ~900KB — don't parse at app startup
+const AeroChess = lazy(() =>
+  import('../chess/AeroChess').then(m => ({ default: m.AeroChess }))
+);
 import { BubblePop } from './games/BubblePop';
 import { Tropico } from './games/Tropico';
 import { TwentyFortyEight } from './games/TwentyFortyEight';
@@ -303,7 +308,15 @@ export function GamesCorner() {
             {selectedGame === 'twentyfortyeight' && <TwentyFortyEight />}
             {selectedGame === 'typingtest'       && <TypingTest />}
             {selectedGame === 'wordle'           && <Wordle />}
-            {selectedGame === 'chess'            && <AeroChess />}
+            {selectedGame === 'chess'            && (
+              <Suspense fallback={
+                <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
+                  Loading chess…
+                </div>
+              }>
+                <AeroChess />
+              </Suspense>
+            )}
           </div>
           {selectedGame !== 'chess' && <GamesStrip />}
         </>
