@@ -1,8 +1,9 @@
-import { Gamepad2, Puzzle, Sword, Trophy, ArrowLeft } from 'lucide-react';
+import { Gamepad2, Sword, Trophy, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { BubblePop } from './games/BubblePop';
 import { Tropico } from './games/Tropico';
 import { TwentyFortyEight } from './games/TwentyFortyEight';
+import { TypingTest } from './games/TypingTest';
 
 interface GameEntry {
   id: SelectedGame;
@@ -31,12 +32,12 @@ const GAMES: GameEntry[] = [
     color: '#34d399',
   },
   {
-    id: null,
-    icon: Puzzle,
-    label: 'Word Puzzle',
-    desc: 'Guess the word in 6 tries',
-    available: false,
-    color: '#a78bfa',
+    id: 'typingtest',
+    icon: '⌨️',
+    label: 'Type Rush',
+    desc: 'Race the clock — WPM test!',
+    available: true,
+    color: '#00d4ff',
   },
   {
     id: 'twentyfortyeight',
@@ -276,6 +277,7 @@ export function GamesCorner() {
             {selectedGame === 'bubblepop'        && <BubblePop />}
             {selectedGame === 'tropico'          && <Tropico />}
             {selectedGame === 'twentyfortyeight' && <TwentyFortyEight />}
+            {selectedGame === 'typingtest'       && <TypingTest />}
           </div>
           <GamesStrip />
         </>
