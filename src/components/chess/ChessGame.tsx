@@ -4,7 +4,7 @@ import { Chess } from 'chess.js';
 import { Flag, Wifi, WifiOff } from 'lucide-react';
 import { useChessStore } from '../../store/chessStore';
 import { useAuthStore } from '../../store/authStore';
-import { ChessBoard } from './ChessBoard';
+import { ChessBoard3D } from './ChessBoard3D';
 import { supabase } from '../../lib/supabase';
 
 const HEARTBEAT_INTERVAL = 10_000; // 10s
@@ -238,7 +238,7 @@ export function ChessGame() {
       </div>
 
       {/* Board */}
-      <ChessBoard
+      <ChessBoard3D
         chess={chess}
         myColor={myColor}
         lastMove={gameData.last_move}

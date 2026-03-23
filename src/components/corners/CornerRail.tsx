@@ -3,7 +3,7 @@ import { Gamepad2, Terminal } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 
 interface RailBtnProps {
-  icon: React.ElementType;
+  icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>;
   isActive: boolean;
   color: string;
   tooltip: string;
