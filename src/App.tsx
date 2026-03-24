@@ -180,7 +180,11 @@ export default function App() {
           const p = (presences as any[])[0];
           if (p?.playingGame) newGames.set(userId, p.playingGame);
         }
-        setPlayingGames(newGames);
+        // Skip re-render if playing games map hasn't changed
+        const prevGames = usePresenceStore.getState().playingGames;
+        const gamesChanged = newGames.size !== prevGames.size ||
+          [...newGames.entries()].some(([k, v]) => prevGames.get(k) !== v);
+        if (gamesChanged) setPlayingGames(newGames);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
