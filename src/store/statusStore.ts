@@ -10,6 +10,7 @@ interface StatusStore {
   setStatus: (s: Status) => Promise<void>;
   /** Push the locally-stored status to Supabase (call on login) */
   syncToSupabase: (userId: string) => Promise<void>;
+  /** Toggle game activity display. Local-only — never synced to Supabase. */
   setShowGameActivity: (val: boolean) => void;
 }
 
