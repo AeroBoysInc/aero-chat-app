@@ -381,28 +381,46 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
 
         {/* Settings dropdown menu */}
         {settingsView === 'menu' && (
-          <div className="absolute bottom-14 left-2 z-50 w-52 rounded-aero-lg border border-white/20 bg-aero-deep/90 py-1.5 shadow-xl backdrop-blur-xl animate-fade-in">
+          <div
+            className="absolute bottom-14 left-2 z-50 w-52 py-1.5 shadow-xl animate-fade-in"
+            style={{
+              borderRadius: 16,
+              border: '1px solid var(--popup-border)',
+              background: 'var(--popup-bg)',
+              boxShadow: 'var(--popup-shadow)',
+              backdropFilter: 'blur(28px)',
+            }}
+          >
             <button
               onClick={() => setSettingsView('profile')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ color: 'var(--popup-text-secondary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
             >
-              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               Profile Settings
             </button>
-            <div className="mx-3 h-px bg-white/10" />
+            <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
             <button
               onClick={() => setSettingsView('general')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ color: 'var(--popup-text-secondary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
             >
-              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 18v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 18v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
               General
             </button>
-            <div className="mx-3 h-px bg-white/10" />
+            <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
             <button
               onClick={() => setSettingsView('security')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              style={{ color: 'var(--popup-text-secondary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
             >
-              <svg className="h-4 w-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               Security
             </button>
           </div>
@@ -428,8 +446,8 @@ function StatusLine({ status, playingGame }: { status: Status; playingGame?: str
       </span>
       {playingGame && (
         <>
-          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-          <span style={{ color: '#5BC8F5', fontWeight: 500 }}>
+          <span style={{ color: 'var(--separator-dot)' }}>·</span>
+          <span style={{ color: 'var(--game-activity-color)', fontWeight: 500 }}>
             🎮 Playing {GAME_LABELS[playingGame as keyof typeof GAME_LABELS] ?? playingGame}
           </span>
         </>

@@ -639,9 +639,9 @@ export function ChatWindow({ contact, onBack }: Props) {
           <button
             onClick={onBack}
             className="no-drag flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl transition-all"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--btn-ghost-bg)'}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -678,8 +678,8 @@ export function ChatWindow({ contact, onBack }: Props) {
               {statusLabel[liveStatus]}
               {contactGame && (
                 <>
-                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-                  <span style={{ color: '#5BC8F5', fontWeight: 500 }}>
+                  <span style={{ color: 'var(--separator-dot)' }}>·</span>
+                  <span style={{ color: 'var(--game-activity-color)', fontWeight: 500 }}>
                     🎮 Playing {GAME_LABELS[contactGame as keyof typeof GAME_LABELS] ?? contactGame}
                   </span>
                 </>
@@ -847,8 +847,8 @@ export function ChatWindow({ contact, onBack }: Props) {
                             onClick={() => toggleReaction(msg.id, emoji)}
                             className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 transition-all active:scale-90"
                             style={{
-                              background: mine ? 'rgba(0,212,255,0.18)' : 'rgba(255,255,255,0.08)',
-                              border: `1px solid ${mine ? 'rgba(0,212,255,0.45)' : 'rgba(255,255,255,0.15)'}`,
+                              background: mine ? 'rgba(0,212,255,0.18)' : 'var(--reaction-idle-bg)',
+                              border: `1px solid ${mine ? 'rgba(0,212,255,0.45)' : 'var(--reaction-idle-border)'}`,
                               fontSize: 13,
                             }}
                           >
@@ -867,7 +867,7 @@ export function ChatWindow({ contact, onBack }: Props) {
                     <button
                       onClick={() => setReactionPickerFor(prev => prev === msg.id ? null : msg.id)}
                       className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-all hover:scale-110 active:scale-95"
-                      style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)', color: 'var(--text-secondary)' }}
+                      style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-secondary)' }}
                     >
                       +
                     </button>
@@ -875,8 +875,8 @@ export function ChatWindow({ contact, onBack }: Props) {
                       <div
                         className="absolute z-30 flex gap-1 rounded-aero-lg p-2 shadow-xl"
                         style={{
-                          background: 'rgba(10,30,70,0.92)',
-                          border: '1px solid rgba(255,255,255,0.15)',
+                          background: 'var(--popup-bg)',
+                          border: '1px solid var(--popup-border)',
                           backdropFilter: 'blur(16px)',
                           bottom: '110%',
                           ...(isMine ? { right: 0 } : { left: 0 }),
