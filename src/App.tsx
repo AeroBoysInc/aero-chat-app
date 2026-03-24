@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useFriendStore } from './store/friendStore';
@@ -19,6 +19,9 @@ export default function App() {
   const { user, loading, setUser } = useAuthStore();
   const { loadFriends, subscribeToRequests } = useFriendStore();
   const { increment, seed } = useUnreadStore();
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const selectedGame       = useCornerStore(s => s.selectedGame);
+  const { showGameActivity } = useStatusStore();
 
   useEffect(() => {
     let settled = false;
@@ -157,10 +160,10 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
-  // Global presence channel — detects who is actually connected
+  // Global presence channel — detects who is actually connected + game activity
   useEffect(() => {
     if (!user) return;
-    const { setOnlineIds, setPresenceReady } = usePresenceStore.getState();
+    const { setOnlineIds, setPresenceReady, setPlayingGames } = usePresenceStore.getState();
     const channel = supabase
       .channel('global:online', { config: { presence: { key: user.id } } })
       .on('presence', { event: 'sync' }, () => {
@@ -171,14 +174,33 @@ export default function App() {
         const changed = newIds.size !== prev.size || [...newIds].some(id => !prev.has(id));
         if (changed) setOnlineIds(newIds);
         setPresenceReady(true);
+        // Populate playingGames from presence payload
+        const newGames = new Map<string, string>();
+        for (const [userId, presences] of Object.entries(state)) {
+          const p = (presences as any[])[0];
+          if (p?.playingGame) newGames.set(userId, p.playingGame);
+        }
+        setPlayingGames(newGames);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ connected: true });
+          const { showGameActivity: sga } = useStatusStore.getState();
+          const { selectedGame: sg }      = useCornerStore.getState();
+          await channel.track({ connected: true, playingGame: sga ? sg : null });
         }
       });
+    presenceChannelRef.current = channel;
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
+
+  // Re-broadcast game activity when selectedGame or showGameActivity changes
+  useEffect(() => {
+    if (!user?.id) return;
+    presenceChannelRef.current?.track({
+      connected: true,
+      playingGame: showGameActivity ? selectedGame : null,
+    });
+  }, [selectedGame, showGameActivity, user?.id]);
 
   if (loading) {
     return (
