@@ -313,6 +313,9 @@ export function Tropico() {
   const containerRef   = useRef<HTMLDivElement>(null);
   const scaleRef       = useRef(1);
   const rafRef         = useRef<number>(0);
+  const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
+  const pausedRef  = useRef(false);
+  pausedRef.current = gamePaused;
   const bgRef          = useRef<HTMLImageElement | null>(null);
   const keysRef        = useRef<Set<string>>(new Set());
   const jumpPressedRef = useRef(false);
@@ -651,15 +654,20 @@ export function Tropico() {
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (pausedRef.current) return;
       if (GAME_KEYS.has(e.code)) e.preventDefault();
       keysRef.current.add(e.code);
     };
-    const onKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.code);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (pausedRef.current) return;
+      keysRef.current.delete(e.code);
+    };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup',   onKeyUp);
 
     let last = performance.now();
     function loop(now: number) {
+      if (pausedRef.current) return; // stop loop entirely — canvas retains last frame
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       update(dt);
@@ -677,6 +685,31 @@ export function Tropico() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
+
+  // Pause / resume when game chat overlay opens / closes
+  useEffect(() => {
+    if (screen !== 'playing') return;
+
+    if (gamePaused) {
+      // Stop the loop
+      cancelAnimationFrame(rafRef.current);
+      // Clear any buffered keys so player doesn't move on resume
+      keysRef.current.clear();
+    } else {
+      // Resume — reset lastTime so first dt is zero (no delta jump)
+      let last = performance.now();
+      function loop(now: number) {
+        if (pausedRef.current) return;
+        const dt = Math.min((now - last) / 1000, 0.05);
+        last = now;
+        update(dt);
+        render();
+        rafRef.current = requestAnimationFrame(loop);
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamePaused, screen]);
 
   // ── Audio ────────────────────────────────────────────────────────────────────
   let audioCtx: AudioContext | null = null;
