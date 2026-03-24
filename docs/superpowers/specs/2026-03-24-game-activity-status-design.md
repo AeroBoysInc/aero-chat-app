@@ -21,7 +21,7 @@ online · 🎮 Playing Wordle
 
 - The game label is appended to the existing status text, separated by ` · `
 - When the user is not playing, only the status text shows (no change to existing behaviour)
-- Colour: cyan (`#5BC8F5`) for the game label, matching the Frutiger Aero palette
+- Colour: `#5BC8F5` (the `sky` design token) for the game label
 - Icon: 🎮 emoji prefix
 
 ### Locations
@@ -29,7 +29,11 @@ online · 🎮 Playing Wordle
 1. **Sidebar friend list** — status line beneath the friend's username (the line that shows `online` / `away` / `busy` / `offline`)
 2. **Chat window header** — status text shown next to the contact's name at the top of the open conversation
 
+Note: ChatWindow currently reads the contact's status from the `profiles` table (friends store) rather than from `presenceStore.onlineIds`. This is a pre-existing inconsistency that is out of scope for this feature. The game label will be appended the same way in both places; the label will simply use the presence data without correcting the underlying status source.
+
 ### Game name mapping
+
+A `GAME_LABELS` constant (plain object) is defined once in a shared location (e.g., `src/lib/gameLabels.ts`) and imported wherever the display name is needed.
 
 | `SelectedGame` ID | Display name |
 |---|---|
@@ -39,8 +43,6 @@ online · 🎮 Playing Wordle
 | `typingtest` | Typing Test |
 | `wordle` | Wordle |
 | `chess` | Chess |
-
-A `GAME_LABELS` constant (plain object) is defined once and imported wherever the display name is needed.
 
 ---
 
@@ -57,24 +59,53 @@ channel.track({ connected: true })
 This is extended to:
 
 ```ts
-channel.track({ connected: true, playingGame: selectedGame ?? null })
+channel.track({ connected: true, playingGame: showGameActivity ? selectedGame : null })
 ```
 
-- `selectedGame` is read from `cornerStore`
-- When `showGameActivity` is `false` in `statusStore`, `playingGame` is always sent as `null`
-- `channel.track()` is re-called whenever `selectedGame` or `showGameActivity` changes
+- When `selectedGame` is `null` (user closed game hub or no game selected), `playingGame` is `null`
+- When `showGameActivity` is `false`, `playingGame` is always `null`
+
+#### Channel ref refactoring required
+
+Currently, `channel` is a local `const` inside the presence `useEffect` in `App.tsx`, scoped to the subscription callback. To allow a separate `useEffect` to call `channel.track()` when `selectedGame` or `showGameActivity` changes, the channel must be promoted to a component-level ref:
+
+```ts
+// At component level in App.tsx
+const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+// Inside the presence useEffect, after creating the channel:
+presenceChannelRef.current = channel;
+```
+
+The initial `channel.track()` call inside the subscribe callback must also include the game payload:
+
+```ts
+await channel.track({
+  connected: true,
+  playingGame: showGameActivity ? selectedGame : null,
+});
+```
+
+A second `useEffect` watches `[selectedGame, showGameActivity]` only (gated on `user?.id` existing). Refs are not reactive so `presenceChannelRef.current` is **not** in the dependency array — the channel will already be set by the time `selectedGame` or `showGameActivity` changes:
+
+```ts
+presenceChannelRef.current?.track({
+  connected: true,
+  playingGame: showGameActivity ? selectedGame : null,
+});
+```
 
 No database schema changes are required — game activity is ephemeral presence data only.
 
 ### `presenceStore` — new field
 
-Add `playingGames: Map<string, string>` to the store (userId → game ID string).
+Add `playingGames: Map<string, string>` to the existing `PresenceState` interface (userId → game ID string).
 
 ```ts
-interface PresenceStore {
+interface PresenceState {
   onlineIds: Set<string>;
   presenceReady: boolean;
-  playingGames: Map<string, string>;   // NEW
+  playingGames: Map<string, string>;           // NEW
   setOnlineIds: (ids: Set<string>) => void;
   setPresenceReady: (ready: boolean) => void;
   setPlayingGames: (games: Map<string, string>) => void;  // NEW
@@ -94,67 +125,81 @@ setPlayingGames(newGames);
 
 ### `statusStore` — new preference
 
-Add `showGameActivity: boolean` (default: `true`) persisted in localStorage alongside the existing status key.
+`statusStore` uses Zustand's `persist` middleware with key `aero-status`. Adding a new state field automatically includes it in the serialised localStorage object — no manual serialisation code is needed.
+
+Add `showGameActivity: boolean` (default: `true`). This is **local-only** — it is never written to Supabase (unlike the `status` field which is synced to `profiles`).
 
 ```ts
-interface StatusStore {
+interface StatusState {
   // ... existing fields
-  showGameActivity: boolean;           // NEW
-  setShowGameActivity: (val: boolean) => void;  // NEW
+  showGameActivity: boolean;                          // NEW — persisted in localStorage, local only
+  setShowGameActivity: (val: boolean) => void;        // NEW
 }
 ```
-
-The localStorage key remains `aero-status`; the new field is added to the same serialised object.
 
 ---
 
 ## App.tsx changes
 
-Two reactive effects:
-
-1. **Re-track on game change** — a `useEffect` watching `[selectedGame, showGameActivity]` calls `channel.track({ connected: true, playingGame: showGameActivity ? selectedGame : null })`. The channel ref is exposed so effects outside the subscription callback can call `track()`.
-
-2. **Sync handler update** — in the existing `presence.sync` callback, after updating `onlineIds`, also compute and call `setPlayingGames(newGames)`.
+1. Add `presenceChannelRef` at component level (see Channel ref refactoring above)
+2. In the existing `presence.sync` callback, after updating `onlineIds`, compute and call `setPlayingGames(newGames)`
+3. Add a new `useEffect([selectedGame, showGameActivity])` (gated on `user?.id`) that calls `presenceChannelRef.current?.track(...)` with the updated payload
 
 ---
 
 ## Sidebar.tsx changes
 
-In the friend row's status line, after the status text, conditionally render the game label:
+The friend row renders status via a `<StatusLine>` component that renders a `<p>` (block element). Appending a sibling `<span>` after it would render on a separate line. Instead, `StatusLine` is extended to accept an optional `playingGame` prop and renders the label inline:
+
+```tsx
+// StatusLine component — add optional prop:
+interface StatusLineProps {
+  status: string;
+  playingGame?: string | null;
+}
+
+// Inside StatusLine render:
+<p className="...">
+  <span style={{ color: statusColour }}>{status}</span>
+  {playingGame && (
+    <>
+      <span style={{ color: 'rgba(255,255,255,0.3)' }}> · </span>
+      <span style={{ color: '#5BC8F5' }}>🎮 Playing {GAME_LABELS[playingGame] ?? playingGame}</span>
+    </>
+  )}
+</p>
+```
+
+At the call site in Sidebar, pass the game:
 
 ```tsx
 const playingGame = playingGames.get(friend.id);
-
-<span style={{ color: statusColour }}>{effectiveStatus}</span>
-{playingGame && (
-  <>
-    <span style={{ color: 'rgba(255,255,255,0.3)' }}> · </span>
-    <span style={{ color: '#5BC8F5' }}>🎮 Playing {GAME_LABELS[playingGame]}</span>
-  </>
-)}
+<StatusLine status={effectiveStatus} playingGame={playingGame} />
 ```
 
-`playingGames` is destructured from `usePresenceStore()`.
+`playingGames` is destructured from `usePresenceStore()`. The typing indicator ternary already replaces `<StatusLine>` when typing is active — the game label is automatically suppressed during typing since `StatusLine` is not rendered.
 
 ---
 
 ## ChatWindow.tsx changes
 
-In the chat header, the contact's status line receives the same inline treatment. The contact's `id` is used to look up `playingGames.get(contact.id)`.
+In the chat header, the contact's status line receives the same inline treatment. The contact's `id` is used to look up `playingGames.get(contact.id)`. The same `GAME_LABELS` constant and `#5BC8F5` colour apply.
 
 ---
 
 ## GeneralPanel.tsx changes
 
-A new toggle row in the General settings panel:
+`GeneralPanel` is currently titled "Voice & Audio" and contains only audio settings. A new **Privacy** section with a divider is added below the audio section:
 
 ```
+── Privacy ──────────────────────────────
+
 Show game activity
 Let friends see what game you're playing
 [toggle]
 ```
 
-Calls `setShowGameActivity(val)` on change. Reads `showGameActivity` from `statusStore`.
+The toggle calls `setShowGameActivity(val)` and reads `showGameActivity` from `statusStore`.
 
 ---
 
@@ -162,17 +207,19 @@ Calls `setShowGameActivity(val)` on change. Reads `showGameActivity` from `statu
 
 | Action | File | Change |
 |--------|------|--------|
-| Modify | `src/store/presenceStore.ts` | Add `playingGames` map + `setPlayingGames` action |
-| Modify | `src/store/statusStore.ts` | Add `showGameActivity` boolean + `setShowGameActivity` action, persist in localStorage |
-| Modify | `src/App.tsx` | Extend `channel.track()` payload; update `presence.sync` to populate `playingGames` |
-| Modify | `src/components/chat/Sidebar.tsx` | Inline game label in friend status line |
+| Create | `src/lib/gameLabels.ts` | `GAME_LABELS` constant mapping game IDs to display names |
+| Modify | `src/store/presenceStore.ts` | Add `playingGames` map + `setPlayingGames` action to `PresenceState` |
+| Modify | `src/store/statusStore.ts` | Add `showGameActivity` boolean + `setShowGameActivity` action (auto-persisted via `persist` middleware) |
+| Modify | `src/App.tsx` | Add `presenceChannelRef`; extend `channel.track()` payload; update `presence.sync` to populate `playingGames`; add re-track effect |
+| Modify | `src/components/chat/Sidebar.tsx` | Extend the local `StatusLine` function (defined at the bottom of the file) with optional `playingGame` prop; pass it in the friend row |
 | Modify | `src/components/chat/ChatWindow.tsx` | Inline game label in chat header |
-| Modify | `src/components/settings/GeneralPanel.tsx` | Add `showGameActivity` toggle |
+| Modify | `src/components/settings/GeneralPanel.tsx` | Add Privacy section with `showGameActivity` toggle |
 
 ---
 
 ## Out of Scope
 
-- Persisting game activity to the `profiles` table (ephemeral presence is sufficient)
-- Showing game activity in notifications or presence outside the sidebar/chat header
+- Persisting game activity to the `profiles` table
+- Fixing the pre-existing ChatWindow status inconsistency (presence vs. profiles table)
+- Showing game activity in notifications or anywhere outside the sidebar/chat header
 - Per-game icons beyond the 🎮 emoji
