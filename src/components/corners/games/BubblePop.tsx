@@ -349,17 +349,20 @@ export function BubblePop() {
   }, [gameState, tick, scheduleSpawn]);
 
   // Pause / resume when game chat overlay opens / closes
+  const wasPausedRef = useRef(false);
   useEffect(() => {
     if (gameState !== 'playing') return;
 
     if (gamePaused) {
+      wasPausedRef.current = true;
       // Stop rAF
       cancelAnimationFrame(rafRef.current);
       // Clear all timers
       if (spawnTimer.current) { clearTimeout(spawnTimer.current); spawnTimer.current = null; }
       if (levelTimer.current) { clearInterval(levelTimer.current); levelTimer.current = null; }
       if (comboTimer.current) { clearTimeout(comboTimer.current); comboTimer.current = null; }
-    } else {
+    } else if (wasPausedRef.current) {
+      wasPausedRef.current = false;
       // Resume rAF
       rafRef.current = requestAnimationFrame(tick);
       // Restart spawn

@@ -687,15 +687,18 @@ export function Tropico() {
   }, [screen]);
 
   // Pause / resume when game chat overlay opens / closes
+  const wasPausedRef = useRef(false);
   useEffect(() => {
     if (screen !== 'playing') return;
 
     if (gamePaused) {
+      wasPausedRef.current = true;
       // Stop the loop
       cancelAnimationFrame(rafRef.current);
       // Clear any buffered keys so player doesn't move on resume
       keysRef.current.clear();
-    } else {
+    } else if (wasPausedRef.current) {
+      wasPausedRef.current = false;
       // Resume — reset lastTime so first dt is zero (no delta jump)
       let last = performance.now();
       function loop(now: number) {
