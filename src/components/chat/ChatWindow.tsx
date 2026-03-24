@@ -179,7 +179,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
   const { friends } = useFriendStore();
-  const { gameViewActive } = useCornerStore();
+  const { gameViewActive, gameChatOverlay } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
@@ -216,8 +216,8 @@ export function ChatWindow({ contact, onBack }: Props) {
 
   // Clear unread when this chat is opened or when returning from game view
   useEffect(() => {
-    if (!gameViewActive) clear(contact.id);
-  }, [contact.id, gameViewActive]);
+    if (!gameViewActive || gameChatOverlay?.mode === 'conversation') clear(contact.id);
+  }, [contact.id, gameViewActive, gameChatOverlay]);
 
   // Fetch contact key then load history
   useEffect(() => {
@@ -356,7 +356,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           saveChatCache(contact.id, next);
           return next;
         });
-        if (!useCornerStore.getState().gameViewActive) {
+        if (!useCornerStore.getState().gameViewActive || useCornerStore.getState().gameChatOverlay?.mode === 'conversation') {
           clear(contact.id); // message arrived while viewing — keep at 0
           markMessagesRead();
         }

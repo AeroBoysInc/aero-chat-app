@@ -196,6 +196,10 @@ export function BubblePop() {
   const gameStartRef     = useRef(0);
   const lastMilestoneRef = useRef(-1);
 
+  const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
+  const pausedRef  = useRef(false);
+  pausedRef.current = gamePaused;
+
   // Sync hot refs
   const gsRef    = useRef<GameState>('idle');
   const livesRef = useRef(MAX_LIVES);
@@ -227,6 +231,7 @@ export function BubblePop() {
   // ── RAF loop ───────────────────────────────────────────────────────────────
 
   const tick = useCallback(() => {
+    if (pausedRef.current) return; // frozen — don't re-schedule rAF
     if (gsRef.current !== 'playing') return;
     const area = areaRef.current;
     if (!area) { rafRef.current = requestAnimationFrame(tick); return; }
@@ -278,6 +283,7 @@ export function BubblePop() {
   // ── Spawn ──────────────────────────────────────────────────────────────────
 
   const scheduleSpawn = useCallback(() => {
+    if (pausedRef.current) return;
     if (gsRef.current !== 'playing') return;
     const elapsed = (performance.now() - gameStartRef.current) / 1000;
     // t=0s  → ~680ms between spawns   (steady stream from the start)
@@ -341,6 +347,35 @@ export function BubblePop() {
       if (levelTimer.current) clearInterval(levelTimer.current);
     };
   }, [gameState, tick, scheduleSpawn]);
+
+  // Pause / resume when game chat overlay opens / closes
+  const wasPausedRef = useRef(false);
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    if (gamePaused) {
+      wasPausedRef.current = true;
+      // Stop rAF
+      cancelAnimationFrame(rafRef.current);
+      // Clear all timers
+      if (spawnTimer.current) { clearTimeout(spawnTimer.current); spawnTimer.current = null; }
+      if (levelTimer.current) { clearInterval(levelTimer.current); levelTimer.current = null; }
+      if (comboTimer.current) { clearTimeout(comboTimer.current); comboTimer.current = null; }
+    } else if (wasPausedRef.current) {
+      wasPausedRef.current = false;
+      // Resume rAF
+      rafRef.current = requestAnimationFrame(tick);
+      // Restart spawn
+      scheduleSpawn();
+      // Restart level timer
+      levelTimer.current = setInterval(() => {
+        setLevel(l => { const n = Math.min(9, l + 1); levelRef.current = n; return n; });
+      }, 8_000);
+      // Reset combo (fair: combo streak shouldn't persist across a pause)
+      comboRef.current = 0;
+      setCombo(0);
+    }
+  }, [gamePaused, gameState, tick, scheduleSpawn]);
 
   // ── Click handling ─────────────────────────────────────────────────────────
 
