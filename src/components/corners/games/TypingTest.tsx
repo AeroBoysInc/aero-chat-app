@@ -301,14 +301,14 @@ export function TypingTest() {
           // Dim completed correct words slightly
           const color: string = (() => {
             if (isActive) {
-              return state === 'correct' ? '#00d4ff' : state === 'wrong' ? '#ff5c5c' : 'rgba(255,255,255,0.22)';
+              return state === 'correct' ? '#00d4ff' : state === 'wrong' ? '#ff5c5c' : 'var(--typing-word-active-pending)';
             }
             if (isComplete) {
-              return state === 'correct' ? 'rgba(255,255,255,0.55)'
+              return state === 'correct' ? 'var(--typing-word-done-correct)'
                    : state === 'wrong'   ? '#ff5c5c'
-                   : 'rgba(255,255,255,0.15)';
+                   : 'var(--typing-word-future)';
             }
-            return 'rgba(255,255,255,0.18)'; // future
+            return 'var(--typing-word-future)'; // future
           })();
 
           return (
@@ -355,9 +355,9 @@ export function TypingTest() {
           <button
             onClick={(e) => { e.stopPropagation(); selectGame(null); }}
             className="flex h-8 w-8 items-center justify-center rounded-xl transition-all flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'var(--text-muted)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+            style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--popup-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-ghost-bg)')}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -379,7 +379,7 @@ export function TypingTest() {
           {/* Mode tabs */}
           <div
             className="flex rounded-xl p-1"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
+            style={{ background: 'var(--typing-surface-bg)', border: '1px solid var(--typing-surface-border)' }}
           >
             {([15, 30, 60] as Mode[]).map(m => (
               <button
@@ -401,9 +401,9 @@ export function TypingTest() {
           <button
             onClick={e => { e.stopPropagation(); reset(); }}
             className="flex h-8 w-8 items-center justify-center rounded-xl transition-all"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'var(--text-muted)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+            style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--popup-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-ghost-bg)')}
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
@@ -436,8 +436,8 @@ export function TypingTest() {
               style={{
                 height: 128,
                 overflow: 'hidden',
-                background: 'rgba(255,255,255,0.025)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: 'var(--typing-surface-bg)',
+                border: '1px solid var(--typing-surface-border)',
                 cursor: 'text',
               }}
             >
@@ -520,7 +520,7 @@ export function TypingTest() {
                 <div
                   key={label}
                   className="flex flex-col items-center gap-1 rounded-2xl p-3"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--typing-surface-bg)', border: '1px solid var(--typing-surface-border)' }}
                 >
                   <span className="text-lg font-bold" style={{ color }}>{value}</span>
                   <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>

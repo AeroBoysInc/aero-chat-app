@@ -195,9 +195,9 @@ function Tile({
   const style: Record<LetterState, React.CSSProperties> = {
     correct: { background:'rgba(0,212,255,0.20)',  border:'2px solid rgba(0,212,255,0.75)', color:'#00d4ff',            boxShadow:'0 0 14px rgba(0,212,255,0.40)' },
     present: { background:'rgba(245,158,11,0.18)', border:'2px solid rgba(245,158,11,0.70)',color:'#f59e0b',            boxShadow:'0 0 14px rgba(245,158,11,0.35)' },
-    absent:  { background:'rgba(255,255,255,0.07)',border:'2px solid rgba(255,255,255,0.13)',color:'rgba(255,255,255,0.30)' },
-    tbd:     { background:'rgba(255,255,255,0.08)',border:'2px solid rgba(255,255,255,0.45)',color:'var(--text-primary)' },
-    empty:   { background:'rgba(255,255,255,0.03)',border:'2px solid rgba(255,255,255,0.09)',color:'transparent' },
+    absent:  { background:'var(--game-tile-absent-bg)',  border:'2px solid var(--game-tile-absent-border)',  color:'var(--game-tile-absent-color)' },
+    tbd:     { background:'var(--game-tile-tbd-bg)',     border:'2px solid var(--game-tile-tbd-border)',     color:'var(--text-primary)' },
+    empty:   { background:'var(--game-tile-empty-bg)',   border:'2px solid var(--game-tile-empty-border)',   color:'transparent' },
   };
 
   return (
@@ -230,9 +230,9 @@ function Key({ label, state, onClick }: {
   onClick: (k: string) => void;
 }) {
   const isWide = label === 'ENTER' || label === '⌫';
-  const bg     = state==='correct'?'rgba(0,212,255,0.22)':state==='present'?'rgba(245,158,11,0.20)':state==='absent'?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.10)';
-  const border = state==='correct'?'1px solid rgba(0,212,255,0.55)':state==='present'?'1px solid rgba(245,158,11,0.50)':state==='absent'?'1px solid rgba(255,255,255,0.06)':'1px solid rgba(255,255,255,0.17)';
-  const color  = state==='correct'?'#00d4ff':state==='present'?'#f59e0b':state==='absent'?'rgba(255,255,255,0.28)':'var(--text-primary)';
+  const bg     = state==='correct'?'rgba(0,212,255,0.22)':state==='present'?'rgba(245,158,11,0.20)':state==='absent'?'var(--game-key-absent-bg)':'var(--game-key-bg)';
+  const border = state==='correct'?'1px solid rgba(0,212,255,0.55)':state==='present'?'1px solid rgba(245,158,11,0.50)':state==='absent'?`1px solid var(--game-key-absent-border)`:`1px solid var(--game-key-border)`;
+  const color  = state==='correct'?'#00d4ff':state==='present'?'#f59e0b':state==='absent'?'var(--game-key-absent-color)':'var(--text-primary)';
 
   return (
     <button
@@ -264,8 +264,8 @@ function HintStrip({ letters }: { letters: (string | null)[] }) {
             width: 26, height: 26,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             borderRadius: 6, fontSize: 12, fontWeight: 800,
-            background: h ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
-            border:     h ? '1px solid rgba(168,85,247,0.60)' : '1px solid rgba(255,255,255,0.08)',
+            background: h ? 'rgba(168,85,247,0.18)' : 'var(--game-tile-empty-bg)',
+            border:     h ? '1px solid rgba(168,85,247,0.60)' : `1px solid var(--game-tile-empty-border)`,
             color:      h ? '#a855f7' : 'transparent',
             boxShadow:  h ? '0 0 10px rgba(168,85,247,0.30)' : 'none',
             transition: 'all 0.25s',
@@ -487,9 +487,9 @@ export function Wordle() {
         <button
           onClick={() => selectGame(null)}
           className="flex h-8 w-8 items-center justify-center rounded-xl flex-shrink-0"
-          style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)', color:'var(--text-muted)' }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.12)'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.06)'}
+          style={{ background:'var(--btn-ghost-bg)', border:'1px solid var(--btn-ghost-border)', color:'var(--text-muted)' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='var(--popup-hover)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='var(--btn-ghost-bg)'}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -516,9 +516,9 @@ export function Wordle() {
         <button
           onClick={resetGame}
           className="flex h-8 w-8 items-center justify-center rounded-xl flex-shrink-0"
-          style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)', color:'var(--text-muted)' }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.12)'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.06)'}
+          style={{ background:'var(--btn-ghost-bg)', border:'1px solid var(--btn-ghost-border)', color:'var(--text-muted)' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='var(--popup-hover)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='var(--btn-ghost-bg)'}
         >
           <RotateCcw className="h-4 w-4" />
         </button>
@@ -594,9 +594,9 @@ export function Wordle() {
               <button
                 onClick={() => setShowHintPrompt(false)}
                 className="rounded-xl px-3 py-1.5 text-[11px] font-bold"
-                style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', color:'var(--text-muted)' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.10)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.06)'}
+                style={{ background:'var(--btn-ghost-bg)', border:'1px solid var(--btn-ghost-border)', color:'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='var(--popup-hover)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='var(--btn-ghost-bg)'}
               >
                 Skip
               </button>
@@ -641,7 +641,7 @@ export function Wordle() {
                 </div>
                 {hintsUsed > 0 && (
                   <div className="text-center">
-                    <p className="text-xl font-bold" style={{ color:'rgba(255,255,255,0.35)' }}>-{hintsUsed * HINT_COST}</p>
+                    <p className="text-xl font-bold" style={{ color:'var(--text-muted)' }}>-{hintsUsed * HINT_COST}</p>
                     <p className="text-[10px] uppercase tracking-wider" style={{ color:'var(--text-muted)' }}>Hints</p>
                   </div>
                 )}

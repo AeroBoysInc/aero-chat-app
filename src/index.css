@@ -65,6 +65,52 @@
 
   --switcher-bg:     rgba(255,255,255,0.70);
   --switcher-border: rgba(180,215,240,0.70);
+
+  /* Floating popup panels (settings, dropdowns, modals) */
+  --popup-bg:           rgba(255,255,255,0.97);
+  --popup-border:       rgba(150,200,235,0.70);
+  --popup-shadow:       0 8px 32px rgba(0,80,160,0.20), inset 0 1px 0 rgba(255,255,255,1);
+  --popup-text:         #112840;
+  --popup-text-secondary: #2d5878;
+  --popup-text-muted:   rgba(60,100,145,0.55);
+  --popup-text-label:   #4a7898;
+  --popup-divider:      rgba(140,185,225,0.45);
+  --popup-hover:        rgba(0,120,200,0.08);
+  --popup-icon:         rgba(22,62,112,0.55);
+  --popup-item-bg:      rgba(0,80,160,0.05);
+  --popup-select-bg:    rgba(0,80,160,0.06);
+  --popup-select-border: rgba(100,160,210,0.40);
+  --popup-select-text:  #1a3553;
+
+  /* Interactive ghost elements on glass/light backgrounds */
+  --btn-ghost-bg:       rgba(0,0,0,0.05);
+  --btn-ghost-border:   rgba(0,0,0,0.10);
+  --reaction-idle-bg:   rgba(0,0,0,0.04);
+  --reaction-idle-border: rgba(0,0,0,0.11);
+  --separator-dot:      rgba(0,0,0,0.18);
+  --slider-track:       rgba(0,80,160,0.15);
+  --game-activity-color: #1a78a8;
+
+  /* Wordle tiles */
+  --game-tile-empty-bg:          rgba(0,80,160,0.04);
+  --game-tile-empty-border:      rgba(0,80,160,0.22);
+  --game-tile-tbd-bg:            rgba(0,80,160,0.09);
+  --game-tile-tbd-border:        rgba(0,80,160,0.55);
+  --game-tile-absent-bg:         rgba(0,0,0,0.06);
+  --game-tile-absent-border:     rgba(0,0,0,0.18);
+  --game-tile-absent-color:      rgba(0,0,0,0.32);
+  /* Wordle keyboard */
+  --game-key-bg:                 rgba(0,60,140,0.10);
+  --game-key-border:             rgba(0,60,140,0.24);
+  --game-key-absent-bg:          rgba(0,0,0,0.06);
+  --game-key-absent-border:      rgba(0,0,0,0.14);
+  --game-key-absent-color:       rgba(0,0,0,0.28);
+  /* Typing test */
+  --typing-word-future:          rgba(0,0,0,0.22);
+  --typing-word-active-pending:  rgba(0,0,0,0.32);
+  --typing-word-done-correct:    rgba(0,0,0,0.48);
+  --typing-surface-bg:           rgba(0,60,140,0.05);
+  --typing-surface-border:       rgba(0,60,140,0.16);
 }
 
 
@@ -121,6 +167,52 @@
 
   --switcher-bg:     rgba(12,25,58,0.85);
   --switcher-border: rgba(80,145,255,0.30);
+
+  /* Floating popup panels */
+  --popup-bg:           rgba(10,28,70,0.93);
+  --popup-border:       rgba(80,145,255,0.22);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(100,160,255,0.15);
+  --popup-text:         rgba(255,255,255,0.88);
+  --popup-text-secondary: rgba(255,255,255,0.65);
+  --popup-text-muted:   rgba(255,255,255,0.38);
+  --popup-text-label:   rgba(255,255,255,0.45);
+  --popup-divider:      rgba(255,255,255,0.10);
+  --popup-hover:        rgba(255,255,255,0.08);
+  --popup-icon:         rgba(0,212,255,0.80);
+  --popup-item-bg:      rgba(255,255,255,0.05);
+  --popup-select-bg:    rgba(255,255,255,0.06);
+  --popup-select-border: rgba(255,255,255,0.15);
+  --popup-select-text:  rgba(255,255,255,0.85);
+
+  /* Interactive ghost elements */
+  --btn-ghost-bg:       rgba(255,255,255,0.08);
+  --btn-ghost-border:   rgba(255,255,255,0.14);
+  --reaction-idle-bg:   rgba(255,255,255,0.06);
+  --reaction-idle-border: rgba(255,255,255,0.12);
+  --separator-dot:      rgba(255,255,255,0.28);
+  --slider-track:       rgba(255,255,255,0.15);
+  --game-activity-color: #5BC8F5;
+
+  /* Wordle tiles */
+  --game-tile-empty-bg:          rgba(255,255,255,0.03);
+  --game-tile-empty-border:      rgba(255,255,255,0.09);
+  --game-tile-tbd-bg:            rgba(255,255,255,0.08);
+  --game-tile-tbd-border:        rgba(255,255,255,0.45);
+  --game-tile-absent-bg:         rgba(255,255,255,0.07);
+  --game-tile-absent-border:     rgba(255,255,255,0.13);
+  --game-tile-absent-color:      rgba(255,255,255,0.30);
+  /* Wordle keyboard */
+  --game-key-bg:                 rgba(255,255,255,0.10);
+  --game-key-border:             rgba(255,255,255,0.17);
+  --game-key-absent-bg:          rgba(255,255,255,0.04);
+  --game-key-absent-border:      rgba(255,255,255,0.06);
+  --game-key-absent-color:       rgba(255,255,255,0.28);
+  /* Typing test */
+  --typing-word-future:          rgba(255,255,255,0.18);
+  --typing-word-active-pending:  rgba(255,255,255,0.22);
+  --typing-word-done-correct:    rgba(255,255,255,0.55);
+  --typing-surface-bg:           rgba(255,255,255,0.025);
+  --typing-surface-border:       rgba(255,255,255,0.07);
 
   --rail-icon:       rgba(255, 255, 255, 0.38);
   --rail-icon-hover: rgba(255, 255, 255, 0.82);
@@ -330,7 +422,7 @@
     appearance: none;
     height: 4px;
     border-radius: 9999px;
-    background: rgba(255,255,255,0.15);
+    background: var(--slider-track);
     outline: none;
     cursor: pointer;
   }
