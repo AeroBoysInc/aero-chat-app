@@ -4,23 +4,43 @@ import { AvatarUpload } from './AvatarUpload';
 
 interface Props { onClose: () => void; }
 
+const panelStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '4rem',
+  left: '0.5rem',
+  zIndex: 50,
+  width: '15rem',
+  borderRadius: 20,
+  border: '1px solid var(--popup-border)',
+  background: 'var(--popup-bg)',
+  boxShadow: 'var(--popup-shadow)',
+  backdropFilter: 'blur(28px)',
+  padding: '1rem',
+};
+
 export function SettingsPanel({ onClose }: Props) {
   const { user } = useAuthStore();
 
   return (
-    <div className="absolute bottom-16 left-2 z-50 w-60 rounded-aero-lg border border-white/20 bg-aero-deep/90 p-4 shadow-xl backdrop-blur-xl">
+    <div style={panelStyle}>
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-white">Profile Settings</span>
-        <button onClick={onClose} className="rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-white">
+        <span className="text-sm font-semibold" style={{ color: 'var(--popup-text)' }}>Profile Settings</span>
+        <button
+          onClick={onClose}
+          className="rounded-lg p-1 transition-colors"
+          style={{ color: 'var(--popup-text-muted)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-muted)'; }}
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       <AvatarUpload />
 
-      <div className="mt-4 border-t border-white/10 pt-3 text-center">
-        <p className="text-sm font-semibold text-white">{user?.username}</p>
-        <p className="text-xs text-aero-green">● Encrypted</p>
+      <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--popup-divider)' }}>
+        <p className="text-sm font-semibold" style={{ color: 'var(--popup-text)' }}>{user?.username}</p>
+        <p className="text-xs" style={{ color: '#4fc97a' }}>● Encrypted</p>
       </div>
     </div>
   );

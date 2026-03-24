@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -45,6 +46,21 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [hoveredFriend,  setHoveredFriend]  = useState<string | null>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
+  const asideRef      = useRef<HTMLElement>(null);
+  const [asideRect, setAsideRect] = useState({ left: 0, width: 0 });
+
+  // Measure aside position whenever a settings panel (not the menu) is open
+  const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
+  useLayoutEffect(() => {
+    if (!isPanelOpen || !asideRef.current) return;
+    const update = () => {
+      const r = asideRef.current!.getBoundingClientRect();
+      setAsideRect({ left: r.left, width: r.width });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [isPanelOpen]);
 
   // Close status menu on outside click
   useEffect(() => {
@@ -86,6 +102,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
 
   return (
     <aside
+      ref={asideRef}
       className="glass-sidebar relative flex h-full flex-col"
       style={{ isolation: 'isolate', width: '100%', flexShrink: 0 }}
     >
@@ -425,10 +442,19 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             </button>
           </div>
         )}
-        {settingsView === 'profile'  && <SettingsPanel  onClose={() => setSettingsView(null)} />}
-        {settingsView === 'general'  && <GeneralPanel   onClose={() => setSettingsView(null)} />}
-        {settingsView === 'security' && <SecurityPanel  onClose={() => setSettingsView(null)} />}
       </div>
+
+      {/* Settings panels rendered via portal so they escape glass-sidebar's overflow:hidden */}
+      {isPanelOpen && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: asideRect.left, bottom: 0, width: asideRect.width, pointerEvents: 'none', zIndex: 9999 }}>
+          <div style={{ position: 'relative', height: '100%', pointerEvents: 'auto' }}>
+            {settingsView === 'profile'  && <SettingsPanel  onClose={() => setSettingsView(null)} />}
+            {settingsView === 'general'  && <GeneralPanel   onClose={() => setSettingsView(null)} />}
+            {settingsView === 'security' && <SecurityPanel  onClose={() => setSettingsView(null)} />}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
     </aside>
