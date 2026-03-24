@@ -6,6 +6,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
+import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
@@ -200,6 +201,7 @@ export function ChatLayout() {
           }}
         >
           <GamesCorner />
+          <GameChatOverlay />
         </div>
 
         {/* DEV LAYER — only rendered in dev builds */}
