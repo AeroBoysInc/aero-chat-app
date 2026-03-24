@@ -1,6 +1,7 @@
-import { X, Mic, Volume2, Headphones, Waves } from 'lucide-react';
+import { X, Mic, Volume2, Headphones, Waves, Gamepad2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAudioStore } from '../../store/audioStore';
+import { useStatusStore } from '../../store/statusStore';
 
 interface Props { onClose: () => void; }
 
@@ -8,6 +9,7 @@ interface DeviceEntry { deviceId: string; label: string; }
 
 export function GeneralPanel({ onClose }: Props) {
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume, set } = useAudioStore();
+  const { showGameActivity, setShowGameActivity } = useStatusStore();
   const [inputs,  setInputs]  = useState<DeviceEntry[]>([]);
   const [outputs, setOutputs] = useState<DeviceEntry[]>([]);
   const [permitted, setPermitted] = useState(true);
@@ -158,6 +160,33 @@ export function GeneralPanel({ onClose }: Props) {
             onChange={e => set({ outputVolume: Number(e.target.value) })}
             className="aero-slider w-full"
           />
+        </div>
+
+        <div className="h-px bg-white/10" />
+
+        {/* Privacy section */}
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <Gamepad2 className="h-3.5 w-3.5 text-white/50" />
+            <p className="text-xs font-semibold text-white/70">Privacy</p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-white/80">Show game activity</p>
+              <p className="text-[10px] text-white/40">Let friends see what game you're playing</p>
+            </div>
+            <button
+              onClick={() => setShowGameActivity(!showGameActivity)}
+              className="relative flex-shrink-0 h-5 w-9 rounded-full transition-colors duration-200"
+              style={{ background: showGameActivity ? '#00d4ff' : 'rgba(255,255,255,0.15)' }}
+            >
+              <span
+                className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all duration-200"
+                style={{ left: showGameActivity ? '18px' : '2px' }}
+              />
+            </button>
+          </div>
         </div>
 
       </div>
