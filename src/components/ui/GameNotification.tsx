@@ -4,13 +4,14 @@ import { useUnreadStore } from '../../store/unreadStore';
 import { useFriendStore } from '../../store/friendStore';
 
 export function GameNotification() {
-  const { gameViewActive, closeGameView } = useCornerStore();
+  const { gameViewActive, gameChatOverlay, openGameChat, openGameChatFor } = useCornerStore();
   const { counts } = useUnreadStore();
   const { friends } = useFriendStore();
 
   const totalUnread = Object.values(counts).reduce((s, n) => s + n, 0);
 
-  if (!gameViewActive || totalUnread === 0) return null;
+  // Hide if not in game, no unreads, or overlay already open
+  if (!gameViewActive || totalUnread === 0 || gameChatOverlay !== null) return null;
 
   // Build sender list for display
   const senders = Object.entries(counts)
@@ -24,10 +25,18 @@ export function GameNotification() {
     ? senders[0].username
     : `${senders.length} chats`;
 
+  const handleClick = () => {
+    if (senders.length === 1) {
+      openGameChatFor(senders[0].id);
+    } else {
+      openGameChat();
+    }
+  };
+
   return createPortal(
     <button
-      key={totalUnread} // re-triggers entry animation on new messages
-      onClick={closeGameView}
+      key={totalUnread}
+      onClick={handleClick}
       style={{
         position: 'fixed',
         bottom: 28,
