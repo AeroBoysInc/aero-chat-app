@@ -15,6 +15,7 @@ import { SettingsPanel } from '../settings/SettingsPanel';
 import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
 import { useCornerStore } from '../../store/cornerStore';
+import { GAME_LABELS } from '../../lib/gameLabels';
 
 interface Props {
   selectedUser: Profile | null;
@@ -33,6 +34,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
+  const playingGames = usePresenceStore(s => s.playingGames);
   const { openGameHub } = useCornerStore();
 
   const [query,          setQuery]          = useState('');
@@ -271,7 +273,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                         <span>typing…</span>
                       </p>
                     ) : (
-                      <StatusLine status={effectiveStatus} />
+                      <StatusLine status={effectiveStatus} playingGame={playingGames.get(friend.id)} />
                     )}
                   </div>
 
@@ -415,7 +417,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   );
 }
 
-function StatusLine({ status }: { status: Status }) {
+function StatusLine({ status, playingGame }: { status: Status; playingGame?: string | null }) {
   const color = statusColor[status];
   return (
     <p className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: 11, color }}>
@@ -424,6 +426,14 @@ function StatusLine({ status }: { status: Status }) {
       <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}>
         {statusLabel[status]}
       </span>
+      {playingGame && (
+        <>
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+          <span style={{ color: '#5BC8F5', fontWeight: 500 }}>
+            🎮 Playing {GAME_LABELS[playingGame as keyof typeof GAME_LABELS] ?? playingGame}
+          </span>
+        </>
+      )}
     </p>
   );
 }
