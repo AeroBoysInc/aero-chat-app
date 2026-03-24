@@ -184,6 +184,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { gameViewActive, gameChatOverlay } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   const { playingGames } = usePresenceStore();
+  const contactGame = playingGames.get(contact.id);
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
 
@@ -675,11 +676,11 @@ export function ChatWindow({ contact, onBack }: Props) {
               <span className="inline-block h-1.5 w-1.5 rounded-full"
                 style={{ background: statusColor[liveStatus], boxShadow: `0 0 4px ${statusColor[liveStatus]}cc` }} />
               {statusLabel[liveStatus]}
-              {playingGames.get(contact.id) && (
+              {contactGame && (
                 <>
                   <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
                   <span style={{ color: '#5BC8F5', fontWeight: 500 }}>
-                    🎮 Playing {(GAME_LABELS as Record<string, string>)[playingGames.get(contact.id)!] ?? playingGames.get(contact.id)}
+                    🎮 Playing {GAME_LABELS[contactGame as keyof typeof GAME_LABELS] ?? contactGame}
                   </span>
                 </>
               )}
