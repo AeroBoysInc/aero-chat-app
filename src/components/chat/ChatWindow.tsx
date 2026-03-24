@@ -16,6 +16,8 @@ import { usePresenceStore } from '../../store/presenceStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
+import { MessageContent } from './MessageContent';
+import { ExternalLinkModal } from './ExternalLinkModal';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -202,6 +204,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [recordDuration,    setRecordDuration]    = useState(0);
   const [isUploading,       setIsUploading]       = useState(false);
   const [lightboxImage,     setLightboxImage]     = useState<{ url: string; name: string; size: number } | null>(null);
+  const [pendingLinkUrl,    setPendingLinkUrl]    = useState<string | null>(null);
 
   const bottomRef          = useRef<HTMLDivElement>(null);
   const contactKeyRef      = useRef<string | null>(null);
@@ -813,12 +816,19 @@ export function ChatWindow({ contact, onBack }: Props) {
                       ? <p className="text-sm leading-relaxed break-words" style={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontFamily: 'Inter, system-ui, sans-serif' }}>
                           ♟️ Chess invite sent
                         </p>
-                      : (
+                      : msg.content === '[decryption failed]'
+                      ? (
                         <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                          {msg.content === '[decryption failed]'
-                            ? <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
-                            : msg.content}
+                          <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
                         </p>
+                      )
+                      : (
+                        <MessageContent
+                          content={msg.content}
+                          isMine={isMine}
+                          textColor={isMine ? '#fff' : 'var(--recv-text)'}
+                          onClickLink={setPendingLinkUrl}
+                        />
                       )
                     }
                     <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.62)' : 'var(--recv-time)' }}>
@@ -1000,6 +1010,13 @@ export function ChatWindow({ contact, onBack }: Props) {
         )}
       </form>
       <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
+      {pendingLinkUrl && (
+        <ExternalLinkModal
+          url={pendingLinkUrl}
+          onConfirm={() => { window.open(pendingLinkUrl, '_blank', 'noopener,noreferrer'); setPendingLinkUrl(null); }}
+          onCancel={() => setPendingLinkUrl(null)}
+        />
+      )}
     </div>
   );
 }
