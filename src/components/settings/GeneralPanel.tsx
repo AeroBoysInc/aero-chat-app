@@ -177,6 +177,7 @@ export function GeneralPanel({ onClose }: Props) {
               <p className="text-[10px] text-white/40">Let friends see what game you're playing</p>
             </div>
             <button
+              aria-label={showGameActivity ? 'Disable show game activity' : 'Enable show game activity'}
               onClick={() => setShowGameActivity(!showGameActivity)}
               className="relative flex-shrink-0 h-5 w-9 rounded-full transition-colors duration-200"
               style={{ background: showGameActivity ? '#00d4ff' : 'rgba(255,255,255,0.15)' }}
