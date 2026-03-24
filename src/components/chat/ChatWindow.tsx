@@ -12,6 +12,8 @@ import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/Avatar
 import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
+import { usePresenceStore } from '../../store/presenceStore';
+import { GAME_LABELS } from '../../lib/gameLabels';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 
@@ -181,6 +183,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { friends } = useFriendStore();
   const { gameViewActive, gameChatOverlay } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
+  const { playingGames } = usePresenceStore();
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
 
@@ -672,6 +675,14 @@ export function ChatWindow({ contact, onBack }: Props) {
               <span className="inline-block h-1.5 w-1.5 rounded-full"
                 style={{ background: statusColor[liveStatus], boxShadow: `0 0 4px ${statusColor[liveStatus]}cc` }} />
               {statusLabel[liveStatus]}
+              {playingGames.get(contact.id) && (
+                <>
+                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+                  <span style={{ color: '#5BC8F5', fontWeight: 500 }}>
+                    🎮 Playing {(GAME_LABELS as Record<string, string>)[playingGames.get(contact.id)!] ?? playingGames.get(contact.id)}
+                  </span>
+                </>
+              )}
             </p>
           )}
         </div>
