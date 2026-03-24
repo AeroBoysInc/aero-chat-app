@@ -87,6 +87,11 @@ export function TypingTest() {
   const keystrokesRef = useRef(0);
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const gamePaused     = useCornerStore(s => s.gameChatOverlay !== null);
+  const pausedTimeLeft = useRef<number | null>(null);
+  const timeLeftRef    = useRef(timeLeft);
+  timeLeftRef.current  = timeLeft;
+
   const inputRef     = useRef<HTMLInputElement>(null);
   const activeWordEl = useRef<HTMLSpanElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -182,6 +187,24 @@ export function TypingTest() {
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [status]);
+
+  // Pause / resume countdown when game chat overlay opens / closes
+  useEffect(() => {
+    if (status !== 'running') return;
+
+    if (gamePaused) {
+      // Store remaining time (read from ref to avoid dep on timeLeft) and clear interval
+      pausedTimeLeft.current = timeLeftRef.current;
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    } else if (pausedTimeLeft.current !== null) {
+      // Resume — restore time and restart interval
+      setTimeLeft(pausedTimeLeft.current);
+      pausedTimeLeft.current = null;
+      timerRef.current = setInterval(() => {
+        setTimeLeft(t => (t <= 1 ? 0 : t - 1));
+      }, 1000);
+    }
+  }, [gamePaused, status]);
 
   // Finish when timer hits 0
   useEffect(() => {
