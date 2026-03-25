@@ -19,6 +19,7 @@ import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
 import { ExternalLinkModal } from './ExternalLinkModal';
+import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -211,6 +212,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [showClearModal,    setShowClearModal]    = useState(false);
   const [reactions,         setReactions]         = useState<ReactionsMap>({});
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  const [bubbles, setBubbles] = useState<BubbleInstance[]>([]);
   const [hoveredMsgId,      setHoveredMsgId]      = useState<string | null>(null);
   const [isRecording,       setIsRecording]       = useState(false);
   const [recordDuration,    setRecordDuration]    = useState(0);
@@ -337,6 +339,28 @@ export function ChatWindow({ contact, onBack }: Props) {
   // Reset reactions when switching contacts
   useEffect(() => { setReactions({}); setReactionPickerFor(null); }, [contact.id]);
 
+  // ── Bubble helpers ────────────────────────────────────────────────────────────
+  const spawnBubble = useCallback((emoji: string, messageId: string) => {
+    const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
+    // Use closest() so it works even if multiple ChatWindows mount simultaneously
+    const containerEl = msgEl?.closest('[data-bubble-container]');
+    if (!msgEl || !containerEl) return; // message not in DOM (safe no-op)
+
+    const msgRect       = msgEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    setBubbles(prev => [...prev, {
+      id:    `${messageId}-${Date.now()}-${Math.random()}`,
+      emoji,
+      x: msgRect.left - containerRect.left + msgRect.width * 0.75,
+      y: msgRect.top  - containerRect.top  + msgRect.height * 0.5,
+    }]);
+  }, []); // stable — no external deps captured
+
+  const removeBubble = useCallback((id: string) => {
+    setBubbles(prev => prev.filter(b => b.id !== id));
+  }, []);
+
   // Realtime subscription + Presence for typing + reactions
   useEffect(() => {
     if (!user) return;
@@ -408,6 +432,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           next[r.message_id][r.emoji] = [...next[r.message_id][r.emoji], r.user_id];
           return next;
         });
+        spawnBubble(r.emoji, r.message_id);
       })
       .on('postgres_changes', {
         event: 'DELETE', schema: 'public', table: 'reactions',
@@ -441,7 +466,7 @@ export function ChatWindow({ contact, onBack }: Props) {
       setTyping(contact.id, false);
       channelRef.current = null;
     };
-  }, [contact.id, user]);
+  }, [contact.id, user, spawnBubble]);
 
   // Scroll to bottom — instant for history loads, smooth only for new realtime messages
   useEffect(() => {
@@ -522,9 +547,10 @@ export function ChatWindow({ contact, onBack }: Props) {
         next[messageId][emoji] = [...(next[messageId][emoji] ?? []), user.id];
         return next;
       });
+      spawnBubble(emoji, messageId);
     }
     setReactionPickerFor(null);
-  }, [user, reactions]);
+  }, [user, reactions, spawnBubble]);
 
   // ── Voice recording ──────────────────────────────────────────────────────────
   async function startRecording() {
@@ -793,7 +819,12 @@ export function ChatWindow({ contact, onBack }: Props) {
       )}
 
       {/* Messages */}
-      <div className="relative flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1" style={{ contain: 'layout paint' }}>
+      <div
+        data-bubble-container=""
+        className="flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1"
+        style={{ position: 'relative' }}
+      >
+        <BubbleLayer bubbles={bubbles} onRemove={removeBubble} />
         <SoapBubbles />
         {/* Depth orbs — behind message content */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
@@ -840,6 +871,7 @@ export function ChatWindow({ contact, onBack }: Props) {
                 </div>
               )}
               <div
+                data-msg-id={msg.id}
                 className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${i === messages.length - 1 && historyLoadedRef.current ? 'animate-slide-up' : ''}`}
                 style={{ position: 'relative', zIndex: 1 }}
                 onMouseEnter={() => setHoveredMsgId(msg.id)}

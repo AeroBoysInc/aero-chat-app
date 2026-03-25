@@ -583,6 +583,16 @@
   100% { transform: translateY(-116vh) translateX(5px)    scaleX(1.00) scaleY(1.00); opacity: 0; }
 }
 
+@keyframes reaction-bubble-rise {
+  0%   { transform: translateY(0px)    translateX(0px)   scale(0.55); opacity: 0; }
+  7%   { transform: translateY(-18px)  translateX(4px)   scale(1.00); opacity: 1; }
+  25%  { transform: translateY(-70px)  translateX(9px)   scale(1.00); opacity: 1; }
+  45%  { transform: translateY(-135px) translateX(5px)   scale(1.00); opacity: 1; }
+  65%  { transform: translateY(-195px) translateX(-6px)  scale(1.00); opacity: 1; }
+  85%  { transform: translateY(-245px) translateX(-9px)  scale(1.00); opacity: 1; }
+  100% { transform: translateY(-268px) translateX(-3px)  scale(1.05); opacity: 0; }
+}
+
 @keyframes bubble-pop {
   0%   { transform: scale(1);    opacity: 1; }
   35%  { transform: scale(1.35); opacity: 0.9; }
