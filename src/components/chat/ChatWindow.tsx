@@ -196,12 +196,14 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { friends } = useFriendStore();
   const { gameViewActive, gameChatOverlay } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
-  const { playingGames } = usePresenceStore();
+  const { playingGames, onlineIds, presenceReady } = usePresenceStore();
   const contactGame = playingGames.get(contact.id);
   const callStatus = useCallStore(s => s.status);
   const { startCall } = useCallStore();
-  // Always read status from the live friends list so it updates in real-time
-  const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
+  // Mirror the same logic as Sidebar: presence channel overrides stored status to 'offline'
+  // when the contact is not in the live online set (covers app-close / tab-close / logout).
+  const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
+  const liveStatus: Status = presenceReady && !onlineIds.has(contact.id) ? 'offline' : storedStatus;
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(contact.id));
