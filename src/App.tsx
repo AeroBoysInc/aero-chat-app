@@ -7,6 +7,7 @@ import { useCornerStore } from './store/cornerStore';
 import { useUnreadStore } from './store/unreadStore';
 import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
+import { useCallStore } from './store/callStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification } from './lib/notifications';
@@ -92,7 +93,16 @@ export default function App() {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) { setUser(null); settled = false; return; }
+      if (!session) {
+        // Hang up any active call before signing out
+        const { status } = useCallStore.getState();
+        if (status !== 'idle') {
+          useCallStore.getState().hangUp();
+        }
+        setUser(null);
+        settled = false;
+        return;
+      }
       if (settled) return;
       resolveSession(session.user.id);
     });
@@ -205,6 +215,27 @@ export default function App() {
       playingGame: showGameActivity ? selectedGame : null,
     });
   }, [selectedGame, showGameActivity, user?.id]);
+
+  // ── Incoming call ring subscription ────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`call:ring:${user.id}`)
+      .on('broadcast', { event: 'call:offer' }, ({ payload }) => {
+        const { sdp, callId, callType, callerId } = payload;
+        if (!sdp || !callId || !callerId) return;
+
+        // Look up caller's profile from friends list
+        const caller = useFriendStore.getState().friends.find(f => f.id === callerId);
+        if (!caller) return; // Only accept calls from confirmed friends
+
+        useCallStore.getState().handleIncomingOffer(sdp, callId, caller, callType ?? 'audio', user.id);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   if (loading) {
     return (
