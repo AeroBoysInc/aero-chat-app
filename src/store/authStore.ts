@@ -7,6 +7,13 @@ export interface Profile {
   public_key: string;
   avatar_url?: string | null;
   status?: string | null;
+  card_gradient?: string | null;
+  card_image_url?: string | null;
+  card_image_params?: {
+    zoom: number;
+    x: number;
+    y: number;
+  } | null;
 }
 
 interface AuthState {
@@ -26,7 +33,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, public_key, avatar_url, status')
+      .select('id, username, public_key, avatar_url, status, card_gradient, card_image_url, card_image_params')
       .eq('id', user.id)
       .single();
     if (data) set({ user: data });
