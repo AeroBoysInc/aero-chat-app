@@ -343,7 +343,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const spawnBubble = useCallback((emoji: string, messageId: string) => {
     const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
     // Use closest() so it works even if multiple ChatWindows mount simultaneously
-    const containerEl = msgEl?.closest('[data-bubble-container]');
+    const containerEl = msgEl?.closest('[data-bubble-container]') as HTMLElement | null;
     if (!msgEl || !containerEl) return; // message not in DOM (safe no-op)
 
     const msgRect       = msgEl.getBoundingClientRect();
@@ -353,7 +353,10 @@ export function ChatWindow({ contact, onBack }: Props) {
       id:    `${messageId}-${Date.now()}-${Math.random()}`,
       emoji,
       x: msgRect.left - containerRect.left + msgRect.width * 0.75,
-      y: msgRect.top  - containerRect.top  + msgRect.height * 0.5,
+      // scrollTop accounts for the container's scroll offset — getBoundingClientRect()
+      // returns viewport-relative coords, but position:absolute is relative to the
+      // full scrollable content height, not just the visible portion.
+      y: msgRect.top  - containerRect.top  + msgRect.height * 0.5 + containerEl.scrollTop,
     }]);
   }, []); // stable — no external deps captured
 
