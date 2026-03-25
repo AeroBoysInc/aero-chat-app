@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
 import type { Profile } from './authStore';
+import { useAudioStore } from './audioStore';
 
 // ─── Module-level refs — NOT in Zustand state ───────────────────────────────
 // Mutable native objects that would break devtools serialization if in Zustand.
@@ -29,6 +30,7 @@ export interface CallState {
 
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  screenStream: MediaStream | null;
 
   isMuted: boolean;
   isCameraOn: boolean;
@@ -70,6 +72,7 @@ export const INITIAL_CALL_STATE = {
   contactIsSharing: false,
   localStream: null,
   remoteStream: null,
+  screenStream: null,
   isMuted: false,
   isCameraOn: false,
   isScreenSharing: false,
@@ -226,11 +229,14 @@ export const useCallStore = create<CallState>((set, get) => ({
     const myUserId = authData.data.user?.id;
     if (!myUserId) return;
 
+    const nc = useAudioStore.getState().noiseCancellation;
+    const audioConstraints = { echoCancellation: true, noiseSuppression: nc, autoGainControl: nc };
+
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: audioConstraints,
         video: callType === 'video',
       });
     } catch (err: unknown) {
@@ -244,7 +250,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       if (name === 'NotFoundError' && callType === 'video') {
         // Camera not found — retry audio-only
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
           // Camera unavailable — call proceeds audio-only
         } catch {
           console.error('[call] Microphone also unavailable');
@@ -422,11 +428,14 @@ export const useCallStore = create<CallState>((set, get) => ({
     const { callId, contact, callType } = get();
     if (!callId || !contact || !_pendingOffer || !_signalingChannel) return;
 
+    const nc = useAudioStore.getState().noiseCancellation;
+    const audioConstraints = { echoCancellation: true, noiseSuppression: nc, autoGainControl: nc };
+
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: audioConstraints,
         video: callType === 'video',
       });
     } catch (err: unknown) {
@@ -438,7 +447,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       // Camera denied but mic ok — proceed audio-only
       if (callType === 'video') {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
         } catch {
           get().rejectCall();
           return;
@@ -667,7 +676,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       payload: { callId },
     });
 
-    set({ isScreenSharing: true });
+    set({ isScreenSharing: true, screenStream });
   },
 
   stopScreenShare: () => {
@@ -697,6 +706,6 @@ export const useCallStore = create<CallState>((set, get) => ({
       payload: { callId },
     });
 
-    set({ isScreenSharing: false });
+    set({ isScreenSharing: false, screenStream: null });
   },
 }));

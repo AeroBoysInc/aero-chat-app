@@ -4,9 +4,6 @@ import { useSecurityStore, EXPIRY_OPTIONS } from '../../store/securityStore';
 interface Props { onClose: () => void; }
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  bottom: '4rem',
-  left: '0.5rem',
   zIndex: 50,
   width: '16rem',
   borderRadius: 20,

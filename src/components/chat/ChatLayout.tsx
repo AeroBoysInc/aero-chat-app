@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { Lock, Bell, LogOut } from 'lucide-react';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from './ChatWindow';
@@ -9,9 +9,12 @@ import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
 import { CallView } from '../call/CallView';
+import { FriendRequestModal } from './FriendRequestModal';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
+import { useAuthStore } from '../../store/authStore';
+import { useFriendStore } from '../../store/friendStore';
 import { useIsMobile } from '../../lib/useIsMobile';
 
 const SIDEBAR_MIN = 200;
@@ -31,12 +34,23 @@ export function ChatLayout() {
   const anyViewActive = gameViewActive || devViewActive;
   const callStatus = useCallStore(s => s.status);
   const callViewActive = callStatus !== 'idle';
+  const { signOut } = useAuthStore();
+  const { pendingIncoming } = useFriendStore();
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
+  const [isNight, setIsNight] = useState(() => document.documentElement.dataset.theme === 'night');
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
   const isMobile = useIsMobile();
   const [mobilePaneShowChat, setMobilePaneShowChat] = useState(false);
+
+  // Track theme changes for orb colour switching
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsNight(document.documentElement.dataset.theme === 'night'));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
   // Slide to chat pane whenever a contact is selected on mobile
   useEffect(() => {
@@ -112,9 +126,65 @@ export function ChatLayout() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
 
-      {/* Theme switcher row — sits above the chat area, never overlaps content */}
-      <div className="drag-region flex items-center justify-end px-5 pt-3 pb-1 flex-shrink-0">
-        {!anyViewActive && <ThemeSwitcher />}
+      {/* ── Glass top bar — AeroChat header + actions ── */}
+      <div className="drag-region flex-shrink-0 px-3 pt-3 pb-2">
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          position: 'relative',
+          padding: '8px 16px',
+          borderRadius: 14,
+          background: 'var(--sidebar-bg)',
+          border: '1px solid var(--panel-divider)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
+        }}>
+          {/* Logo + title — absolutely centered */}
+          <div style={{
+            position: 'absolute', left: 0, right: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            pointerEvents: 'none',
+          }}>
+            <AeroLogo size={26} />
+            <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 15, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
+              AeroChat
+            </span>
+          </div>
+
+          {/* Actions — right side */}
+          <div className="flex items-center gap-0.5 ml-auto" style={{ position: 'relative', zIndex: 1 }}>
+            <button
+              onClick={() => setRequestsOpen(true)}
+              className="relative rounded-aero p-2 transition-all duration-150"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              title="Friend Requests"
+            >
+              <Bell className="h-4 w-4" />
+              {pendingIncoming.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                  style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)' }}>
+                  {pendingIncoming.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={signOut}
+              className="no-drag rounded-aero p-2 transition-all duration-150"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+            {!anyViewActive && <ThemeSwitcher />}
+          </div>
+        </div>
+
+        {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
       </div>
 
       <div className="relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2">
@@ -139,16 +209,35 @@ export function ChatLayout() {
             willChange: 'transform, opacity',
           }}
         >
+          {/* Atmospheric background orbs — behind both glass panels */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
+            <div className="orb" style={{
+              width: 320, height: 320, left: '8%', top: '10%',
+              background: isNight ? 'rgba(0,160,255,0.10)' : 'rgba(0,180,255,0.12)',
+              animation: 'orb-drift 8s ease-in-out infinite',
+            }} />
+            <div className="orb" style={{
+              width: 260, height: 260, right: '6%', bottom: '20%',
+              background: isNight ? 'rgba(120,0,200,0.08)' : 'rgba(255,160,0,0.10)',
+              animation: 'orb-drift 7s ease-in-out 2s infinite',
+            }} />
+            <div className="orb" style={{
+              width: 200, height: 200, left: '40%', bottom: '8%',
+              background: isNight ? 'rgba(0,200,160,0.09)' : 'rgba(80,200,120,0.08)',
+              animation: 'orb-drift 9s ease-in-out 4s infinite',
+            }} />
+          </div>
+
           {/* Sidebar */}
-          <div style={{ width: sidebarWidth, flexShrink: 0 }}>
+          <div style={{ width: sidebarWidth, flexShrink: 0, position: 'relative', zIndex: 1 }}>
             <Sidebar selectedUser={selectedContact} onSelectUser={setSelectedContact} />
           </div>
 
           {/* Drag handle */}
           <div
             onMouseDown={onMouseDown}
-            className="group relative z-10 flex-shrink-0"
-            style={{ width: 12, cursor: 'col-resize', display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '0 4px' }}
+            className="group relative flex-shrink-0"
+            style={{ width: 12, cursor: 'col-resize', display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '0 4px', position: 'relative', zIndex: 1 }}
           >
             <div
               className="rounded-full transition-all duration-150"
@@ -159,16 +248,16 @@ export function ChatLayout() {
           </div>
 
           {/* Chat area */}
-          <main className="glass-chat flex flex-1 flex-col overflow-hidden min-w-0">
+          <main className="glass-chat flex flex-1 flex-col overflow-hidden min-w-0" style={{ position: 'relative', zIndex: 1 }}>
             {selectedContact ? (
               <ChatWindow contact={selectedContact} />
             ) : (
               <div className="relative flex h-full items-center justify-center overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                  <div className="orb h-60 w-60 animate-pulse-glow"
-                    style={{ background: 'rgba(0,190,255,0.14)', left: '18%', top: '8%' }} />
-                  <div className="orb h-48 w-48 animate-pulse-glow"
-                    style={{ background: 'rgba(255,160,0,0.12)', right: '12%', bottom: '18%', animationDelay: '1.5s' }} />
+                  <div className="orb h-60 w-60"
+                    style={{ background: 'rgba(0,190,255,0.14)', left: '18%', top: '8%', animation: 'orb-drift 8s ease-in-out infinite' }} />
+                  <div className="orb h-48 w-48"
+                    style={{ background: 'rgba(255,160,0,0.12)', right: '12%', bottom: '18%', animation: 'orb-drift 6s ease-in-out 1.5s infinite' }} />
                 </div>
 
                 <div className="relative text-center animate-fade-in">
@@ -191,6 +280,23 @@ export function ChatLayout() {
             )}
           </main>
         </div>
+
+        {/* CALL LAYER — sibling of glass-chat, NOT nested inside it.
+            Nesting inside glass-chat (backdrop-filter + will-change) triggers a
+            Chromium compositing bug that blurs/freezes the overlay. */}
+        {callViewActive && (
+          <div style={{
+            position: 'absolute',
+            top: 0, bottom: 0,
+            left: sidebarWidth + 12, // sidebar width + drag handle (12 px)
+            right: 0,
+            zIndex: 30,
+            overflow: 'hidden',
+            borderRadius: '0 16px 16px 0',
+          }}>
+            <CallView />
+          </div>
+        )}
 
         {/* GAME LAYER */}
         <div
@@ -224,22 +330,6 @@ export function ChatLayout() {
             <DevCorner />
           </div>
         )}
-
-        {/* CALL LAYER — slides in over everything when a call is active or ringing */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            transform: callViewActive ? 'translateX(0)' : 'translateX(102%)',
-            opacity: callViewActive ? 1 : 0,
-            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
-            pointerEvents: callViewActive ? 'auto' : 'none',
-            willChange: 'transform, opacity',
-            zIndex: 30,
-          }}
-        >
-          <CallView />
-        </div>
 
       </div>
 

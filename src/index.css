@@ -111,6 +111,20 @@
   --typing-word-done-correct:    rgba(0,0,0,0.48);
   --typing-surface-bg:           rgba(0,60,140,0.05);
   --typing-surface-border:       rgba(0,60,140,0.16);
+
+  /* Aura ring colours — day (lower opacity) */
+  --aura-online:        rgba(0,212,255,0.50);
+  --aura-gaming:        rgba(79,201,122,0.50);
+  --aura-incall:        rgba(255,160,0,0.65);
+  --aura-busy:          rgba(255,80,50,0.55);
+  --aura-away:          rgba(0,150,200,0.28);
+  --aura-glow-online:   rgba(0,180,255,0.25);
+  --aura-glow-gaming:   rgba(50,180,80,0.25);
+  --aura-glow-incall:   rgba(200,120,0,0.30);
+  --aura-glow-busy:     rgba(220,60,20,0.25);
+  /* Date separator — day */
+  --date-sep-line:      rgba(120,180,220,0.25);
+  --date-sep-text:      rgba(80,130,170,0.50);
 }
 
 
@@ -213,6 +227,20 @@
   --typing-word-done-correct:    rgba(255,255,255,0.55);
   --typing-surface-bg:           rgba(255,255,255,0.025);
   --typing-surface-border:       rgba(255,255,255,0.07);
+
+  /* Aura ring colours — night (full opacity) */
+  --aura-online:        rgba(0,212,255,0.70);
+  --aura-gaming:        rgba(79,201,122,0.70);
+  --aura-incall:        rgba(255,160,0,0.80);
+  --aura-busy:          rgba(255,80,50,0.70);
+  --aura-away:          rgba(0,150,200,0.35);
+  --aura-glow-online:   rgba(0,180,255,0.40);
+  --aura-glow-gaming:   rgba(50,180,80,0.40);
+  --aura-glow-incall:   rgba(200,120,0,0.45);
+  --aura-glow-busy:     rgba(220,60,20,0.40);
+  /* Date separator — night */
+  --date-sep-line:      rgba(80,145,255,0.12);
+  --date-sep-text:      rgba(138,171,222,0.40);
 
   --rail-icon:       rgba(255, 255, 255, 0.38);
   --rail-icon-hover: rgba(255, 255, 255, 0.82);
@@ -505,6 +533,30 @@
     transform: translateZ(0);
     contain: strict;
   }
+
+  /* Profile card gradient — day vs night */
+  .profile-card-bg {
+    background: linear-gradient(145deg, rgba(0,120,255,0.10), rgba(255,255,255,0.30));
+  }
+  [data-theme="night"] .profile-card-bg {
+    background: linear-gradient(145deg, rgba(0,150,255,0.18), rgba(80,0,200,0.12));
+  }
+
+  /* Sent bubble gloss highlight */
+  .sent-bubble-gloss {
+    position: relative;
+    overflow: hidden;
+  }
+  .sent-bubble-gloss::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%);
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 1;
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -548,6 +600,18 @@
   40%  { transform: translateY(-14px) translateX(5px);  opacity: 0.9; }
   70%  { transform: translateY(-26px) translateX(-4px); opacity: 0.8; }
   100% { transform: translateY(-40px) translateX(2px);  opacity: 0; }
+}
+
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0px,   0px)  scale(1);    }
+  25%       { transform: translate(6px,  -8px)  scale(1.04); }
+  50%       { transform: translate(10px,  4px)  scale(1.08); }
+  75%       { transform: translate(-4px,  8px)  scale(1.03); }
+}
+
+@keyframes aura-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.8; }
+  50%       { transform: scale(1.10); opacity: 0.4; }
 }
 
 @keyframes bubble-notify-in {

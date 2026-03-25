@@ -57,6 +57,15 @@ function base64ToBlob(b64: string, mime: string): Blob {
   return new Blob([arr], { type: mime });
 }
 
+function formatDateLabel(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 function fmtDuration(s: number): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -639,8 +648,8 @@ export function ChatWindow({ contact, onBack }: Props) {
     <div className="flex h-full flex-col">
 
       {/* Header */}
-      <div className="drag-region flex items-center gap-3 px-4 py-3.5"
-        style={{ borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+      <div className="drag-region flex items-center gap-3 px-4 py-4"
+        style={{ borderBottom: '1px solid var(--panel-divider)', background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
         {onBack && (
           <button
             onClick={onBack}
@@ -652,7 +661,7 @@ export function ChatWindow({ contact, onBack }: Props) {
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
-        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" status={liveStatus} />
+        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" status={liveStatus} playingGame={contactGame} />
         <div className="no-drag flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 15 }}>
@@ -786,6 +795,19 @@ export function ChatWindow({ contact, onBack }: Props) {
       {/* Messages */}
       <div className="relative flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1" style={{ contain: 'layout paint' }}>
         <SoapBubbles />
+        {/* Depth orbs — behind message content */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
+          <div className="orb" style={{
+            width: 160, height: 160, right: -20, top: -20,
+            background: 'rgba(0,160,255,0.08)',
+            animation: 'orb-drift 7s ease-in-out infinite',
+          }} />
+          <div className="orb" style={{
+            width: 120, height: 120, left: -20, bottom: -20,
+            background: 'rgba(120,0,255,0.06)',
+            animation: 'orb-drift 5s ease-in-out 2s infinite',
+          }} />
+        </div>
 
         {messages.length === 0 && (
           <div className="flex h-full items-center justify-center">
@@ -809,23 +831,24 @@ export function ChatWindow({ contact, onBack }: Props) {
           return (
             <div key={msg.id}>
               {showDate && (
-                <div className="my-3 flex items-center gap-3">
-                  <div className="flex-1 h-px" style={{ background: 'var(--panel-divider)' }} />
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    {new Date(msg.created_at).toLocaleDateString()}
+                <div className="my-4 flex items-center gap-3" style={{ position: 'relative', zIndex: 1 }}>
+                  <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
+                  <span style={{ fontSize: 10, color: 'var(--date-sep-text)', fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                    {formatDateLabel(new Date(msg.created_at))}
                   </span>
-                  <div className="flex-1 h-px" style={{ background: 'var(--panel-divider)' }} />
+                  <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
                 </div>
               )}
               <div
                 className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${i === messages.length - 1 && historyLoadedRef.current ? 'animate-slide-up' : ''}`}
+                style={{ position: 'relative', zIndex: 1 }}
                 onMouseEnter={() => setHoveredMsgId(msg.id)}
                 onMouseLeave={() => { setHoveredMsgId(null); setReactionPickerFor(null); }}
               >
                 {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
 
                 <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
-                  <div className="rounded-aero-lg px-4 py-2.5"
+                  <div className={`rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
                     style={isMine ? {
                       background: 'linear-gradient(165deg, #72e472 0%, #28b828 100%)',
                       boxShadow: '0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50)',

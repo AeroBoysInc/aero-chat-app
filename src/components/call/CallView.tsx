@@ -21,6 +21,7 @@ export function CallView() {
     callType,
     localStream,
     remoteStream,
+    screenStream,
     contactIsSharing,
     isScreenSharing,
     contactIsRinging,
@@ -54,6 +55,50 @@ export function CallView() {
   useEffect(() => {
     if (status === 'idle') setChatOpen(false);
   }, [status]);
+
+  // ── Audio level visualizer ───────────────────────────────────────────
+  const [localLevel, setLocalLevel] = useState(0);
+  const [remoteLevel, setRemoteLevel] = useState(0);
+  const localAudioCtxRef = useRef<AudioContext | null>(null);
+  const remoteAudioCtxRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!localStream) { setLocalLevel(0); return; }
+    const ctx = new AudioContext();
+    localAudioCtxRef.current = ctx;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    ctx.createMediaStreamSource(localStream).connect(analyser);
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    let rafId: number;
+    const tick = () => {
+      analyser.getByteFrequencyData(buf);
+      setLocalLevel(buf.reduce((a, b) => a + b, 0) / buf.length / 255);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => { cancelAnimationFrame(rafId); ctx.close().catch(() => {}); setLocalLevel(0); };
+  }, [localStream]);
+
+  useEffect(() => {
+    if (!remoteStream) { setRemoteLevel(0); return; }
+    const ctx = new AudioContext();
+    remoteAudioCtxRef.current = ctx;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    ctx.createMediaStreamSource(remoteStream).connect(analyser);
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    let rafId: number;
+    const tick = () => {
+      analyser.getByteFrequencyData(buf);
+      setRemoteLevel(buf.reduce((a, b) => a + b, 0) / buf.length / 255);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => { cancelAnimationFrame(rafId); ctx.close().catch(() => {}); setRemoteLevel(0); };
+  }, [remoteStream]);
+  void animFrameRef; // suppresses unused-ref lint
 
   // ── PiP drag state ───────────────────────────────────────────────────
   const pipRef = useRef<HTMLDivElement>(null);
@@ -204,6 +249,10 @@ export function CallView() {
                   fontSize: 36,
                   fontWeight: 700,
                   color: 'rgba(0,200,255,0.8)',
+                  boxShadow: remoteLevel > 0.04
+                    ? `0 0 ${12 + remoteLevel * 24}px rgba(0,200,255,0.6), 0 0 0 3px rgba(0,200,255,0.35)`
+                    : 'none',
+                  transition: 'box-shadow 0.1s ease',
                 }}>
                   {contact?.username?.[0]?.toUpperCase()}
                 </div>
@@ -263,13 +312,18 @@ export function CallView() {
                 height: 90,
                 cursor: 'grab',
                 zIndex: 15,
+                borderRadius: 10,
+                boxShadow: localLevel > 0.04
+                  ? `0 0 ${8 + localLevel * 18}px rgba(0,220,120,0.7), 0 0 0 2px rgba(0,220,120,0.5)`
+                  : '0 2px 12px rgba(0,0,0,0.4)',
+                transition: 'box-shadow 0.1s ease',
               }}
             >
               <CameraFeed
-                stream={localStream}
+                stream={isScreenSharing ? screenStream : localStream}
                 muted
                 style={{ width: '100%', height: '100%' }}
-                label="Camera off"
+                label={isScreenSharing ? 'Screen' : 'Camera off'}
               />
             </div>
 

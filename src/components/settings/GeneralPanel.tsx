@@ -8,9 +8,6 @@ interface Props { onClose: () => void; }
 interface DeviceEntry { deviceId: string; label: string; }
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  bottom: '4rem',
-  left: '0.5rem',
   zIndex: 50,
   width: '18rem',
   borderRadius: 20,
