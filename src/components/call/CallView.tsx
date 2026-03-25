@@ -32,6 +32,16 @@ export function CallView() {
   const [chatOpen, setChatOpen] = useState(false);
   const [duration, setDuration] = useState('0:00');
 
+  // Hidden audio output for audio-only calls — video calls are handled by
+  // the CameraFeed <video> element which plays both video and audio.
+  const audioRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !remoteStream) return;
+    el.srcObject = remoteStream;
+    el.play().catch(() => {});
+  }, [remoteStream]);
+
   // Duration timer
   useEffect(() => {
     if (status !== 'connected' || !callStartedAt) { setDuration('0:00'); return; }
@@ -97,6 +107,10 @@ export function CallView() {
       overflow: 'hidden',
       animation: 'fadeSlideIn 0.3s ease',
     }}>
+
+      {/* Hidden audio output — plays remote audio for audio-only calls.
+          Video calls use the CameraFeed <video> element for both video + audio. */}
+      {callType === 'audio' && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
 
       {/* ── Main call area ── */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -267,7 +281,7 @@ export function CallView() {
 
       {/* ── Chat side panel ── */}
       <div style={{
-        width: chatOpen ? 260 : 0,
+        width: chatOpen ? 572 : 0,
         flexShrink: 0,
         overflow: 'hidden',
         transition: 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',

@@ -334,7 +334,9 @@ export const useCallStore = create<CallState>((set, get) => ({
 
     // ── Wire up peer connection events (after channel is ready) ──────────
     _peerConnection.ontrack = (e) => {
-      e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+      // Use e.track directly — e.streams[0] is empty when the sender added
+      // the track without a stream arg (e.g. black placeholder video track).
+      remoteStream.addTrack(e.track);
       useCallStore.setState({ remoteStream });
     };
 
@@ -467,7 +469,9 @@ export const useCallStore = create<CallState>((set, get) => ({
 
     // ── Wire up events ───────────────────────────────────────────────────
     _peerConnection.ontrack = (e) => {
-      e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+      // Use e.track directly — e.streams[0] is empty when the sender added
+      // the track without a stream arg (e.g. black placeholder video track).
+      remoteStream.addTrack(e.track);
       useCallStore.setState({ remoteStream });
     };
 
