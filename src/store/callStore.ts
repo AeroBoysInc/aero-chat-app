@@ -80,7 +80,121 @@ export const INITIAL_CALL_STATE = {
 export const useCallStore = create<CallState>((set, get) => ({
   ...INITIAL_CALL_STATE,
 
-  handleIncomingOffer: () => { /* Task 3 */ },
+  handleIncomingOffer: (offer, callId, contact, callType, myUserId) => {
+    const { status, callId: myCallId, contact: myContact } = get();
+
+    // ── Glare detection ─────────────────────────────────────────────────────
+    // Both sides tried to call simultaneously. Lower userId wins as caller.
+    if (status === 'calling' && myContact?.id === contact.id) {
+      if (myUserId < contact.id) {
+        // I win — I stay as caller, ignore their offer
+        return;
+      } else {
+        // I lose — tear down my outgoing attempt, then proceed as callee
+        // 1. Send hangup for my outgoing offer
+        _signalingChannel?.send({
+          type: 'broadcast',
+          event: 'call:hangup',
+          payload: { callId: myCallId },
+        });
+        // 2. Stop local stream and close PC
+        get().localStream?.getTracks().forEach(t => t.stop());
+        _screenStream?.getTracks().forEach(t => t.stop());
+        _peerConnection?.close();
+        supabase.removeChannel(_signalingChannel!);
+        _peerConnection = null;
+        _signalingChannel = null;
+        _screenStream = null;
+        _cameraTrack = null;
+        // Reset state to idle before setting ringing below
+        useCallStore.setState(INITIAL_CALL_STATE);
+      }
+    }
+
+    // ── Busy check ───────────────────────────────────────────────────────────
+    // Re-read status from store — glare teardown above may have reset it to 'idle'.
+    const currentStatus = get().status;
+    if (currentStatus === 'connected' || currentStatus === 'ringing') {
+      // Already in a call — send busy signal via a fire-and-forget REST broadcast
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const topic = `call:${[myUserId, contact.id].sort().join(':')}`;
+      fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [{ topic, event: 'call:busy', payload: { callId } }],
+        }),
+      }).catch(() => {});
+      return;
+    }
+
+    // ── Subscribe to the shared signaling channel ────────────────────────────
+    const channelName = `call:${[myUserId, contact.id].sort().join(':')}`;
+    _signalingChannel = supabase
+      .channel(channelName)
+      .on('broadcast', { event: 'call:ice' }, async ({ payload }) => {
+        if (payload.callId !== callId) return;
+        if (_peerConnection?.remoteDescription) {
+          await _peerConnection.addIceCandidate(payload.candidate).catch(() => {});
+        } else {
+          useCallStore.setState(s => ({
+            pendingCandidates: [...s.pendingCandidates, payload.candidate],
+          }));
+        }
+      })
+      .on('broadcast', { event: 'call:hangup' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        get().hangUp();
+      })
+      .on('broadcast', { event: 'call:screenshare-start' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsSharing: true });
+      })
+      .on('broadcast', { event: 'call:screenshare-stop' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsSharing: false });
+      })
+      // ICE restart: caller sends a new call:offer on the session channel (not ring channel)
+      .on('broadcast', { event: 'call:offer' }, async ({ payload }) => {
+        if (payload.callId !== callId || !_peerConnection) return;
+        // Treat as an ICE-restart offer from the caller
+        await _peerConnection.setRemoteDescription(payload.sdp);
+        const restartAnswer = await _peerConnection.createAnswer();
+        await _peerConnection.setLocalDescription(restartAnswer);
+        _signalingChannel?.send({
+          type: 'broadcast',
+          event: 'call:answer',
+          payload: { sdp: restartAnswer, callId },
+        });
+      })
+      .subscribe((status) => {
+        // Send ringing ONLY after channel is SUBSCRIBED — send() on an unsubscribed
+        // channel is silently dropped, causing the caller to never see "Ringing…"
+        if (status === 'SUBSCRIBED') {
+          _signalingChannel?.send({
+            type: 'broadcast',
+            event: 'call:ringing',
+            payload: { callId },
+          });
+        }
+      });
+
+    // Store offer for answerCall()
+    _pendingOffer = offer;
+
+    set({
+      status: 'ringing',
+      callId,
+      contact,
+      isCaller: false,
+      callType,
+    });
+  },
   startCall: async () => { /* Task 4 */ },
   answerCall: async () => { /* Task 5 */ },
   hangUp: () => { /* Task 6 */ },
