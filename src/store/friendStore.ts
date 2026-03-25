@@ -36,7 +36,7 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     // Accepted requests (both directions)
     const { data: accepted } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status), receiver:profiles!receiver_id(id,username,public_key,avatar_url,status)')
+      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params), receiver:profiles!receiver_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
       .eq('status', 'accepted')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
@@ -47,14 +47,14 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     // Pending incoming
     const { data: incoming } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status)')
+      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
       .eq('receiver_id', userId)
       .eq('status', 'pending');
 
     // Pending sent
     const { data: sent } = await supabase
       .from('friend_requests')
-      .select('*, receiver:profiles!receiver_id(id,username,public_key,avatar_url,status)')
+      .select('*, receiver:profiles!receiver_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
       .eq('sender_id', userId)
       .eq('status', 'pending');
 
@@ -140,11 +140,11 @@ export const useFriendStore = create<FriendState>((set, get) => ({
         schema: 'public',
         table: 'profiles',
       }, (payload) => {
-        const updated = payload.new as { id: string; status: string };
-        // Patch the status on any friend whose profile was updated
+        const updated = payload.new as Profile;
+        // Spread all fields so card changes (gradient, image) propagate live
         set(state => ({
           friends: state.friends.map(f =>
-            f.id === updated.id ? { ...f, status: updated.status } : f
+            f.id === updated.id ? { ...f, ...updated } : f
           ),
         }));
       })
