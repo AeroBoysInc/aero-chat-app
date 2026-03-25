@@ -20,6 +20,12 @@ const PARTICLE_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 /** Size of each bubble emoji container in pixels */
 const BUBBLE_SIZE = 42;
 
+// End-state offsets of @keyframes reaction-bubble-rise (100% frame).
+// The outer positioner div jumps to this position when popping so that
+// particles and the shockwave ring appear where the bubble actually is.
+const RISE_END_DX = -3;   // translateX(-3px)
+const RISE_END_DY = -268; // translateY(-268px)
+
 function Bubble({ inst, onRemove }: { inst: BubbleInstance; onRemove: (id: string) => void }) {
   const [phase, setPhase] = useState<'rising' | 'popping'>('rising');
 
@@ -35,13 +41,17 @@ function Bubble({ inst, onRemove }: { inst: BubbleInstance; onRemove: (id: strin
     if (e.animationName === 'bubble-pop') onRemove(inst.id);
   };
 
+  // When popping, shift the outer div to where the bubble visually ended up
+  const left = inst.x - BUBBLE_SIZE / 2 + (phase === 'popping' ? RISE_END_DX : 0);
+  const top  = inst.y - BUBBLE_SIZE / 2 + (phase === 'popping' ? RISE_END_DY : 0);
+
   return (
     // Outer positioner — position: absolute places this relative to data-bubble-container
     <div
       style={{
         position: 'absolute',
-        left: inst.x - BUBBLE_SIZE / 2,
-        top:  inst.y - BUBBLE_SIZE / 2,
+        left,
+        top,
         width: BUBBLE_SIZE,
         height: BUBBLE_SIZE,
         pointerEvents: 'none',
