@@ -8,8 +8,10 @@ import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
+import { CallView } from '../call/CallView';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
+import { useCallStore } from '../../store/callStore';
 import { useIsMobile } from '../../lib/useIsMobile';
 
 const SIDEBAR_MIN = 200;
@@ -27,6 +29,8 @@ export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
   const { gameViewActive, devViewActive } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive;
+  const callStatus = useCallStore(s => s.status);
+  const callViewActive = callStatus !== 'idle';
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -220,6 +224,22 @@ export function ChatLayout() {
             <DevCorner />
           </div>
         )}
+
+        {/* CALL LAYER — slides in over everything when a call is active or ringing */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            transform: callViewActive ? 'translateX(0)' : 'translateX(102%)',
+            opacity: callViewActive ? 1 : 0,
+            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+            pointerEvents: callViewActive ? 'auto' : 'none',
+            willChange: 'transform, opacity',
+            zIndex: 30,
+          }}
+        >
+          <CallView />
+        </div>
 
       </div>
     </div>
