@@ -531,10 +531,168 @@ export const useCallStore = create<CallState>((set, get) => ({
     };
     window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
   },
-  hangUp: () => { /* Task 6 */ },
-  rejectCall: () => { /* Task 6 */ },
-  toggleMute: () => { /* Task 7 */ },
-  toggleCamera: () => { /* Task 7 */ },
-  startScreenShare: async () => { /* Task 8 */ },
-  stopScreenShare: () => { /* Task 8 */ },
+  hangUp: () => {
+    const { callId } = get();
+
+    // 1. Send hangup signal (best-effort — channel may already be gone)
+    if (callId) {
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:hangup',
+        payload: { callId },
+      });
+    }
+
+    // 2. Stop all media tracks
+    get().localStream?.getTracks().forEach(t => t.stop());
+    _screenStream?.getTracks().forEach(t => t.stop());
+
+    // 3. Close PeerConnection
+    _peerConnection?.close();
+
+    // 4. Remove signaling channel from Supabase
+    if (_signalingChannel) {
+      supabase.removeChannel(_signalingChannel);
+    }
+
+    // 5. Clear ICE restart timer
+    if (_iceRestartTimer) {
+      clearTimeout(_iceRestartTimer);
+      _iceRestartTimer = null;
+    }
+
+    // 6. Null all module-level refs
+    _peerConnection = null;
+    _signalingChannel = null;
+    _screenStream = null;
+    _cameraTrack = null;
+    _pendingOffer = null;
+
+    // 7. Reset Zustand state
+    useCallStore.setState(INITIAL_CALL_STATE);
+  },
+
+  rejectCall: () => {
+    const { callId } = get();
+
+    // Send reject signal before cleaning up
+    if (callId) {
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:reject',
+        payload: { callId },
+      });
+    }
+
+    // Directly clean up without sending a second hangup:
+    // Stop any acquired local media tracks (may have been obtained if answerCall() was called)
+    get().localStream?.getTracks().forEach(t => t.stop());
+    _screenStream?.getTracks().forEach(t => t.stop());
+    if (_signalingChannel) supabase.removeChannel(_signalingChannel);
+    _peerConnection = null;
+    _signalingChannel = null;
+    _screenStream = null;
+    _cameraTrack = null;
+    _pendingOffer = null;
+    if (_iceRestartTimer) { clearTimeout(_iceRestartTimer); _iceRestartTimer = null; }
+
+    useCallStore.setState(INITIAL_CALL_STATE);
+  },
+  toggleMute: () => {
+    const { localStream, isMuted } = get();
+    if (!localStream) return;
+    const next = !isMuted;
+    localStream.getAudioTracks().forEach(t => { t.enabled = !next; });
+    set({ isMuted: next });
+  },
+
+  toggleCamera: () => {
+    const { localStream, isCameraOn, callType } = get();
+    if (!localStream) return;
+
+    if (callType === 'video' && localStream.getVideoTracks().length > 0) {
+      // For video calls: enable/disable the real camera track
+      const next = !isCameraOn;
+      localStream.getVideoTracks().forEach(t => { t.enabled = next; });
+      set({ isCameraOn: next });
+    }
+    // Audio-only calls: no camera to toggle — button is hidden in UI anyway
+  },
+  startScreenShare: async () => {
+    const { callId, isCameraOn, localStream } = get();
+    if (!callId || !_peerConnection || !_signalingChannel) return;
+
+    let screenStream: MediaStream;
+    try {
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30, width: { ideal: 1920 } },
+        audio: true, // system/tab audio where supported (Chrome, Edge)
+      });
+    } catch (err: unknown) {
+      if ((err as DOMException)?.name === 'NotAllowedError') {
+        // User cancelled the picker — silent fail, no state change
+        return;
+      }
+      throw err;
+    }
+
+    const screenTrack = screenStream.getVideoTracks()[0];
+
+    // Save current camera track so we can restore it on stop
+    if (isCameraOn && localStream) {
+      _cameraTrack = localStream.getVideoTracks()[0] ?? null;
+    }
+
+    // Replace the video sender track with the screen track
+    const videoSender = _peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (videoSender) {
+      await videoSender.replaceTrack(screenTrack);
+    }
+
+    _screenStream = screenStream;
+
+    // Auto-stop when user clicks the browser's native "Stop sharing" bar
+    screenTrack.addEventListener('ended', () => {
+      useCallStore.getState().stopScreenShare();
+    });
+
+    // Notify the remote peer
+    _signalingChannel.send({
+      type: 'broadcast',
+      event: 'call:screenshare-start',
+      payload: { callId },
+    });
+
+    set({ isScreenSharing: true });
+  },
+
+  stopScreenShare: () => {
+    const { callId, isCameraOn } = get();
+    if (!_signalingChannel || !_peerConnection) return;
+
+    // Stop screen stream tracks
+    _screenStream?.getTracks().forEach(t => t.stop());
+
+    // Restore the video sender:
+    // - If camera was on: put back the saved camera track
+    // - If camera was off: put back a black placeholder track
+    const videoSender = _peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (videoSender) {
+      const restoreTrack = (isCameraOn && _cameraTrack)
+        ? _cameraTrack
+        : createBlackVideoTrack();
+      videoSender.replaceTrack(restoreTrack).catch(() => {});
+    }
+
+    _cameraTrack = null;
+    _screenStream = null;
+
+    _signalingChannel.send({
+      type: 'broadcast',
+      event: 'call:screenshare-stop',
+      payload: { callId },
+    });
+
+    set({ isScreenSharing: false });
+  },
 }));
