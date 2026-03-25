@@ -110,14 +110,14 @@ export function ChatLayout() {
 
   // ── Desktop layout ──────────────────────────────────────────────────────────
   return (
-    <div className="relative flex h-screen overflow-hidden p-3 gap-2">
+    <div className="flex flex-col h-screen overflow-hidden">
 
-      {/* Theme switcher — hidden during any corner view */}
-      {!anyViewActive && (
-        <div className="fixed top-4 right-5 z-50 drag-region">
-          <ThemeSwitcher />
-        </div>
-      )}
+      {/* Theme switcher row — sits above the chat area, never overlaps content */}
+      <div className="drag-region flex items-center justify-end px-5 pt-3 pb-1 flex-shrink-0">
+        {!anyViewActive && <ThemeSwitcher />}
+      </div>
+
+      <div className="relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2">
 
       {/* ── Corner Rail — always visible ── */}
       <CornerRail />
@@ -240,6 +240,8 @@ export function ChatLayout() {
         >
           <CallView />
         </div>
+
+      </div>
 
       </div>
     </div>
