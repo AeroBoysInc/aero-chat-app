@@ -16,6 +16,7 @@ import { SettingsPanel } from '../settings/SettingsPanel';
 import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
 import { useCornerStore } from '../../store/cornerStore';
+import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 
 interface Props {
@@ -37,6 +38,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const presenceReady = usePresenceStore(s => s.presenceReady);
   const playingGames = usePresenceStore(s => s.playingGames);
   const { openGameHub } = useCornerStore();
+  const callStatus = useCallStore(s => s.status);
 
   const [query,          setQuery]          = useState('');
   const [results,        setResults]        = useState<Profile[]>([]);
@@ -368,6 +370,24 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           <div className="min-w-0 flex-1 text-left">
             <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, color: 'var(--text-primary)' }}>
               {user?.username}
+              {callStatus === 'connected' && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 10,
+                  color: '#00d4ff',
+                  fontWeight: 600,
+                  padding: '1px 6px',
+                  background: 'rgba(0,180,255,0.12)',
+                  border: '1px solid rgba(0,180,255,0.3)',
+                  borderRadius: 10,
+                  marginLeft: 4,
+                  letterSpacing: '0.02em',
+                }}>
+                  <span style={{ fontSize: 8 }}>●</span> In call
+                </span>
+              )}
             </p>
             {/* Clickable status — opens menu */}
             <button
