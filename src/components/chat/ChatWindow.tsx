@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -13,6 +13,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
@@ -187,6 +188,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   const { playingGames } = usePresenceStore();
   const contactGame = playingGames.get(contact.id);
+  const callStatus = useCallStore(s => s.status);
+  const { startCall } = useCallStore();
   // Always read status from the live friends list so it updates in real-time
   const liveStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
 
@@ -691,10 +694,43 @@ export function ChatWindow({ contact, onBack }: Props) {
           )}
         </div>
         <div className="no-drag flex items-center gap-2">
+          {/* Call buttons — only when idle */}
+          {callStatus === 'idle' && (
+            <>
+              <button
+                onClick={() => startCall(contact, 'audio')}
+                title="Voice call"
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                style={{
+                  color: 'var(--text-muted)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              >
+                <Phone className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => startCall(contact, 'video')}
+                title="Video call"
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                style={{
+                  color: 'var(--text-muted)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              >
+                <Video className="h-4 w-4" />
+              </button>
+            </>
+          )}
           <AeroLogo size={20} className="opacity-20" />
-          <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            <Lock className="h-3 w-3" />
-          </div>
+          <Lock className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
         </div>
       </div>
 
