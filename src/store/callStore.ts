@@ -77,6 +77,32 @@ export const INITIAL_CALL_STATE = {
   pendingCandidates: [],
 };
 
+// ICE restart helper — called on 'disconnected' state
+let _iceRestartTimer: ReturnType<typeof setTimeout> | null = null;
+
+function handleIceRestart(callId: string) {
+  if (_iceRestartTimer) return; // already pending
+  _iceRestartTimer = setTimeout(async () => {
+    _iceRestartTimer = null;
+    if (!_peerConnection) return;
+    if (_peerConnection.iceConnectionState === 'failed') {
+      useCallStore.getState().hangUp();
+      return;
+    }
+    try {
+      const offer = await _peerConnection.createOffer({ iceRestart: true });
+      await _peerConnection.setLocalDescription(offer);
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:offer',
+        payload: { sdp: offer, callId },
+      });
+    } catch {
+      useCallStore.getState().hangUp();
+    }
+  }, 8_000);
+}
+
 export const useCallStore = create<CallState>((set, get) => ({
   ...INITIAL_CALL_STATE,
 
@@ -195,7 +221,201 @@ export const useCallStore = create<CallState>((set, get) => ({
       callType,
     });
   },
-  startCall: async () => { /* Task 4 */ },
+  startCall: async (contact, callType) => {
+    const authData = await supabase.auth.getUser();
+    const myUserId = authData.data.user?.id;
+    if (!myUserId) return;
+
+    // ── Get local media ───────────────────────────────────────────────────
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === 'video',
+      });
+    } catch (err: unknown) {
+      const name = (err as DOMException)?.name;
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        // Both mic + camera denied — abort
+        console.error('[call] Media access denied', err);
+        // TODO: show toast "Microphone access denied — check browser permissions"
+        return;
+      }
+      if (name === 'NotFoundError' && callType === 'video') {
+        // Camera not found — retry audio-only
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          // Camera unavailable — call proceeds audio-only
+        } catch {
+          console.error('[call] Microphone also unavailable');
+          return;
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    const callId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const channelName = `call:${[myUserId, contact.id].sort().join(':')}`;
+
+    _peerConnection = createPeerConnection();
+    const remoteStream = new MediaStream();
+
+    // ── Add tracks ───────────────────────────────────────────────────────
+    // Always add a black placeholder video sender so replaceTrack() is safe.
+    // No stream arg: associating with the local getUserMedia stream causes SDP stream
+    // binding issues in audio-only calls (stream only has audio, video sender gets mislinked).
+    const blackTrack = createBlackVideoTrack();
+    _peerConnection.addTrack(blackTrack);
+
+    // Add audio
+    stream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+
+    // For video calls, replace the black placeholder with the real camera track
+    let cameraOn = false;
+    if (callType === 'video' && stream.getVideoTracks().length > 0) {
+      const videoSender = _peerConnection.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) {
+        await videoSender.replaceTrack(stream.getVideoTracks()[0]);
+        cameraOn = true;
+      }
+    }
+
+    // ── Subscribe to signaling channel BEFORE creating offer ────────────
+    // CRITICAL: onicecandidate fires as soon as setLocalDescription() is called.
+    // _signalingChannel must exist by then or early ICE candidates are silently dropped.
+    _signalingChannel = supabase
+      .channel(channelName)
+      .on('broadcast', { event: 'call:ringing' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsRinging: true });
+      })
+      .on('broadcast', { event: 'call:answer' }, async ({ payload }) => {
+        if (payload.callId !== callId) return;
+        await _peerConnection!.setRemoteDescription(payload.sdp);
+        // Drain queued ICE candidates
+        const { pendingCandidates } = get();
+        for (const c of pendingCandidates) {
+          await _peerConnection!.addIceCandidate(c).catch(() => {});
+        }
+        set({ pendingCandidates: [] });
+      })
+      .on('broadcast', { event: 'call:ice' }, async ({ payload }) => {
+        if (payload.callId !== callId) return;
+        if (_peerConnection?.remoteDescription) {
+          await _peerConnection.addIceCandidate(payload.candidate).catch(() => {});
+        } else {
+          set(s => ({ pendingCandidates: [...s.pendingCandidates, payload.candidate] }));
+        }
+      })
+      .on('broadcast', { event: 'call:reject' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        get().hangUp();
+        // TODO: show "Call declined" toast
+      })
+      .on('broadcast', { event: 'call:hangup' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        get().hangUp();
+      })
+      .on('broadcast', { event: 'call:busy' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        get().hangUp();
+        // TODO: show "Contact is in another call" toast
+      })
+      .on('broadcast', { event: 'call:screenshare-start' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsSharing: true });
+      })
+      .on('broadcast', { event: 'call:screenshare-stop' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsSharing: false });
+      })
+      .subscribe();
+
+    // ── Wire up peer connection events (after channel is ready) ──────────
+    _peerConnection.ontrack = (e) => {
+      e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+      useCallStore.setState({ remoteStream });
+    };
+
+    _peerConnection.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:ice',
+        payload: { candidate: e.candidate.toJSON(), callId },
+      });
+    };
+
+    _peerConnection.oniceconnectionstatechange = () => {
+      const state = _peerConnection?.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
+        useCallStore.setState({ status: 'connected', callStartedAt: Date.now() });
+      }
+      if (state === 'disconnected') {
+        handleIceRestart(callId);
+      }
+      if (state === 'failed') {
+        // TODO: show "Call ended (connection lost)" toast
+        get().hangUp();
+      }
+    };
+
+    // ── Create offer (ICE gathering starts here — channel is already ready) ─
+    const offer = await _peerConnection.createOffer();
+    await _peerConnection.setLocalDescription(offer);
+
+    // Update state
+    set({
+      status: 'calling',
+      callId,
+      contact,
+      isCaller: true,
+      callType,
+      localStream: stream,
+      remoteStream,
+      isCameraOn: cameraOn,
+      isMuted: false,
+    });
+
+    // ── Send ring notification via REST broadcast (no subscription needed) ─
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{
+          topic: `call:ring:${contact.id}`,
+          event: 'call:offer',
+          payload: { sdp: offer, callId, callType, callerId: myUserId },
+        }],
+      }),
+    }).catch(err => console.error('[call] Failed to send ring notification', err));
+
+    // ── 30-second no-answer timeout ───────────────────────────────────────
+    setTimeout(() => {
+      const { status: s, callId: cid } = get();
+      if (s === 'calling' && cid === callId) {
+        get().hangUp();
+        // TODO: show "No answer" toast
+      }
+    }, 30_000);
+
+    // ── beforeunload: best-effort hangup signal ───────────────────────────
+    const beforeUnloadHangup = () => {
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:hangup',
+        payload: { callId },
+      });
+    };
+    window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
+  },
   answerCall: async () => { /* Task 5 */ },
   hangUp: () => { /* Task 6 */ },
   rejectCall: () => { /* Task 6 */ },
