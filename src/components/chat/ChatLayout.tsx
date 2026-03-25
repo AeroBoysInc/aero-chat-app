@@ -249,6 +249,11 @@ export function ChatLayout() {
 
           {/* Chat area */}
           <main className="glass-chat flex flex-1 flex-col overflow-hidden min-w-0" style={{ position: 'relative', zIndex: 1 }}>
+            {callViewActive && (
+              <div style={{ position: 'absolute', inset: 0, zIndex: 20 }}>
+                <CallView />
+              </div>
+            )}
             {selectedContact ? (
               <ChatWindow contact={selectedContact} />
             ) : (
@@ -280,23 +285,6 @@ export function ChatLayout() {
             )}
           </main>
         </div>
-
-        {/* CALL LAYER — sibling of glass-chat, NOT nested inside it.
-            Nesting inside glass-chat (backdrop-filter + will-change) triggers a
-            Chromium compositing bug that blurs/freezes the overlay. */}
-        {callViewActive && (
-          <div style={{
-            position: 'absolute',
-            top: 0, bottom: 0,
-            left: sidebarWidth + 12, // sidebar width + drag handle (12 px)
-            right: 0,
-            zIndex: 30,
-            overflow: 'hidden',
-            borderRadius: '0 16px 16px 0',
-          }}>
-            <CallView />
-          </div>
-        )}
 
         {/* GAME LAYER */}
         <div

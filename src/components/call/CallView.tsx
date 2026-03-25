@@ -150,7 +150,6 @@ export function CallView() {
       background: 'rgba(2, 6, 22, 0.97)',
       borderRadius: 16,
       overflow: 'hidden',
-      animation: 'fadeSlideIn 0.3s ease',
     }}>
 
       {/* Hidden audio output — plays remote audio for audio-only calls.
