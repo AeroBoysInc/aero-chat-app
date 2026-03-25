@@ -416,7 +416,121 @@ export const useCallStore = create<CallState>((set, get) => ({
     };
     window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
   },
-  answerCall: async () => { /* Task 5 */ },
+  answerCall: async () => {
+    const { callId, contact, callType } = get();
+    if (!callId || !contact || !_pendingOffer || !_signalingChannel) return;
+
+    // ── Get local media ───────────────────────────────────────────────────
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === 'video',
+      });
+    } catch (err: unknown) {
+      const name = (err as DOMException)?.name;
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        get().rejectCall();
+        return;
+      }
+      // Camera denied but mic ok — proceed audio-only
+      if (callType === 'video') {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch {
+          get().rejectCall();
+          return;
+        }
+      } else {
+        get().rejectCall();
+        return;
+      }
+    }
+
+    const remoteStream = new MediaStream();
+    _peerConnection = createPeerConnection();
+
+    // ── Add local tracks ─────────────────────────────────────────────────
+    // No stream arg on blackTrack — same reason as in startCall (SDP stream binding)
+    const blackTrack = createBlackVideoTrack();
+    _peerConnection.addTrack(blackTrack);
+    stream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+
+    let cameraOn = false;
+    if (callType === 'video' && stream.getVideoTracks().length > 0) {
+      const videoSender = _peerConnection.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) {
+        await videoSender.replaceTrack(stream.getVideoTracks()[0]);
+        cameraOn = true;
+      }
+    }
+
+    // ── Wire up events ───────────────────────────────────────────────────
+    _peerConnection.ontrack = (e) => {
+      e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+      useCallStore.setState({ remoteStream });
+    };
+
+    _peerConnection.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:ice',
+        payload: { candidate: e.candidate.toJSON(), callId },
+      });
+    };
+
+    _peerConnection.oniceconnectionstatechange = () => {
+      const state = _peerConnection?.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
+        useCallStore.setState({ status: 'connected', callStartedAt: Date.now() });
+      }
+      if (state === 'disconnected') {
+        handleIceRestart(callId);
+      }
+      if (state === 'failed') {
+        get().hangUp();
+      }
+    };
+
+    // ── SDP exchange ─────────────────────────────────────────────────────
+    await _peerConnection.setRemoteDescription(_pendingOffer);
+
+    // Drain any ICE candidates that arrived before PeerConnection was created
+    const { pendingCandidates } = get();
+    for (const c of pendingCandidates) {
+      await _peerConnection.addIceCandidate(c).catch(() => {});
+    }
+
+    const answer = await _peerConnection.createAnswer();
+    await _peerConnection.setLocalDescription(answer);
+
+    _signalingChannel.send({
+      type: 'broadcast',
+      event: 'call:answer',
+      payload: { sdp: answer, callId },
+    });
+
+    _pendingOffer = null;
+
+    set({
+      localStream: stream,
+      remoteStream,
+      pendingCandidates: [],
+      isCameraOn: cameraOn,
+      isMuted: false,
+    });
+
+    // ── beforeunload: best-effort hangup from callee side ─────────────────
+    const beforeUnloadHangup = () => {
+      _signalingChannel?.send({
+        type: 'broadcast',
+        event: 'call:hangup',
+        payload: { callId },
+      });
+    };
+    window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
+  },
   hangUp: () => { /* Task 6 */ },
   rejectCall: () => { /* Task 6 */ },
   toggleMute: () => { /* Task 7 */ },
