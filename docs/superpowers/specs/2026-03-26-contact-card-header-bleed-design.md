@@ -223,7 +223,7 @@ New bleed layer inside the header `<div>` (add `position: relative; overflow: hi
 Update the header `<div>` background style to add the right-edge vignette:
 
 ```tsx
-background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), linear-gradient(to left, rgba(0,15,50,0.28) 0%, transparent 55%), var(--panel-header-bg)',
+background: 'linear-gradient(180deg, rgba(0,100,255,0.07) 0%, transparent 100%), linear-gradient(to left, rgba(0,15,50,0.28) 0%, transparent 55%), var(--panel-header-bg)',
 ```
 
 Ensure existing content children maintain `position: relative; z-index: 3` (or higher) so they render above the bleed and tint layers.
