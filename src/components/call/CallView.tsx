@@ -64,7 +64,7 @@ export function CallView() {
   const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!localStream) { setLocalLevel(0); return; }
+    if (!localStream || localStream.getAudioTracks().length === 0) { setLocalLevel(0); return; }
     const ctx = new AudioContext();
     localAudioCtxRef.current = ctx;
     const analyser = ctx.createAnalyser();
@@ -82,7 +82,7 @@ export function CallView() {
   }, [localStream]);
 
   useEffect(() => {
-    if (!remoteStream) { setRemoteLevel(0); return; }
+    if (!remoteStream || remoteStream.getAudioTracks().length === 0) { setRemoteLevel(0); return; }
     const ctx = new AudioContext();
     remoteAudioCtxRef.current = ctx;
     const analyser = ctx.createAnalyser();
