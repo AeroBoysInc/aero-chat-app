@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
@@ -13,6 +13,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
@@ -72,6 +73,177 @@ function fmtDuration(s: number): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 }
+
+// ── MessageItem ────────────────────────────────────────────────────────────────
+// Memoized per-message row. Owns its own hover + reaction picker state so that
+// hovering any message does not re-render the rest of the list.
+
+interface MessageItemProps {
+  msg: Message;
+  isMine: boolean;
+  showDate: boolean;
+  msgReactions: Record<string, string[]>;
+  isLastMessage: boolean;
+  historyLoaded: boolean;
+  contact: Profile;
+  user: Profile;
+  outputVolume: number;
+  outputDeviceId: string;
+  toggleReaction: (msgId: string, emoji: string) => void;
+  setLightboxImage: (img: { url: string; name: string; size: number } | null) => void;
+  setPendingLinkUrl: (url: string | null) => void;
+}
+
+const MessageItem = memo(function MessageItem({
+  msg, isMine, showDate, msgReactions, isLastMessage, historyLoaded,
+  contact, user, outputVolume, outputDeviceId,
+  toggleReaction, setLightboxImage, setPendingLinkUrl,
+}: MessageItemProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const hasReactions = Object.values(msgReactions).some(users => users.length > 0);
+
+  return (
+    <div>
+      {showDate && (
+        <div className="my-4 flex items-center gap-3" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
+          <span style={{ fontSize: 10, color: 'var(--date-sep-text)', fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap', fontFamily: 'Inter, system-ui, sans-serif' }}>
+            {formatDateLabel(new Date(msg.created_at))}
+          </span>
+          <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
+        </div>
+      )}
+      <div
+        data-msg-id={msg.id}
+        className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${isLastMessage && historyLoaded ? 'animate-slide-up' : ''}`}
+        style={{ position: 'relative', zIndex: 1 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => { setIsHovered(false); setPickerOpen(false); }}
+      >
+        {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
+
+        <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
+          <div className={`rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
+            style={isMine ? {
+              background: 'linear-gradient(165deg, #72e472 0%, #28b828 100%)',
+              boxShadow: '0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50)',
+              border: '1px solid rgba(80,210,80,0.55)',
+              borderBottomRightRadius: 4,
+            } : {
+              background: 'var(--recv-bg)',
+              boxShadow: '0 2px 10px rgba(0,80,160,0.10), inset 0 1px 0 rgba(255,255,255,0.50)',
+              border: '1px solid var(--recv-border)',
+              borderBottomLeftRadius: 4,
+            }}>
+            {isVoiceMessage(msg.content)
+              ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
+              : isFileMessage(msg.content)
+              ? <FileMessage content={msg.content} isMine={isMine} onImageClick={setLightboxImage} />
+              : msg.content.startsWith(CHESS_INVITE_PREFIX) && !isMine
+              ? (() => {
+                  const parts = msg.content.split(':');
+                  const gameId = parts[1] ?? '';
+                  const inviter = parts.slice(2).join(':');
+                  return <ChessInviteCard gameId={gameId} inviterUsername={inviter} />;
+                })()
+              : msg.content.startsWith(CHESS_INVITE_PREFIX) && isMine
+              ? <p className="text-sm leading-relaxed break-words" style={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                  ♟️ Chess invite sent
+                </p>
+              : msg.content === '[decryption failed]'
+              ? (
+                <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                  <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
+                </p>
+              )
+              : (
+                <MessageContent
+                  content={msg.content}
+                  isMine={isMine}
+                  textColor={isMine ? '#fff' : 'var(--recv-text)'}
+                  onClickLink={setPendingLinkUrl}
+                />
+              )
+            }
+            <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.62)' : 'var(--recv-time)' }}>
+              {msg.expires_at && (
+                <span title={`Expires ${new Date(msg.expires_at).toLocaleString()}`} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Timer style={{ width: 9, height: 9, opacity: 0.7 }} />
+                </span>
+              )}
+              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {isMine && (
+                <span style={{ fontSize: 10, letterSpacing: '-1px', color: msg.read_at ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.50)' }}>
+                  {msg.read_at ? ' ✓✓' : ' ✓'}
+                </span>
+              )}
+            </p>
+          </div>
+
+          {hasReactions && (
+            <div className="flex flex-wrap gap-1 mt-1" style={{ justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+              {Object.entries(msgReactions).filter(([, users]) => users.length > 0).map(([emoji, users]) => {
+                const mine = users.includes(user.id);
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => toggleReaction(msg.id, emoji)}
+                    className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 transition-all active:scale-90"
+                    style={{
+                      background: mine ? 'rgba(0,212,255,0.18)' : 'var(--reaction-idle-bg)',
+                      border: `1px solid ${mine ? 'rgba(0,212,255,0.45)' : 'var(--reaction-idle-border)'}`,
+                      fontSize: 13,
+                    }}
+                  >
+                    <span>{emoji}</span>
+                    <span style={{ color: mine ? '#00d4ff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 600, marginLeft: 2 }}>{users.length}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {isHovered && (
+          <div className="relative flex-shrink-0" style={{ order: isMine ? -1 : 1 }}>
+            <button
+              onClick={() => setPickerOpen(prev => !prev)}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-all hover:scale-110 active:scale-95"
+              style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-secondary)' }}
+            >
+              +
+            </button>
+            {pickerOpen && (
+              <div
+                className="absolute z-30 flex gap-1 rounded-aero-lg p-2 shadow-xl"
+                style={{
+                  background: 'var(--popup-bg)',
+                  border: '1px solid var(--popup-border)',
+                  backdropFilter: 'blur(16px)',
+                  bottom: '110%',
+                  ...(isMine ? { right: 0 } : { left: 0 }),
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {REACTION_EMOJIS.map(emoji => (
+                  <button
+                    key={emoji}
+                    onClick={() => toggleReaction(msg.id, emoji)}
+                    className="flex h-8 w-8 items-center justify-center rounded-aero text-lg transition-all hover:scale-125 active:scale-95"
+                    style={{ background: msgReactions[emoji]?.includes(user.id) ? 'rgba(0,212,255,0.18)' : 'transparent' }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 function VoicePlayer({ content, isMine, outputVolume, outputDeviceId }: { content: string; isMine: boolean; outputVolume: number; outputDeviceId: string }) {
   const [playing, setPlaying] = useState(false);
@@ -194,10 +366,12 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { user } = useAuthStore();
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
-  const { friends } = useFriendStore();
+  const friends = useFriendStore(useShallow(s => s.friends));
   const { gameViewActive, gameChatOverlay } = useCornerStore();
   const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
-  const { playingGames, onlineIds, presenceReady } = usePresenceStore();
+  const playingGames  = usePresenceStore(s => s.playingGames);
+  const onlineIds     = usePresenceStore(s => s.onlineIds);
+  const presenceReady = usePresenceStore(s => s.presenceReady);
   const contactGame = playingGames.get(contact.id);
   const callStatus = useCallStore(s => s.status);
   const { startCall } = useCallStore();
@@ -226,14 +400,23 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [contactTyping,     setContactTyping]     = useState(false);
   const [showClearModal,    setShowClearModal]    = useState(false);
   const [reactions,         setReactions]         = useState<ReactionsMap>({});
-  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
   const [bubbles, setBubbles] = useState<BubbleInstance[]>([]);
-  const [hoveredMsgId,      setHoveredMsgId]      = useState<string | null>(null);
   const [isRecording,       setIsRecording]       = useState(false);
   const [recordDuration,    setRecordDuration]    = useState(0);
   const [isUploading,       setIsUploading]       = useState(false);
   const [lightboxImage,     setLightboxImage]     = useState<{ url: string; name: string; size: number } | null>(null);
   const [pendingLinkUrl,    setPendingLinkUrl]    = useState<string | null>(null);
+
+  const reactionsRef = useRef<ReactionsMap>({});
+  reactionsRef.current = reactions;
+
+  const itemList = useMemo(() =>
+    messages.map((msg, i) => ({
+      msg,
+      showDate: i === 0 ||
+        new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString(),
+    })),
+  [messages]);
 
   const bottomRef          = useRef<HTMLDivElement>(null);
   const contactKeyRef      = useRef<string | null>(null);
@@ -352,7 +535,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   }
 
   // Reset reactions when switching contacts
-  useEffect(() => { setReactions({}); setReactionPickerFor(null); }, [contact.id]);
+  useEffect(() => { setReactions({}); }, [contact.id]);
 
   // ── Bubble helpers ────────────────────────────────────────────────────────────
   const spawnBubble = useCallback((emoji: string, messageId: string) => {
@@ -549,7 +732,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   // ── Reactions ────────────────────────────────────────────────────────────────
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return;
-    const alreadyReacted = reactions[messageId]?.[emoji]?.includes(user.id);
+    const alreadyReacted = reactionsRef.current[messageId]?.[emoji]?.includes(user.id);
     if (alreadyReacted) {
       await supabase.from('reactions').delete()
         .eq('message_id', messageId).eq('user_id', user.id).eq('emoji', emoji);
@@ -567,8 +750,8 @@ export function ChatWindow({ contact, onBack }: Props) {
       });
       spawnBubble(emoji, messageId);
     }
-    setReactionPickerFor(null);
-  }, [user, reactions, spawnBubble]);
+    // picker state is now local to each MessageItem — no setReactionPickerFor needed
+  }, [user, spawnBubble]);
 
   // ── Voice recording ──────────────────────────────────────────────────────────
   async function startRecording() {
@@ -890,154 +1073,24 @@ export function ChatWindow({ contact, onBack }: Props) {
           </div>
         )}
 
-        {messages.map((msg, i) => {
-          const isMine = msg.sender_id === user?.id;
-          const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
-          const msgReactions = reactions[msg.id] ?? {};
-          const hasReactions = Object.values(msgReactions).some(users => users.length > 0);
-          return (
-            <div key={msg.id}>
-              {showDate && (
-                <div className="my-4 flex items-center gap-3" style={{ position: 'relative', zIndex: 1 }}>
-                  <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
-                  <span style={{ fontSize: 10, color: 'var(--date-sep-text)', fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                    {formatDateLabel(new Date(msg.created_at))}
-                  </span>
-                  <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
-                </div>
-              )}
-              <div
-                data-msg-id={msg.id}
-                className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${i === messages.length - 1 && historyLoadedRef.current ? 'animate-slide-up' : ''}`}
-                style={{ position: 'relative', zIndex: 1 }}
-                onMouseEnter={() => setHoveredMsgId(msg.id)}
-                onMouseLeave={() => { setHoveredMsgId(null); setReactionPickerFor(null); }}
-              >
-                {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
-
-                <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
-                  <div className={`rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
-                    style={isMine ? {
-                      background: 'linear-gradient(165deg, #72e472 0%, #28b828 100%)',
-                      boxShadow: '0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50)',
-                      border: '1px solid rgba(80,210,80,0.55)',
-                      borderBottomRightRadius: 4,
-                    } : {
-                      background: 'var(--recv-bg)',
-                      boxShadow: '0 2px 10px rgba(0,80,160,0.10), inset 0 1px 0 rgba(255,255,255,0.50)',
-                      border: '1px solid var(--recv-border)',
-                      borderBottomLeftRadius: 4,
-                    }}>
-                    {isVoiceMessage(msg.content)
-                      ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
-                      : isFileMessage(msg.content)
-                      ? <FileMessage content={msg.content} isMine={isMine} onImageClick={setLightboxImage} />
-                      : msg.content.startsWith(CHESS_INVITE_PREFIX) && !isMine
-                      ? (() => {
-                          const parts = msg.content.split(':');
-                          const gameId = parts[1] ?? '';
-                          const inviter = parts.slice(2).join(':');
-                          return <ChessInviteCard gameId={gameId} inviterUsername={inviter} />;
-                        })()
-                      : msg.content.startsWith(CHESS_INVITE_PREFIX) && isMine
-                      ? <p className="text-sm leading-relaxed break-words" style={{ color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                          ♟️ Chess invite sent
-                        </p>
-                      : msg.content === '[decryption failed]'
-                      ? (
-                        <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                          <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
-                        </p>
-                      )
-                      : (
-                        <MessageContent
-                          content={msg.content}
-                          isMine={isMine}
-                          textColor={isMine ? '#fff' : 'var(--recv-text)'}
-                          onClickLink={setPendingLinkUrl}
-                        />
-                      )
-                    }
-                    <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.62)' : 'var(--recv-time)' }}>
-                      {msg.expires_at && (
-                        <span title={`Expires ${new Date(msg.expires_at).toLocaleString()}`} style={{ display: 'flex', alignItems: 'center' }}>
-                          <Timer style={{ width: 9, height: 9, opacity: 0.7 }} />
-                        </span>
-                      )}
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {isMine && (
-                        <span style={{ fontSize: 10, letterSpacing: '-1px', color: msg.read_at ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.50)' }}>
-                          {msg.read_at ? ' ✓✓' : ' ✓'}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Reaction pills */}
-                  {hasReactions && (
-                    <div className="flex flex-wrap gap-1 mt-1" style={{ justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
-                      {Object.entries(msgReactions).filter(([, users]) => users.length > 0).map(([emoji, users]) => {
-                        const mine = users.includes(user?.id ?? '');
-                        return (
-                          <button
-                            key={emoji}
-                            onClick={() => toggleReaction(msg.id, emoji)}
-                            className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 transition-all active:scale-90"
-                            style={{
-                              background: mine ? 'rgba(0,212,255,0.18)' : 'var(--reaction-idle-bg)',
-                              border: `1px solid ${mine ? 'rgba(0,212,255,0.45)' : 'var(--reaction-idle-border)'}`,
-                              fontSize: 13,
-                            }}
-                          >
-                            <span>{emoji}</span>
-                            <span style={{ color: mine ? '#00d4ff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 600, marginLeft: 2 }}>{users.length}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Reaction add button — appears on hover */}
-                {hoveredMsgId === msg.id && (
-                  <div className="relative flex-shrink-0" style={{ order: isMine ? -1 : 1 }}>
-                    <button
-                      onClick={() => setReactionPickerFor(prev => prev === msg.id ? null : msg.id)}
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-all hover:scale-110 active:scale-95"
-                      style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-secondary)' }}
-                    >
-                      +
-                    </button>
-                    {reactionPickerFor === msg.id && (
-                      <div
-                        className="absolute z-30 flex gap-1 rounded-aero-lg p-2 shadow-xl"
-                        style={{
-                          background: 'var(--popup-bg)',
-                          border: '1px solid var(--popup-border)',
-                          backdropFilter: 'blur(16px)',
-                          bottom: '110%',
-                          ...(isMine ? { right: 0 } : { left: 0 }),
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {REACTION_EMOJIS.map(emoji => (
-                          <button
-                            key={emoji}
-                            onClick={() => toggleReaction(msg.id, emoji)}
-                            className="flex h-8 w-8 items-center justify-center rounded-aero text-lg transition-all hover:scale-125 active:scale-95"
-                            style={{ background: reactions[msg.id]?.[emoji]?.includes(user?.id ?? '') ? 'rgba(0,212,255,0.18)' : 'transparent' }}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {itemList.map((item, i) => (
+          <MessageItem
+            key={item.msg.id}
+            msg={item.msg}
+            isMine={item.msg.sender_id === user?.id}
+            showDate={item.showDate}
+            msgReactions={reactions[item.msg.id] ?? {}}
+            isLastMessage={i === itemList.length - 1}
+            historyLoaded={historyLoadedRef.current}
+            contact={contact}
+            user={user!}
+            outputVolume={outputVolume}
+            outputDeviceId={outputDeviceId}
+            toggleReaction={toggleReaction}
+            setLightboxImage={setLightboxImage}
+            setPendingLinkUrl={setPendingLinkUrl}
+          />
+        ))}
 
         {/* Typing bubble at bottom when contact is typing */}
         {contactTyping && (
