@@ -714,9 +714,17 @@
 
 /* ── Freeze all CSS animations when app loses focus ──
    Pauses every decorative animation (orbs, aura rings, bubbles, glows, typing dots,
-   game particles, etc.) to drop GPU compositor load.
-   Notification-critical elements (unread badge, call modal, status indicators) are
-   plain DOM/style changes with no animation dependency — they remain fully visible. */
+   game particles, etc.) to drop GPU compositor load. */
 .paused * {
   animation-play-state: paused !important;
+}
+
+/* Entry animations are fully disabled (not just paused) when idle.
+   animate-fade-in / animate-slide-up start at opacity:0 — pausing them at
+   frame 0 makes new content invisible. Setting animation:none instead lets
+   the element appear immediately at its final visible state.
+   This keeps new messages, incoming call modals, and status changes visible. */
+.paused .animate-fade-in,
+.paused .animate-slide-up {
+  animation: none !important;
 }

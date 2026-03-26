@@ -18,3 +18,16 @@ export function showMessageNotification(senderName: string, preview: string) {
     silent: false,
   });
 }
+
+/** Show a system notification for an incoming call — fires even when gaming */
+export function showCallNotification(callerName: string, callType: 'audio' | 'video') {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (document.hasFocus()) return;
+
+  new Notification(`Incoming ${callType} call — AeroChat`, {
+    body: `${callerName} is calling you`,
+    icon: '/icons/icon.png',
+    silent: false,
+  });
+}

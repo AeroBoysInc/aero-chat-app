@@ -10,7 +10,7 @@ import { usePresenceStore } from './store/presenceStore';
 import { useCallStore } from './store/callStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
-import { requestNotificationPermission, showMessageNotification } from './lib/notifications';
+import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
 import { clearAllChatCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
@@ -208,6 +208,15 @@ export default function App() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
+
+  // OS notification for incoming calls — fires even when the window is idle
+  useEffect(() => {
+    return useCallStore.subscribe(state => {
+      if (state.status === 'ringing' && state.contact) {
+        showCallNotification(state.contact.username, state.callType ?? 'audio');
+      }
+    });
+  }, []);
 
   // Global presence channel — detects who is actually connected + game activity
   useEffect(() => {
