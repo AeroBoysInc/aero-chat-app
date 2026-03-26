@@ -314,8 +314,9 @@ export function Tropico() {
   const scaleRef       = useRef(1);
   const rafRef         = useRef<number>(0);
   const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
+  const [visPaused, setVisPaused] = useState(false);
   const pausedRef  = useRef(false);
-  pausedRef.current = gamePaused;
+  pausedRef.current = gamePaused || visPaused;
   const bgRef          = useRef<HTMLImageElement | null>(null);
   const keysRef        = useRef<Set<string>>(new Set());
   const jumpPressedRef = useRef(false);
@@ -324,6 +325,14 @@ export function Tropico() {
   const gsRef          = useRef<GState>({ player:{x:60,y:370,vx:0,vy:0,onGround:false,jumpsLeft:2}, cameraX:0, timer:0 });
   curLvlRef.current = currentLevel;
   screenRef.current = screen;
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setVisPaused((e as CustomEvent<{ hidden: boolean }>).detail.hidden)
+    }
+    document.addEventListener('aerochat:visibilitychange', handler)
+    return () => document.removeEventListener('aerochat:visibilitychange', handler)
+  }, [])
 
   // ── Responsive canvas — maintain 800:420 aspect ratio at any container size ─
   useEffect(() => {

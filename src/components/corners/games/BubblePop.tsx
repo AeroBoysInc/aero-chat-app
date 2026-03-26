@@ -197,8 +197,9 @@ export function BubblePop() {
   const lastMilestoneRef = useRef(-1);
 
   const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
+  const [visPaused, setVisPaused] = useState(false);
   const pausedRef  = useRef(false);
-  pausedRef.current = gamePaused;
+  pausedRef.current = gamePaused || visPaused;
 
   // Sync hot refs
   const gsRef    = useRef<GameState>('idle');
@@ -333,6 +334,14 @@ export function BubblePop() {
     if (levelTimer.current) clearInterval(levelTimer.current);
     setHighScore(prev => { const f = Math.max(prev, scoreRef.current); saveHS(f); return f; });
   }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setVisPaused((e as CustomEvent<{ hidden: boolean }>).detail.hidden)
+    }
+    document.addEventListener('aerochat:visibilitychange', handler)
+    return () => document.removeEventListener('aerochat:visibilitychange', handler)
+  }, [])
 
   useEffect(() => {
     if (gameState !== 'playing') return;
