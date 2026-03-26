@@ -11,7 +11,7 @@ import { useCallStore } from './store/callStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification } from './lib/notifications';
-import { loadSelectedContactId, clearAllChatCaches } from './lib/chatCache';
+import { clearAllChatCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
 import { GameNotification } from './components/ui/GameNotification';
@@ -110,19 +110,11 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load friends, subscribe to requests, and restore the last open chat
+  // Load friends and subscribe to requests on login
   useEffect(() => {
     if (!user) return;
     const unsub = subscribeToRequests(user.id);
-    loadFriends(user.id).then(() => {
-      // After friends load, restore the last selected contact from localStorage.
-      // Only do this once — if a contact is already selected, leave it alone.
-      if (useChatStore.getState().selectedContact) return;
-      const persistedId = loadSelectedContactId();
-      if (!persistedId) return;
-      const live = useFriendStore.getState().friends.find(f => f.id === persistedId);
-      if (live) useChatStore.getState().setSelectedContact(live);
-    });
+    loadFriends(user.id);
     return unsub;
   }, [user?.id]);
 
