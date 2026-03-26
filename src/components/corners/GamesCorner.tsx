@@ -78,7 +78,7 @@ const GAMES: GameEntry[] = [
     tags: ['Word', 'Daily'],
   },
   {
-    id: 'chess' as SelectedGame,
+    id: 'chess',
     icon: '♟️',
     label: 'AeroChess',
     desc: 'Real-time 1v1 — 🔵 Blue vs 🟢 Green',
@@ -165,7 +165,7 @@ function LibraryTab({
   return (
     <div className="flex flex-col gap-3">
       {games.map(game => (
-        <GameRow key={game.label} game={game}>
+        <GameRow key={game.id} game={game}>
           <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
             <button
               onClick={() => onPlay(game.id)}
@@ -225,7 +225,7 @@ function StoreTab({
       {games.map(game => {
         const isInstalling = installing === game.id
         return (
-          <GameRow key={game.label} game={game}>
+          <GameRow key={game.id} game={game}>
             <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 80 }}>
               {isInstalling ? (
                 <div style={{ width: 80 }}>
