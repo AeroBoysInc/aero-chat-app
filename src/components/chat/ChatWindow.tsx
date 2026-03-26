@@ -15,6 +15,7 @@ import { useAudioStore } from '../../store/audioStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
+import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
@@ -204,6 +205,16 @@ export function ChatWindow({ contact, onBack }: Props) {
   // when the contact is not in the live online set (covers app-close / tab-close / logout).
   const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
   const liveStatus: Status = presenceReady && !onlineIds.has(contact.id) ? 'offline' : storedStatus;
+
+  // Contact card bleed — gradient preset or photo background
+  const bleedBackground: React.CSSProperties = contact.card_image_url
+    ? {
+        backgroundImage: `url(${contact.card_image_url})`,
+        backgroundSize: `${(contact.card_image_params?.zoom ?? 1) * 100}%`,
+        backgroundPosition: `${contact.card_image_params?.x ?? 50}% ${contact.card_image_params?.y ?? 50}%`,
+        backgroundRepeat: 'no-repeat',
+      }
+    : { background: CARD_GRADIENTS.find(g => g.id === (contact.card_gradient ?? 'ocean'))?.css ?? CARD_GRADIENTS[0].css };
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(contact.id));
@@ -679,8 +690,25 @@ export function ChatWindow({ contact, onBack }: Props) {
     <div className="flex h-full flex-col">
 
       {/* Header */}
-      <div className="drag-region flex items-center gap-3 px-4 py-4"
-        style={{ borderBottom: '1px solid var(--panel-divider)', background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+      <div className="drag-region px-4 py-4"
+        style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--panel-divider)', background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+
+        {/* Contact card bleed — right edge fade */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: '48%',
+            zIndex: 1,
+            pointerEvents: 'none',
+            ...bleedBackground,
+            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
+            maskImage:       'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
+            opacity: 0.72,
+          }}
+        />
+
+        {/* Header content — above bleed */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
         {onBack && (
           <button
             onClick={onBack}
@@ -772,7 +800,8 @@ export function ChatWindow({ contact, onBack }: Props) {
           <AeroLogo size={20} className="opacity-20" />
           <Lock className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
         </div>
-      </div>
+        </div> {/* /header content */}
+      </div> {/* /header outer */}
 
       {/* Clear chat confirmation modal */}
       {showClearModal && (
