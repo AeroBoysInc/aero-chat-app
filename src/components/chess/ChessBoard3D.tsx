@@ -607,12 +607,18 @@ function BoardScene({ chess, myColor, lastMove, onMove, disabled, highQuality }:
 export function ChessBoard3D(props: BoardProps) {
   const [highQuality, setHighQuality] = useState(true)
   const [settingsHovered, setSettingsHovered] = useState(false)
-  const [isHidden, setIsHidden] = useState(() => document.hidden)
+  const [isHidden, setIsHidden] = useState(() => document.hidden || !document.hasFocus())
 
   useEffect(() => {
-    const handler = () => setIsHidden(document.hidden)
+    const handler = () => setIsHidden(document.hidden || !document.hasFocus())
     document.addEventListener('visibilitychange', handler)
-    return () => document.removeEventListener('visibilitychange', handler)
+    window.addEventListener('blur', handler)
+    window.addEventListener('focus', handler)
+    return () => {
+      document.removeEventListener('visibilitychange', handler)
+      window.removeEventListener('blur', handler)
+      window.removeEventListener('focus', handler)
+    }
   }, [])
 
   return (

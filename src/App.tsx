@@ -26,14 +26,19 @@ export default function App() {
   const { showGameActivity } = useStatusStore();
 
   useEffect(() => {
+    // Idle = tab hidden OR another window/app has OS focus (e.g. gaming on primary monitor
+    // while AeroChat sits on a second monitor). Both conditions kill GPU/JS frame work.
+    const idle = () => document.hidden || !document.hasFocus()
+
     const handler = () => {
-      document.documentElement.classList.toggle('paused', document.hidden)
+      const isIdle = idle()
+      document.documentElement.classList.toggle('paused', isIdle)
       document.dispatchEvent(
-        new CustomEvent('aerochat:visibilitychange', { detail: { hidden: document.hidden } })
+        new CustomEvent('aerochat:visibilitychange', { detail: { hidden: isIdle } })
       )
 
-      // Flush any presence sync that was skipped while the tab was hidden
-      if (!document.hidden && pendingPresenceSync.current) {
+      // Flush any presence sync that was skipped while idle
+      if (!isIdle && pendingPresenceSync.current) {
         pendingPresenceSync.current = false;
         const ch = presenceChannelRef.current;
         if (ch) {
@@ -57,7 +62,13 @@ export default function App() {
       }
     }
     document.addEventListener('visibilitychange', handler)
-    return () => document.removeEventListener('visibilitychange', handler)
+    window.addEventListener('blur', handler)
+    window.addEventListener('focus', handler)
+    return () => {
+      document.removeEventListener('visibilitychange', handler)
+      window.removeEventListener('blur', handler)
+      window.removeEventListener('focus', handler)
+    }
   }, [])
 
   useEffect(() => {
@@ -223,7 +234,7 @@ export default function App() {
     const channel = supabase
       .channel('global:online', { config: { presence: { key: user.id } } })
       .on('presence', { event: 'sync' }, () => {
-        if (document.hidden) {
+        if (document.hidden || !document.hasFocus()) {
           pendingPresenceSync.current = true;
           return;
         }
