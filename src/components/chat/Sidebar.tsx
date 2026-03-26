@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2, Palette, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -61,14 +61,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const pendingIncoming   = useFriendStore(useShallow(s => s.pendingIncoming));
   const pendingSent       = useFriendStore(useShallow(s => s.pendingSent));
   const sendFriendRequest = useFriendStore(s => s.sendFriendRequest);
-  const removeFriend      = useFriendStore(s => s.removeFriend);
-  const counts            = useUnreadStore(useShallow(s => s.counts));
   const clear             = useUnreadStore(s => s.clear);
-  const typing            = useTypingStore(useShallow(s => s.typing));
   const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
-  const onlineIds         = usePresenceStore(s => s.onlineIds);
-  const presenceReady     = usePresenceStore(s => s.presenceReady);
-  const playingGames      = usePresenceStore(s => s.playingGames);
+  const myPlayingGame     = usePresenceStore(s => s.playingGames.get(user?.id ?? '') ?? null);
   const { openGameHub } = useCornerStore();
   const callStatus = useCallStore(s => s.status);
 
@@ -78,7 +73,6 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [requestsOpen,    setRequestsOpen]    = useState(false);
   const [settingsView,    setSettingsView]    = useState<null | 'menu' | 'profile' | 'security' | 'general'>(null);
   const [statusMenuOpen,  setStatusMenuOpen]  = useState(false);
-  const [hoveredFriend,   setHoveredFriend]   = useState<string | null>(null);
   const [cardGradient,      setCardGradient]      = useState<string>(() => user?.card_gradient ?? loadCardGradient());
   const [cardImage,         setCardImage]         = useState<string | null>(() => user?.card_image_url ?? null);
   const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? { zoom: 1.5, x: 50, y: 50 });
@@ -288,7 +282,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             size="xl"
             status={myStatus}
             isInCall={callStatus === 'connected'}
-            playingGame={playingGames.get(user?.id ?? '')}
+            playingGame={myPlayingGame}
           />
           <div className="flex-1 min-w-0">
             <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
@@ -594,74 +588,15 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               </div>
             )}
 
-            {friends.map(friend => {
-              // Use presence to determine if actually connected; fall back to stored status before presence syncs
-              const storedStatus = (friend.status as Status | undefined) ?? 'online';
-              const effectiveStatus: Status = presenceReady && !onlineIds.has(friend.id) ? 'offline' : storedStatus;
-              const isSelected = selectedUser?.id === friend.id;
-              const unread = counts[friend.id] ?? 0;
-              const isTyping = typing[friend.id] === true;
-              const isHovered = hoveredFriend === friend.id;
-
-              return (
-                <button
-                  key={friend.id}
-                  onClick={() => { onSelectUser(friend); clear(friend.id); }}
-                  className="flex w-full items-center gap-3 rounded-aero px-3 py-3 text-left transition-all duration-150"
-                  style={isSelected ? {
-                    background: 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)',
-                    boxShadow: 'inset 0 0 0 1.5px rgba(26,111,212,0.30), 0 2px 8px rgba(26,111,212,0.10)',
-                  } : {}}
-                  onMouseEnter={e => { setHoveredFriend(friend.id); if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'; }}
-                  onMouseLeave={e => { setHoveredFriend(null); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
-                >
-                  <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="xl" status={effectiveStatus} playingGame={playingGames.get(friend.id)} />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
-                      {friend.username}
-                    </p>
-
-                    {isTyping ? (
-                      <p className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: '#1a6fd4', fontStyle: 'italic' }}>
-                        <span className="typing-dots" style={{ color: '#1a6fd4' }}>
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                        </span>
-                        <span>typing…</span>
-                      </p>
-                    ) : (
-                      <StatusLine status={effectiveStatus} playingGame={playingGames.get(friend.id)} />
-                    )}
-                  </div>
-
-                  {/* Unfriend button on hover (only when no unread) */}
-                  {isHovered && unread === 0 && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeFriend(user!.id, friend.id); }}
-                      className="rounded-aero p-1 transition-all shrink-0"
-                      style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                      title="Remove friend"
-                    >
-                      <UserMinus className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-
-                  {/* Unread badge */}
-                  {unread > 0 && (
-                    <span
-                      className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shrink-0"
-                      style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)', boxShadow: '0 1px 6px rgba(0,80,200,0.30)' }}
-                    >
-                      {unread > 99 ? '99+' : unread}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {friends.map(f => (
+              <FriendItem
+                key={f.id}
+                friend={f}
+                isSelected={selectedUser?.id === f.id}
+                onSelect={f => { onSelectUser(f); clear(f.id); }}
+                currentUserId={user!.id}
+              />
+            ))}
           </>
         )}
       </nav>
@@ -703,6 +638,94 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     </aside>
   );
 }
+
+// ── FriendItem ─────────────────────────────────────────────────────────────────
+// Memoized per-friend row. Each instance subscribes to primitive selectors
+// for its own friend.id so only the affected row re-renders on presence/typing/
+// unread changes.
+
+interface FriendItemProps {
+  friend: Profile;
+  isSelected: boolean;
+  onSelect: (friend: Profile) => void;
+  currentUserId: string;
+}
+
+const FriendItem = memo(function FriendItem({
+  friend, isSelected, onSelect, currentUserId,
+}: FriendItemProps) {
+  const isOnline      = usePresenceStore(s => s.onlineIds.has(friend.id));
+  const presenceReady = usePresenceStore(s => s.presenceReady);
+  const playingGame   = usePresenceStore(s => s.playingGames.get(friend.id) ?? null);
+  const isTyping      = useTypingStore(s => s.typing[friend.id] === true);
+  const unread        = useUnreadStore(s => s.counts[friend.id] ?? 0);
+  const removeFriend  = useFriendStore(s => s.removeFriend);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const storedStatus = (friend.status as Status | undefined) ?? 'online';
+  const effectiveStatus: Status = presenceReady && !isOnline ? 'offline' : storedStatus;
+
+  return (
+    <button
+      onClick={() => onSelect(friend)}
+      className="flex w-full items-center gap-3 rounded-aero px-3 py-3 text-left transition-all duration-150"
+      style={isSelected ? {
+        background: 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)',
+        boxShadow: 'inset 0 0 0 1.5px rgba(26,111,212,0.30), 0 2px 8px rgba(26,111,212,0.10)',
+      } : {}}
+      onMouseEnter={e => { setIsHovered(true); if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'; }}
+      onMouseLeave={e => { setIsHovered(false); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
+    >
+      <AvatarImage
+        username={friend.username}
+        avatarUrl={friend.avatar_url}
+        size="xl"
+        status={effectiveStatus}
+        playingGame={playingGame}
+      />
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
+          {friend.username}
+        </p>
+        {isTyping ? (
+          <p className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: '#1a6fd4', fontStyle: 'italic' }}>
+            <span className="typing-dots" style={{ color: '#1a6fd4' }}>
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </span>
+            <span>typing…</span>
+          </p>
+        ) : (
+          <StatusLine status={effectiveStatus} playingGame={playingGame} />
+        )}
+      </div>
+
+      {isHovered && unread === 0 && (
+        <button
+          onClick={e => { e.stopPropagation(); removeFriend(currentUserId, friend.id); }}
+          className="rounded-aero p-1 transition-all shrink-0"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+          title="Remove friend"
+        >
+          <UserMinus className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      {unread > 0 && (
+        <span
+          className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shrink-0"
+          style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)', boxShadow: '0 1px 6px rgba(0,80,200,0.30)' }}
+        >
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
+    </button>
+  );
+});
 
 function StatusLine({ status, playingGame }: { status: Status; playingGame?: string | null }) {
   const color = statusColor[status];
