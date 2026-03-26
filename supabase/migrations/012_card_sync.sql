@@ -11,28 +11,29 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('card-images', 'card-images', true)
 ON CONFLICT DO NOTHING;
 
--- RLS: owner can INSERT their own files
--- Note: auth.uid() alone is sufficient — it is NULL for anonymous requests.
--- Do NOT use auth.role() = 'authenticated' here; it can fail unexpectedly in the storage context.
+-- RLS: use TO authenticated role — required for newer Supabase projects.
+-- Do NOT use auth.role() = 'authenticated'; use the TO clause instead.
 CREATE POLICY "card_images_insert" ON storage.objects
-  FOR INSERT WITH CHECK (
+  FOR INSERT TO authenticated
+  WITH CHECK (
     bucket_id = 'card-images'
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- RLS: owner can UPDATE (overwrite) their own files
 CREATE POLICY "card_images_update" ON storage.objects
-  FOR UPDATE USING (
+  FOR UPDATE TO authenticated
+  USING (
     bucket_id = 'card-images'
     AND auth.uid()::text = (storage.foldername(name))[1]
-  ) WITH CHECK (
+  )
+  WITH CHECK (
     bucket_id = 'card-images'
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- RLS: owner can DELETE their own files
 CREATE POLICY "card_images_delete" ON storage.objects
-  FOR DELETE USING (
+  FOR DELETE TO authenticated
+  USING (
     bucket_id = 'card-images'
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
