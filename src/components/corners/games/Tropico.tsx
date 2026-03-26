@@ -314,7 +314,7 @@ export function Tropico() {
   const scaleRef       = useRef(1);
   const rafRef         = useRef<number>(0);
   const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
-  const [visPaused, setVisPaused] = useState(false);
+  const [visPaused, setVisPaused] = useState(() => document.hidden);
   const pausedRef  = useRef(false);
   pausedRef.current = gamePaused || visPaused;
   const bgRef          = useRef<HTMLImageElement | null>(null);
@@ -708,17 +708,19 @@ export function Tropico() {
       keysRef.current.clear();
     } else if (wasPausedRef.current) {
       wasPausedRef.current = false;
-      // Resume — reset lastTime so first dt is zero (no delta jump)
-      let last = performance.now();
-      function loop(now: number) {
-        if (pausedRef.current) return;
-        const dt = Math.min((now - last) / 1000, 0.05);
-        last = now;
-        update(dt);
-        render();
+      // Resume only if not also visibility-paused
+      if (!pausedRef.current) {
+        let last = performance.now();
+        function loop(now: number) {
+          if (pausedRef.current) return;
+          const dt = Math.min((now - last) / 1000, 0.05);
+          last = now;
+          update(dt);
+          render();
+          rafRef.current = requestAnimationFrame(loop);
+        }
         rafRef.current = requestAnimationFrame(loop);
       }
-      rafRef.current = requestAnimationFrame(loop);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gamePaused, screen]);

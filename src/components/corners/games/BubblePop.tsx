@@ -197,7 +197,7 @@ export function BubblePop() {
   const lastMilestoneRef = useRef(-1);
 
   const gamePaused = useCornerStore(s => s.gameChatOverlay !== null);
-  const [visPaused, setVisPaused] = useState(false);
+  const [visPaused, setVisPaused] = useState(() => document.hidden);
   const pausedRef  = useRef(false);
   pausedRef.current = gamePaused || visPaused;
 
@@ -372,17 +372,19 @@ export function BubblePop() {
       if (comboTimer.current) { clearTimeout(comboTimer.current); comboTimer.current = null; }
     } else if (wasPausedRef.current) {
       wasPausedRef.current = false;
-      // Resume rAF
-      rafRef.current = requestAnimationFrame(tick);
-      // Restart spawn
-      scheduleSpawn();
-      // Restart level timer
-      levelTimer.current = setInterval(() => {
-        setLevel(l => { const n = Math.min(9, l + 1); levelRef.current = n; return n; });
-      }, 8_000);
-      // Reset combo (fair: combo streak shouldn't persist across a pause)
-      comboRef.current = 0;
-      setCombo(0);
+      // Resume only if not also visibility-paused
+      if (!pausedRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        // Restart spawn
+        scheduleSpawn();
+        // Restart level timer
+        levelTimer.current = setInterval(() => {
+          setLevel(l => { const n = Math.min(9, l + 1); levelRef.current = n; return n; });
+        }, 8_000);
+        // Reset combo (fair: combo streak shouldn't persist across a pause)
+        comboRef.current = 0;
+        setCombo(0);
+      }
     }
   }, [gamePaused, gameState, tick, scheduleSpawn]);
 
