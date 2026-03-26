@@ -22,18 +22,9 @@ import { CardImageCropModal, type CropParams } from './CardImageCropModal';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 
 const CARD_GRADIENT_KEY = 'aero_card_gradient';
-const CARD_IMAGE_KEY    = 'aero_card_image';
-const CARD_PARAMS_KEY   = 'aero_card_image_params';
 
 function loadCardGradient(): string {
   return localStorage.getItem(CARD_GRADIENT_KEY) ?? 'ocean';
-}
-function loadCardCropParams(): CropParams {
-  try {
-    const s = localStorage.getItem(CARD_PARAMS_KEY);
-    if (s) return JSON.parse(s) as CropParams;
-  } catch { /* ignore */ }
-  return { zoom: 1.5, x: 50, y: 50 };
 }
 
 /** Resize an image data URL to max `maxPx` wide at `quality` JPEG quality.
@@ -84,7 +75,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [hoveredFriend,   setHoveredFriend]   = useState<string | null>(null);
   const [cardGradient,      setCardGradient]      = useState<string>(() => user?.card_gradient ?? loadCardGradient());
   const [cardImage,         setCardImage]         = useState<string | null>(() => user?.card_image_url ?? null);
-  const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? loadCardCropParams());
+  const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? { zoom: 1.5, x: 50, y: 50 });
   const [gradientPickerOpen, setGradientPickerOpen] = useState(false);
   const [cropModalPending,  setCropModalPending]  = useState<string | null>(null);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
@@ -119,33 +110,15 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     setCardCropParams(params);
     const pendingDataUrl = cropModalPending;
     setCropModalPending(null);
-    try { localStorage.setItem(CARD_IMAGE_KEY, pendingDataUrl); } catch { /* quota exceeded — active for session only */ }
-    try { localStorage.setItem(CARD_PARAMS_KEY, JSON.stringify(params)); } catch { /* ignore */ }
     if (!user) return;
+    // Re-compress to 500px/72% for DB storage (~20-40KB) — profiles UPDATE has no RLS issues
     try {
-      const res = await fetch(pendingDataUrl);
-      const blob = await res.blob();
-      // Remove old file first (ignore error — file may not exist yet)
-      await supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
-      // Upload with upsert as safety net
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('card-images')
-        .upload(`${user.id}/card.jpg`, blob, { upsert: true, contentType: 'image/jpeg' });
-      if (uploadError) {
-        console.error('[card-image] upload failed:', uploadError.message);
-        return;
-      }
-      if (uploadData) {
-        const { data: urlData } = supabase.storage
-          .from('card-images')
-          .getPublicUrl(`${user.id}/card.jpg`);
-        setCardImage(urlData.publicUrl);
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ card_image_url: urlData.publicUrl, card_image_params: params })
-          .eq('id', user.id);
-        if (updateError) console.error('[card-image] profile update failed:', updateError.message);
-      }
+      const dbDataUrl = await resizeImageDataUrl(pendingDataUrl, 500, 0.72);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ card_image_url: dbDataUrl, card_image_params: params })
+        .eq('id', user.id);
+      if (error) console.error('[card-image] profile update failed:', error.message);
     } catch (err) {
       console.error('[card-image] unexpected error:', err);
     }
@@ -153,14 +126,11 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
 
   async function removeCardImage() {
     setCardImage(null);
-    localStorage.removeItem(CARD_IMAGE_KEY);
-    localStorage.removeItem(CARD_PARAMS_KEY);
     if (!user) return;
-    await supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
     const { error } = await supabase.from('profiles')
       .update({ card_image_url: null, card_image_params: null })
       .eq('id', user.id);
-    if (error) console.error('[card-image] remove profile update failed:', error.message);
+    if (error) console.error('[card-image] remove failed:', error.message);
   }
 
   // Sync card state from Supabase profile when user changes (login/logout/account switch)
