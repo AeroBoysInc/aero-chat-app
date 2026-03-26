@@ -11,30 +11,28 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('card-images', 'card-images', true)
 ON CONFLICT DO NOTHING;
 
--- RLS: authenticated users can INSERT their own files
+-- RLS: owner can INSERT their own files
+-- Note: auth.uid() alone is sufficient — it is NULL for anonymous requests.
+-- Do NOT use auth.role() = 'authenticated' here; it can fail unexpectedly in the storage context.
 CREATE POLICY "card_images_insert" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'card-images'
-    AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = auth.uid()::text
+    AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- RLS: authenticated users can UPDATE (overwrite) their own files
+-- RLS: owner can UPDATE (overwrite) their own files
 CREATE POLICY "card_images_update" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'card-images'
-    AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = auth.uid()::text
+    AND auth.uid()::text = (storage.foldername(name))[1]
   ) WITH CHECK (
     bucket_id = 'card-images'
-    AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = auth.uid()::text
+    AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- RLS: authenticated users can DELETE their own files
+-- RLS: owner can DELETE their own files
 CREATE POLICY "card_images_delete" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'card-images'
-    AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = auth.uid()::text
+    AND auth.uid()::text = (storage.foldername(name))[1]
   );
