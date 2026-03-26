@@ -207,6 +207,9 @@ export function ChatWindow({ contact, onBack }: Props) {
   const liveStatus: Status = presenceReady && !onlineIds.has(contact.id) ? 'offline' : storedStatus;
 
   // Contact card bleed — gradient preset or photo background
+  // For gradients: use the preview hex color to build a vivid directional bleed.
+  // The card CSS values (rgba 0.16-0.22) are too low-opacity to survive the mask + opacity stack.
+  const bleedPreset = CARD_GRADIENTS.find(g => g.id === (contact.card_gradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
   const bleedBackground: React.CSSProperties = contact.card_image_url
     ? {
         backgroundImage: `url(${contact.card_image_url})`,
@@ -214,7 +217,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         backgroundPosition: `${contact.card_image_params?.x ?? 50}% ${contact.card_image_params?.y ?? 50}%`,
         backgroundRepeat: 'no-repeat',
       }
-    : { background: CARD_GRADIENTS.find(g => g.id === (contact.card_gradient ?? 'ocean'))?.css ?? CARD_GRADIENTS[0].css };
+    : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(contact.id));
@@ -703,7 +706,7 @@ export function ChatWindow({ contact, onBack }: Props) {
             ...bleedBackground,
             WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
             maskImage:       'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
-            opacity: 0.72,
+            opacity: 0.85,
           }}
         />
 
