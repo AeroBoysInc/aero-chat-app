@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Gamepad2, Sword, Trophy, ArrowLeft } from 'lucide-react';
+import { Gamepad2, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { useChessStore } from '../../store/chessStore';
 
@@ -7,11 +7,11 @@ import { useChessStore } from '../../store/chessStore';
 const AeroChess = lazy(() =>
   import('../chess/AeroChess').then(m => ({ default: m.AeroChess }))
 );
-import { BubblePop } from './games/BubblePop';
-import { Tropico } from './games/Tropico';
-import { TwentyFortyEight } from './games/TwentyFortyEight';
-import { TypingTest } from './games/TypingTest';
-import { Wordle } from './games/Wordle';
+const BubblePop        = lazy(() => import('./games/BubblePop').then(m => ({ default: m.BubblePop })))
+const Tropico          = lazy(() => import('./games/Tropico').then(m => ({ default: m.Tropico })))
+const TwentyFortyEight = lazy(() => import('./games/TwentyFortyEight').then(m => ({ default: m.TwentyFortyEight })))
+const TypingTest       = lazy(() => import('./games/TypingTest').then(m => ({ default: m.TypingTest })))
+const Wordle           = lazy(() => import('./games/Wordle').then(m => ({ default: m.Wordle })))
 
 interface GameEntry {
   id: SelectedGame;
@@ -20,6 +20,8 @@ interface GameEntry {
   desc: string;
   available: boolean;
   color: string;
+  size: string;
+  tags: string[];
 }
 
 const GAMES: GameEntry[] = [
@@ -30,6 +32,8 @@ const GAMES: GameEntry[] = [
     desc: 'Pop bubbles before they escape!',
     available: true,
     color: '#00d4ff',
+    size: '~80 KB',
+    tags: ['Casual', 'Single-player'],
   },
   {
     id: 'tropico',
@@ -38,6 +42,8 @@ const GAMES: GameEntry[] = [
     desc: 'Jump through 10 tropical levels!',
     available: true,
     color: '#34d399',
+    size: '~200 KB',
+    tags: ['Action', 'Single-player'],
   },
   {
     id: 'typingtest',
@@ -46,6 +52,8 @@ const GAMES: GameEntry[] = [
     desc: 'Race the clock — WPM test!',
     available: true,
     color: '#00d4ff',
+    size: '~60 KB',
+    tags: ['Typing', 'Speed'],
   },
   {
     id: 'twentyfortyeight',
@@ -54,6 +62,8 @@ const GAMES: GameEntry[] = [
     desc: 'Slide tiles to reach 2048!',
     available: true,
     color: '#fb923c',
+    size: '~50 KB',
+    tags: ['Puzzle', 'Single-player'],
   },
   {
     id: 'wordle',
@@ -62,6 +72,8 @@ const GAMES: GameEntry[] = [
     desc: 'Guess the word in 6 tries!',
     available: true,
     color: '#a855f7',
+    size: '~60 KB',
+    tags: ['Word', 'Daily'],
   },
   {
     id: 'chess' as SelectedGame,
@@ -70,22 +82,8 @@ const GAMES: GameEntry[] = [
     desc: 'Real-time 1v1 — 🔵 Blue vs 🟢 Green',
     available: true,
     color: '#00d4ff',
-  },
-  {
-    id: null,
-    icon: Sword,
-    label: 'Rock Paper Scissors',
-    desc: 'Play against a friend',
-    available: false,
-    color: '#34d399',
-  },
-  {
-    id: null,
-    icon: Trophy,
-    label: 'Trivia',
-    desc: 'Test your knowledge',
-    available: false,
-    color: '#fbbf24',
+    size: '~1 MB',
+    tags: ['Strategy', 'Multiplayer'],
   },
 ];
 
@@ -303,11 +301,21 @@ export function GamesCorner() {
       {selectedGame ? (
         <>
           <div className="flex-1 min-h-0">
-            {selectedGame === 'bubblepop'        && <BubblePop />}
-            {selectedGame === 'tropico'          && <Tropico />}
-            {selectedGame === 'twentyfortyeight' && <TwentyFortyEight />}
-            {selectedGame === 'typingtest'       && <TypingTest />}
-            {selectedGame === 'wordle'           && <Wordle />}
+            {selectedGame === 'bubblepop' && (
+              <Suspense fallback={<GameLoadingSpinner />}><BubblePop /></Suspense>
+            )}
+            {selectedGame === 'tropico' && (
+              <Suspense fallback={<GameLoadingSpinner />}><Tropico /></Suspense>
+            )}
+            {selectedGame === 'twentyfortyeight' && (
+              <Suspense fallback={<GameLoadingSpinner />}><TwentyFortyEight /></Suspense>
+            )}
+            {selectedGame === 'typingtest' && (
+              <Suspense fallback={<GameLoadingSpinner />}><TypingTest /></Suspense>
+            )}
+            {selectedGame === 'wordle' && (
+              <Suspense fallback={<GameLoadingSpinner />}><Wordle /></Suspense>
+            )}
             {selectedGame === 'chess'            && (
               <Suspense fallback={
                 <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
@@ -325,6 +333,16 @@ export function GamesCorner() {
       )}
     </div>
   );
+}
+
+// ── Game loading fallback ─────────────────────────────────────────────────────
+
+function GameLoadingSpinner() {
+  return (
+    <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
+      Loading…
+    </div>
+  )
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
