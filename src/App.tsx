@@ -37,8 +37,8 @@ export default function App() {
         new CustomEvent('aerochat:visibilitychange', { detail: { hidden: isIdle } })
       )
 
-      // Flush any presence sync that was skipped while idle
-      if (!isIdle && pendingPresenceSync.current) {
+      // Flush any presence sync that was skipped while the tab was fully hidden
+      if (!document.hidden && pendingPresenceSync.current) {
         pendingPresenceSync.current = false;
         const ch = presenceChannelRef.current;
         if (ch) {
@@ -234,7 +234,10 @@ export default function App() {
     const channel = supabase
       .channel('global:online', { config: { presence: { key: user.id } } })
       .on('presence', { event: 'sync' }, () => {
-        if (document.hidden || !document.hasFocus()) {
+        // Only defer when the tab is completely hidden (not visible at all).
+        // When visible-but-not-focused (second monitor), presence updates are cheap
+        // and the user needs to see online/offline changes in real time.
+        if (document.hidden) {
           pendingPresenceSync.current = true;
           return;
         }

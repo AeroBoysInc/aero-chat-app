@@ -712,7 +712,11 @@
   .no-drag     { -webkit-app-region: no-drag; app-region: no-drag; }
 }
 
-/* ── Global animation pause when app loses focus ── */
-.paused * {
+/* ── Selective animation pause when app loses focus ──
+   Only decorative infinite-loop elements are paused.
+   Entry/functional animations (fade-in, slide-up, call modals, badges)
+   are intentionally excluded — they must fire normally even when the app is idle. */
+.paused .orb,
+.paused .typing-dot {
   animation-play-state: paused !important;
 }
