@@ -25,6 +25,17 @@ export default function App() {
   const { showGameActivity } = useStatusStore();
 
   useEffect(() => {
+    const handler = () => {
+      document.documentElement.classList.toggle('paused', document.hidden)
+      document.dispatchEvent(
+        new CustomEvent('aerochat:visibilitychange', { detail: { hidden: document.hidden } })
+      )
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [])
+
+  useEffect(() => {
     let settled = false;
 
     async function resolveSession(userId: string) {

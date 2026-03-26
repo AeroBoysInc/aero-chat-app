@@ -711,3 +711,8 @@
   .drag-region { -webkit-app-region: drag; app-region: drag; }
   .no-drag     { -webkit-app-region: no-drag; app-region: no-drag; }
 }
+
+/* ── Global animation pause when app loses focus ── */
+.paused * {
+  animation-play-state: paused !important;
+}
