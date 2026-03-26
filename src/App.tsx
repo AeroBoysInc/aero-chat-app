@@ -21,6 +21,7 @@ export default function App() {
   const { loadFriends, subscribeToRequests } = useFriendStore();
   const { increment, seed } = useUnreadStore();
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pendingPresenceSync = useRef(false);
   const selectedGame       = useCornerStore(s => s.selectedGame);
   const { showGameActivity } = useStatusStore();
 
@@ -30,6 +31,30 @@ export default function App() {
       document.dispatchEvent(
         new CustomEvent('aerochat:visibilitychange', { detail: { hidden: document.hidden } })
       )
+
+      // Flush any presence sync that was skipped while the tab was hidden
+      if (!document.hidden && pendingPresenceSync.current) {
+        pendingPresenceSync.current = false;
+        const ch = presenceChannelRef.current;
+        if (ch) {
+          const { setOnlineIds, setPresenceReady, setPlayingGames } = usePresenceStore.getState();
+          const state = ch.presenceState();
+          const newIds = new Set(Object.keys(state));
+          const prev = usePresenceStore.getState().onlineIds;
+          const changed = newIds.size !== prev.size || [...newIds].some(id => !prev.has(id));
+          if (changed) setOnlineIds(newIds);
+          setPresenceReady(true);
+          const newGames = new Map<string, string>();
+          for (const [userId, presences] of Object.entries(state)) {
+            const p = (presences as any[])[0];
+            if (p?.playingGame) newGames.set(userId, p.playingGame);
+          }
+          const prevGames = usePresenceStore.getState().playingGames;
+          const gamesChanged = newGames.size !== prevGames.size ||
+            [...newGames.entries()].some(([k, v]) => prevGames.get(k) !== v);
+          if (gamesChanged) setPlayingGames(newGames);
+        }
+      }
     }
     document.addEventListener('visibilitychange', handler)
     return () => document.removeEventListener('visibilitychange', handler)
@@ -177,27 +202,32 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const { setOnlineIds, setPresenceReady, setPlayingGames } = usePresenceStore.getState();
+
+    function syncPresenceState(state: ReturnType<typeof channel.presenceState>) {
+      const newIds = new Set(Object.keys(state));
+      const prev = usePresenceStore.getState().onlineIds;
+      const changed = newIds.size !== prev.size || [...newIds].some(id => !prev.has(id));
+      if (changed) setOnlineIds(newIds);
+      setPresenceReady(true);
+      const newGames = new Map<string, string>();
+      for (const [userId, presences] of Object.entries(state)) {
+        const p = (presences as any[])[0];
+        if (p?.playingGame) newGames.set(userId, p.playingGame);
+      }
+      const prevGames = usePresenceStore.getState().playingGames;
+      const gamesChanged = newGames.size !== prevGames.size ||
+        [...newGames.entries()].some(([k, v]) => prevGames.get(k) !== v);
+      if (gamesChanged) setPlayingGames(newGames);
+    }
+
     const channel = supabase
       .channel('global:online', { config: { presence: { key: user.id } } })
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const newIds = new Set(Object.keys(state));
-        // Skip re-render if the set of online users hasn't changed
-        const prev = usePresenceStore.getState().onlineIds;
-        const changed = newIds.size !== prev.size || [...newIds].some(id => !prev.has(id));
-        if (changed) setOnlineIds(newIds);
-        setPresenceReady(true);
-        // Populate playingGames from presence payload
-        const newGames = new Map<string, string>();
-        for (const [userId, presences] of Object.entries(state)) {
-          const p = (presences as any[])[0];
-          if (p?.playingGame) newGames.set(userId, p.playingGame);
+        if (document.hidden) {
+          pendingPresenceSync.current = true;
+          return;
         }
-        // Skip re-render if playing games map hasn't changed
-        const prevGames = usePresenceStore.getState().playingGames;
-        const gamesChanged = newGames.size !== prevGames.size ||
-          [...newGames.entries()].some(([k, v]) => prevGames.get(k) !== v);
-        if (gamesChanged) setPlayingGames(newGames);
+        syncPresenceState(channel.presenceState());
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
