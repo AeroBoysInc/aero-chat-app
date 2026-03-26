@@ -22,6 +22,7 @@ import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
 import { ExternalLinkModal } from './ExternalLinkModal';
 import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -410,6 +411,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   const reactionsRef = useRef<ReactionsMap>({});
   reactionsRef.current = reactions;
 
+  const chatAreaRef = useRef<HTMLDivElement>(null);
+
   const itemList = useMemo(() =>
     messages.map((msg, i) => ({
       msg,
@@ -418,7 +421,13 @@ export function ChatWindow({ contact, onBack }: Props) {
     })),
   [messages]);
 
-  const bottomRef          = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: itemList.length,
+    getScrollElement: () => chatAreaRef.current,
+    estimateSize: () => 72,
+    overscan: 8,
+    measureElement: el => el.getBoundingClientRect().height,
+  });
   const contactKeyRef      = useRef<string | null>(null);
   const channelRef         = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimer        = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -669,10 +678,17 @@ export function ChatWindow({ contact, onBack }: Props) {
     };
   }, [contact.id, user, spawnBubble]);
 
-  // Scroll to bottom — instant for history loads, smooth only for new realtime messages
+  // Scroll to bottom — only when near bottom or on initial load
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: historyLoadedRef.current ? 'smooth' : 'instant' });
-  }, [messages, contactTyping]);
+    if (itemList.length === 0) return;
+    const el = chatAreaRef.current;
+    if (!el) return;
+    const nearBottom = !historyLoadedRef.current ||
+      el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (nearBottom) {
+      virtualizer.scrollToIndex(itemList.length - 1, { align: 'end' });
+    }
+  }, [itemList.length, contactTyping]);
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
@@ -1039,8 +1055,9 @@ export function ChatWindow({ contact, onBack }: Props) {
 
       {/* Messages */}
       <div
+        ref={chatAreaRef}
         data-bubble-container=""
-        className="flex-1 overflow-y-auto scrollbar-aero px-6 py-4 space-y-1"
+        className="flex-1 overflow-y-auto scrollbar-aero px-6 py-4"
         style={{ position: 'relative' }}
       >
         <BubbleLayer bubbles={bubbles} onRemove={removeBubble} />
@@ -1073,24 +1090,37 @@ export function ChatWindow({ contact, onBack }: Props) {
           </div>
         )}
 
-        {itemList.map((item, i) => (
-          <MessageItem
-            key={item.msg.id}
-            msg={item.msg}
-            isMine={item.msg.sender_id === user?.id}
-            showDate={item.showDate}
-            msgReactions={reactions[item.msg.id] ?? {}}
-            isLastMessage={i === itemList.length - 1}
-            historyLoaded={historyLoadedRef.current}
-            contact={contact}
-            user={user!}
-            outputVolume={outputVolume}
-            outputDeviceId={outputDeviceId}
-            toggleReaction={toggleReaction}
-            setLightboxImage={setLightboxImage}
-            setPendingLinkUrl={setPendingLinkUrl}
-          />
-        ))}
+        {itemList.length > 0 && (
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+            {virtualizer.getVirtualItems().map(vItem => {
+              const item = itemList[vItem.index];
+              return (
+                <div
+                  key={vItem.key}
+                  data-index={vItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{ position: 'absolute', top: vItem.start, width: '100%', paddingBottom: 4 }}
+                >
+                  <MessageItem
+                    msg={item.msg}
+                    isMine={item.msg.sender_id === user?.id}
+                    showDate={item.showDate}
+                    msgReactions={reactions[item.msg.id] ?? {}}
+                    isLastMessage={vItem.index === itemList.length - 1}
+                    historyLoaded={historyLoadedRef.current}
+                    contact={contact}
+                    user={user!}
+                    outputVolume={outputVolume}
+                    outputDeviceId={outputDeviceId}
+                    toggleReaction={toggleReaction}
+                    setLightboxImage={setLightboxImage}
+                    setPendingLinkUrl={setPendingLinkUrl}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Typing bubble at bottom when contact is typing */}
         {contactTyping && (
@@ -1106,7 +1136,6 @@ export function ChatWindow({ contact, onBack }: Props) {
           </div>
         )}
 
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
