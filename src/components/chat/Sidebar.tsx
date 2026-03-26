@@ -8,6 +8,7 @@ import { useUnreadStore } from '../../store/unreadStore';
 import { useTypingStore } from '../../store/typingStore';
 import { useStatusStore } from '../../store/statusStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useShallow } from 'zustand/react/shallow';
 import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
@@ -56,13 +57,18 @@ const ALL_STATUSES: Status[] = ['online', 'busy', 'away', 'offline'];
 
 export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props) {
   const { user, signOut } = useAuthStore();
-  const { friends, pendingIncoming, pendingSent, sendFriendRequest, removeFriend } = useFriendStore();
-  const { counts, clear } = useUnreadStore();
-  const { typing } = useTypingStore();
+  const friends           = useFriendStore(useShallow(s => s.friends));
+  const pendingIncoming   = useFriendStore(useShallow(s => s.pendingIncoming));
+  const pendingSent       = useFriendStore(useShallow(s => s.pendingSent));
+  const sendFriendRequest = useFriendStore(s => s.sendFriendRequest);
+  const removeFriend      = useFriendStore(s => s.removeFriend);
+  const counts            = useUnreadStore(useShallow(s => s.counts));
+  const clear             = useUnreadStore(s => s.clear);
+  const typing            = useTypingStore(useShallow(s => s.typing));
   const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
-  const onlineIds = usePresenceStore(s => s.onlineIds);
-  const presenceReady = usePresenceStore(s => s.presenceReady);
-  const playingGames = usePresenceStore(s => s.playingGames);
+  const onlineIds         = usePresenceStore(s => s.onlineIds);
+  const presenceReady     = usePresenceStore(s => s.presenceReady);
+  const playingGames      = usePresenceStore(s => s.playingGames);
   const { openGameHub } = useCornerStore();
   const callStatus = useCallStore(s => s.status);
 
