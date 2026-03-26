@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2, Palette, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -180,6 +180,11 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     if (!user) return;
     await sendFriendRequest(user.id, profileId);
   }
+
+  const handleFriendSelect = useCallback((friend: Profile) => {
+    onSelectUser(friend);
+    clear(friend.id);
+  }, [onSelectUser, clear]);
 
   return (
     <aside
@@ -593,7 +598,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 key={f.id}
                 friend={f}
                 isSelected={selectedUser?.id === f.id}
-                onSelect={f => { onSelectUser(f); clear(f.id); }}
+                onSelect={handleFriendSelect}
                 currentUserId={user!.id}
               />
             ))}
