@@ -97,6 +97,8 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   function selectCardGradient(id: string) {
     setCardGradient(id);
     localStorage.setItem(CARD_GRADIENT_KEY, id);
+    if (!user) return;
+    supabase.from('profiles').update({ card_gradient: id }).eq('id', user.id);
   }
 
   function handleCardImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -113,19 +115,43 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     reader.readAsDataURL(file);
   }
 
-  function onCropConfirm(params: CropParams) {
+  async function onCropConfirm(params: CropParams) {
     if (!cropModalPending) return;
     setCardImage(cropModalPending);
     setCardCropParams(params);
+    const pendingDataUrl = cropModalPending;
     setCropModalPending(null);
-    try { localStorage.setItem(CARD_IMAGE_KEY, cropModalPending); } catch { /* quota exceeded — active for session only */ }
+    try { localStorage.setItem(CARD_IMAGE_KEY, pendingDataUrl); } catch { /* quota exceeded — active for session only */ }
     try { localStorage.setItem(CARD_PARAMS_KEY, JSON.stringify(params)); } catch { /* ignore */ }
+    if (!user) return;
+    // Fire-and-forget Supabase Storage upload
+    // The file is stored at `{userId}/card.jpg` — a stable path so removeCardImage can delete it by the same path.
+    try {
+      const res = await fetch(pendingDataUrl);
+      const blob = await res.blob();
+      const { data: uploadData } = await supabase.storage
+        .from('card-images')
+        .upload(`${user.id}/card.jpg`, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (uploadData) {
+        const { data: urlData } = supabase.storage
+          .from('card-images')
+          .getPublicUrl(`${user.id}/card.jpg`);
+        supabase.from('profiles').update({
+          card_image_url:    urlData.publicUrl,
+          card_image_params: params,
+        }).eq('id', user.id);
+      }
+    } catch { /* silent failure — local display is unaffected */ }
   }
 
   function removeCardImage() {
     setCardImage(null);
     localStorage.removeItem(CARD_IMAGE_KEY);
     localStorage.removeItem(CARD_PARAMS_KEY);
+    if (!user) return;
+    supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
+    supabase.from('profiles').update({ card_image_url: null, card_image_params: null })
+      .eq('id', user.id);
   }
 
   const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
