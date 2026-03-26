@@ -712,11 +712,11 @@
   .no-drag     { -webkit-app-region: no-drag; app-region: no-drag; }
 }
 
-/* ── Selective animation pause when app loses focus ──
-   Only decorative infinite-loop elements are paused.
-   Entry/functional animations (fade-in, slide-up, call modals, badges)
-   are intentionally excluded — they must fire normally even when the app is idle. */
-.paused .orb,
-.paused .typing-dot {
+/* ── Freeze all CSS animations when app loses focus ──
+   Pauses every decorative animation (orbs, aura rings, bubbles, glows, typing dots,
+   game particles, etc.) to drop GPU compositor load.
+   Notification-critical elements (unread badge, call modal, status indicators) are
+   plain DOM/style changes with no animation dependency — they remain fully visible. */
+.paused * {
   animation-play-state: paused !important;
 }
