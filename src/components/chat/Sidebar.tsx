@@ -91,11 +91,12 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const asideRef       = useRef<HTMLElement>(null);
   const imageInputRef  = useRef<HTMLInputElement>(null);
 
-  function selectCardGradient(id: string) {
+  async function selectCardGradient(id: string) {
     setCardGradient(id);
     localStorage.setItem(CARD_GRADIENT_KEY, id);
     if (!user) return;
-    supabase.from('profiles').update({ card_gradient: id }).eq('id', user.id);
+    const { error } = await supabase.from('profiles').update({ card_gradient: id }).eq('id', user.id);
+    if (error) console.error('[card-gradient] update failed:', error.message);
   }
 
   function handleCardImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -121,37 +122,45 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     try { localStorage.setItem(CARD_IMAGE_KEY, pendingDataUrl); } catch { /* quota exceeded — active for session only */ }
     try { localStorage.setItem(CARD_PARAMS_KEY, JSON.stringify(params)); } catch { /* ignore */ }
     if (!user) return;
-    // Fire-and-forget Supabase Storage upload
-    // The file is stored at `{userId}/card.jpg` — a stable path so removeCardImage can delete it by the same path.
     try {
       const res = await fetch(pendingDataUrl);
       const blob = await res.blob();
-      // Delete old file first to free storage, then upload fresh
+      // Remove old file first (ignore error — file may not exist yet)
       await supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
-      const { data: uploadData } = await supabase.storage
+      // Upload with upsert as safety net
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('card-images')
-        .upload(`${user.id}/card.jpg`, blob, { contentType: 'image/jpeg' });
+        .upload(`${user.id}/card.jpg`, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (uploadError) {
+        console.error('[card-image] upload failed:', uploadError.message);
+        return;
+      }
       if (uploadData) {
         const { data: urlData } = supabase.storage
           .from('card-images')
           .getPublicUrl(`${user.id}/card.jpg`);
         setCardImage(urlData.publicUrl);
-        supabase.from('profiles').update({
-          card_image_url:    urlData.publicUrl,
-          card_image_params: params,
-        }).eq('id', user.id);
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ card_image_url: urlData.publicUrl, card_image_params: params })
+          .eq('id', user.id);
+        if (updateError) console.error('[card-image] profile update failed:', updateError.message);
       }
-    } catch { /* silent failure — local display is unaffected */ }
+    } catch (err) {
+      console.error('[card-image] unexpected error:', err);
+    }
   }
 
-  function removeCardImage() {
+  async function removeCardImage() {
     setCardImage(null);
     localStorage.removeItem(CARD_IMAGE_KEY);
     localStorage.removeItem(CARD_PARAMS_KEY);
     if (!user) return;
-    supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
-    supabase.from('profiles').update({ card_image_url: null, card_image_params: null })
+    await supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
+    const { error } = await supabase.from('profiles')
+      .update({ card_image_url: null, card_image_params: null })
       .eq('id', user.id);
+    if (error) console.error('[card-image] remove profile update failed:', error.message);
   }
 
   // Sync card state from Supabase profile when user changes (login/logout/account switch)
