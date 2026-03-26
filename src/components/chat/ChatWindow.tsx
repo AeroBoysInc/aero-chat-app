@@ -213,9 +213,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   const bleedBackground: React.CSSProperties = contact.card_image_url
     ? {
         backgroundImage: `url(${contact.card_image_url})`,
-        backgroundSize: `${(contact.card_image_params?.zoom ?? 1) * 100}%`,
+        backgroundSize: 'cover',
         backgroundPosition: `${contact.card_image_params?.x ?? 50}% ${contact.card_image_params?.y ?? 50}%`,
-        backgroundRepeat: 'no-repeat',
       }
     : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
 
