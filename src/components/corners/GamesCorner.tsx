@@ -1,7 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Gamepad2, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { useChessStore } from '../../store/chessStore';
+import { useAuthStore } from '../../store/authStore';
+import { getInstalledGames, installGame, uninstallGame } from '../../lib/gameInstalls';
 
 // Lazy-load chess: Three.js + drei + postprocessing are ~900KB — don't parse at app startup
 const AeroChess = lazy(() =>
@@ -87,11 +89,257 @@ const GAMES: GameEntry[] = [
   },
 ];
 
+// ── Shared game detail row ────────────────────────────────────────────────────
+
+function GameRow({ game, children }: { game: GameEntry; children: React.ReactNode }) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-2xl p-3"
+      style={{
+        background: `rgba(${hexToRgb(game.color)}, 0.06)`,
+        border: `1px solid rgba(${hexToRgb(game.color)}, 0.20)`,
+      }}
+    >
+      {/* Icon */}
+      <div
+        className="flex h-11 w-11 items-center justify-center rounded-xl flex-shrink-0"
+        style={{
+          background: `rgba(${hexToRgb(game.color)}, 0.15)`,
+          border: `1px solid rgba(${hexToRgb(game.color)}, 0.30)`,
+          fontSize: typeof game.icon === 'string' ? 22 : undefined,
+          boxShadow: `0 0 16px rgba(${hexToRgb(game.color)}, 0.15)`,
+        }}
+      >
+        {typeof game.icon === 'string' ? game.icon : null}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{game.label}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{game.desc}</p>
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {game.tags.map(tag => (
+            <span
+              key={tag}
+              className="rounded text-[9px] font-semibold px-1.5 py-0.5"
+              style={{
+                background: `rgba(${hexToRgb(game.color)}, 0.12)`,
+                border: `1px solid rgba(${hexToRgb(game.color)}, 0.20)`,
+                color: game.color,
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Action slot */}
+      {children}
+    </div>
+  )
+}
+
+// ── Library tab (installed games) ────────────────────────────────────────────
+
+function LibraryTab({
+  games,
+  onPlay,
+  onUninstall,
+}: {
+  games: GameEntry[]
+  onPlay: (id: SelectedGame) => void
+  onUninstall: (id: string) => void
+}) {
+  if (games.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-center">
+        <div>
+          <p className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>No games installed</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Browse the Store tab to add games</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {games.map(game => (
+        <GameRow key={game.label} game={game}>
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => onPlay(game.id)}
+              className="rounded-xl px-4 py-2 text-xs font-bold transition-all"
+              style={{
+                background: `rgba(${hexToRgb(game.color)}, 0.18)`,
+                border: `1px solid rgba(${hexToRgb(game.color)}, 0.40)`,
+                color: game.color,
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
+            >
+              ▶ Play
+            </button>
+            <button
+              onClick={() => onUninstall(game.id as string)}
+              className="text-[10px] transition-all"
+              style={{ color: 'var(--text-muted)', opacity: 0.5 }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '0.5'}
+            >
+              Uninstall
+            </button>
+          </div>
+        </GameRow>
+      ))}
+    </div>
+  )
+}
+
+// ── Store tab (available games) ───────────────────────────────────────────────
+
+function StoreTab({
+  games,
+  installing,
+  progress,
+  onInstall,
+}: {
+  games: GameEntry[]
+  installing: string | null
+  progress: number
+  onInstall: (id: string) => void
+}) {
+  if (games.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-center">
+        <div>
+          <p className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>All games installed!</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Check My Games to play</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {games.map(game => {
+        const isInstalling = installing === game.id
+        return (
+          <GameRow key={game.label} game={game}>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 80 }}>
+              {isInstalling ? (
+                <div style={{ width: 80 }}>
+                  <div
+                    className="rounded-full overflow-hidden"
+                    style={{ height: 5, background: 'rgba(0,0,0,0.3)' }}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        background: `linear-gradient(90deg, ${game.color}, #5bc8f5)`,
+                        boxShadow: `0 0 8px ${game.color}80`,
+                        transition: 'width 0.05s linear',
+                      }}
+                    />
+                  </div>
+                  <p
+                    className="text-[9px] font-semibold mt-1 text-right"
+                    style={{ color: game.color }}
+                  >
+                    Installing…
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => game.id && onInstall(game.id as string)}
+                    disabled={installing !== null}
+                    className="rounded-xl px-3 py-2 text-xs font-bold transition-all"
+                    style={{
+                      background: `rgba(${hexToRgb(game.color)}, 0.12)`,
+                      border: `1px solid rgba(${hexToRgb(game.color)}, 0.30)`,
+                      color: game.color,
+                      opacity: installing !== null ? 0.4 : 1,
+                      cursor: installing !== null ? 'default' : 'pointer',
+                    }}
+                  >
+                    ⬇ Install
+                  </button>
+                  <p
+                    className="text-[9px] text-right"
+                    style={{ color: 'var(--text-muted)', opacity: 0.6 }}
+                  >
+                    {game.size}
+                  </p>
+                </>
+              )}
+            </div>
+          </GameRow>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Game Hub ─────────────────────────────────────────────────────────────────
 
-function GameHub() {
-  const { closeGameView, selectGame } = useCornerStore();
-  const { openLobby } = useChessStore();
+function GameHub({
+  installedGames,
+  onInstalled,
+  onUninstalled,
+}: {
+  installedGames: string[]
+  onInstalled: (id: string) => void
+  onUninstalled: (id: string) => void
+}) {
+  const { closeGameView, selectGame } = useCornerStore()
+  const { openLobby } = useChessStore()
+  const user = useAuthStore(s => s.user)
+
+  const [activeTab, setActiveTab] = useState<'library' | 'store'>('library')
+  const [installing, setInstalling] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }, [])
+
+  function handlePlay(gameId: SelectedGame) {
+    if (!gameId) return
+    if (gameId === 'chess') { selectGame('chess'); openLobby(); return }
+    selectGame(gameId)
+  }
+
+  function handleUninstall(gameId: string) {
+    if (!user) return
+    uninstallGame(user.id, gameId)
+    onUninstalled(gameId)
+  }
+
+  function handleInstall(gameId: string) {
+    if (installing || !user) return
+    setInstalling(gameId)
+    setProgress(0)
+    const start = Date.now()
+    const DURATION = 1500
+    const tick = () => {
+      const p = Math.min(100, ((Date.now() - start) / DURATION) * 100)
+      setProgress(p)
+      if (p < 100) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        installGame(user.id, gameId)
+        onInstalled(gameId)
+        setInstalling(null)
+        setProgress(0)
+        setActiveTab('library')
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  const libraryGames = GAMES.filter(g => g.id && installedGames.includes(g.id as string))
+  const storeGames   = GAMES.filter(g => g.id && !installedGames.includes(g.id as string))
 
   return (
     <div className="flex h-full flex-col">
@@ -122,92 +370,57 @@ function GameHub() {
           <Gamepad2 className="h-5 w-5" style={{ color: '#00d4ff' }} />
         </div>
 
-        <div>
+        <div className="flex-1">
           <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Games Corner</p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Mini-games while you chat</p>
         </div>
-      </div>
 
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto scrollbar-aero p-6">
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-          {GAMES.map(game => {
-            const IconEl = typeof game.icon !== 'string' ? game.icon : null;
-
-            return (
-              <button
-                key={game.label}
-                disabled={!game.available}
-                onClick={() => {
-                  if (!game.available || !game.id) return;
-                  if (game.id === 'chess') { selectGame('chess'); openLobby(); return; }
-                  selectGame(game.id);
-                }}
-                className="flex flex-col items-center justify-center gap-3 rounded-aero-lg p-5 text-center transition-all"
-                style={{
-                  minHeight: 172,
-                  background: game.available
-                    ? `rgba(${hexToRgb(game.color)}, 0.07)`
-                    : 'rgba(255,255,255,0.03)',
-                  border: game.available
-                    ? `1px solid rgba(${hexToRgb(game.color)}, 0.25)`
-                    : '1px solid rgba(255,255,255,0.07)',
-                  cursor: game.available ? 'pointer' : 'default',
-                  opacity: game.available ? 1 : 0.55,
-                }}
-                onMouseEnter={e => {
-                  if (game.available)
-                    (e.currentTarget as HTMLElement).style.background = `rgba(${hexToRgb(game.color)}, 0.13)`;
-                }}
-                onMouseLeave={e => {
-                  if (game.available)
-                    (e.currentTarget as HTMLElement).style.background = `rgba(${hexToRgb(game.color)}, 0.07)`;
-                }}
-              >
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                  style={{
-                    background: `rgba(${hexToRgb(game.color)}, 0.15)`,
-                    border: `1px solid rgba(${hexToRgb(game.color)}, 0.30)`,
-                    boxShadow: game.available ? `0 0 20px rgba(${hexToRgb(game.color)}, 0.15)` : 'none',
-                    fontSize: typeof game.icon === 'string' ? 28 : undefined,
-                  }}
-                >
-                  {typeof game.icon === 'string'
-                    ? game.icon
-                    : IconEl && <IconEl className="h-7 w-7" style={{ color: game.color }} />
-                  }
-                </div>
-
-                <div>
-                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{game.label}</p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{game.desc}</p>
-                </div>
-
-                <span
-                  className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
-                  style={{
-                    background: game.available
-                      ? `rgba(${hexToRgb(game.color)}, 0.20)`
-                      : 'rgba(255,255,255,0.06)',
-                    color: game.available ? game.color : 'var(--text-muted)',
-                    border: `1px solid rgba(${hexToRgb(game.color)}, ${game.available ? 0.35 : 0.12})`,
-                  }}
-                >
-                  {game.available ? 'Play' : 'Soon'}
-                </span>
-              </button>
-            );
-          })}
+        {/* Tabs */}
+        <div className="flex gap-1.5 flex-shrink-0">
+          {(['library', 'store'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="rounded-full px-4 py-1.5 text-xs font-bold transition-all"
+              style={{
+                background: activeTab === tab ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
+                border: activeTab === tab ? '1px solid rgba(0,212,255,0.40)' : '1px solid rgba(255,255,255,0.09)',
+                color: activeTab === tab ? '#00d4ff' : 'var(--text-muted)',
+              }}
+            >
+              {tab === 'library'
+                ? `My Games (${libraryGames.length})`
+                : `Store (${storeGames.length})`}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto scrollbar-aero p-5">
+        {activeTab === 'library' ? (
+          <LibraryTab
+            games={libraryGames}
+            onPlay={handlePlay}
+            onUninstall={handleUninstall}
+          />
+        ) : (
+          <StoreTab
+            games={storeGames}
+            installing={installing}
+            progress={progress}
+            onInstall={handleInstall}
+          />
+        )}
+      </div>
+
     </div>
-  );
+  )
 }
 
 // ── Games strip (shown below any active game) ─────────────────────────────────
 
-function GamesStrip() {
+function GamesStrip({ installedGames }: { installedGames: string[] }) {
   const { selectedGame, selectGame } = useCornerStore();
 
   return (
@@ -225,33 +438,31 @@ function GamesStrip() {
         >
           More
         </span>
-        {GAMES.map(game => {
+        {GAMES.filter(g => g.id && installedGames.includes(g.id as string)).map(game => {
           const isActive = game.id === selectedGame;
           const IconEl = typeof game.icon !== 'string' ? game.icon : null;
           return (
             <button
               key={game.label}
-              disabled={!game.available}
-              onClick={() => game.available && game.id && selectGame(game.id)}
+              onClick={() => game.id && selectGame(game.id)}
               className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl px-3 py-2 transition-all"
               style={{
                 minWidth: 72,
                 background: isActive
                   ? `rgba(${hexToRgb(game.color)}, 0.18)`
-                  : game.available ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  : 'rgba(255,255,255,0.04)',
                 border: isActive
                   ? `1px solid rgba(${hexToRgb(game.color)}, 0.45)`
-                  : game.available ? '1px solid rgba(255,255,255,0.09)' : '1px solid transparent',
-                cursor: game.available ? 'pointer' : 'default',
-                opacity: game.available ? 1 : 0.38,
+                  : '1px solid rgba(255,255,255,0.09)',
+                cursor: 'pointer',
                 boxShadow: isActive ? `0 0 12px rgba(${hexToRgb(game.color)}, 0.25)` : 'none',
               }}
               onMouseEnter={e => {
-                if (game.available && !isActive)
+                if (!isActive)
                   (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
               }}
               onMouseLeave={e => {
-                if (game.available && !isActive)
+                if (!isActive)
                   (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
               }}
             >
@@ -271,9 +482,6 @@ function GamesStrip() {
               <span className="text-[10px] font-semibold leading-tight text-center" style={{ color: isActive ? game.color : 'var(--text-muted)', maxWidth: 64 }}>
                 {game.label}
               </span>
-              {!game.available && (
-                <span className="text-[9px]" style={{ color: 'var(--text-muted)', opacity: 0.55 }}>Soon</span>
-              )}
             </button>
           );
         })}
@@ -286,6 +494,14 @@ function GamesStrip() {
 
 export function GamesCorner() {
   const { selectedGame } = useCornerStore();
+  const user = useAuthStore(s => s.user);
+  const [installedGames, setInstalledGames] = useState<string[]>(() =>
+    user ? getInstalledGames(user.id) : ['bubblepop']
+  );
+
+  useEffect(() => {
+    if (user) setInstalledGames(getInstalledGames(user.id));
+  }, [user?.id]);
 
   return (
     <div
@@ -316,7 +532,7 @@ export function GamesCorner() {
             {selectedGame === 'wordle' && (
               <Suspense fallback={<GameLoadingSpinner />}><Wordle /></Suspense>
             )}
-            {selectedGame === 'chess'            && (
+            {selectedGame === 'chess' && (
               <Suspense fallback={
                 <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
                   Loading chess…
@@ -326,10 +542,14 @@ export function GamesCorner() {
               </Suspense>
             )}
           </div>
-          {selectedGame !== 'chess' && <GamesStrip />}
+          {selectedGame !== 'chess' && <GamesStrip installedGames={installedGames} />}
         </>
       ) : (
-        <GameHub />
+        <GameHub
+          installedGames={installedGames}
+          onInstalled={id => setInstalledGames(prev => [...prev, id])}
+          onUninstalled={id => setInstalledGames(prev => prev.filter(g => g !== id))}
+        />
       )}
     </div>
   );
