@@ -28,9 +28,6 @@ const CARD_PARAMS_KEY   = 'aero_card_image_params';
 function loadCardGradient(): string {
   return localStorage.getItem(CARD_GRADIENT_KEY) ?? 'ocean';
 }
-function loadCardImage(): string | null {
-  return localStorage.getItem(CARD_IMAGE_KEY);
-}
 function loadCardCropParams(): CropParams {
   try {
     const s = localStorage.getItem(CARD_PARAMS_KEY);
@@ -85,9 +82,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [settingsView,    setSettingsView]    = useState<null | 'menu' | 'profile' | 'security' | 'general'>(null);
   const [statusMenuOpen,  setStatusMenuOpen]  = useState(false);
   const [hoveredFriend,   setHoveredFriend]   = useState<string | null>(null);
-  const [cardGradient,      setCardGradient]      = useState(loadCardGradient);
-  const [cardImage,         setCardImage]         = useState<string | null>(loadCardImage);
-  const [cardCropParams,    setCardCropParams]    = useState<CropParams>(loadCardCropParams);
+  const [cardGradient,      setCardGradient]      = useState<string>(() => user?.card_gradient ?? loadCardGradient());
+  const [cardImage,         setCardImage]         = useState<string | null>(() => user?.card_image_url ?? null);
+  const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? loadCardCropParams());
   const [gradientPickerOpen, setGradientPickerOpen] = useState(false);
   const [cropModalPending,  setCropModalPending]  = useState<string | null>(null);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
@@ -129,13 +126,16 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     try {
       const res = await fetch(pendingDataUrl);
       const blob = await res.blob();
+      // Delete old file first to free storage, then upload fresh
+      await supabase.storage.from('card-images').remove([`${user.id}/card.jpg`]);
       const { data: uploadData } = await supabase.storage
         .from('card-images')
-        .upload(`${user.id}/card.jpg`, blob, { upsert: true, contentType: 'image/jpeg' });
+        .upload(`${user.id}/card.jpg`, blob, { contentType: 'image/jpeg' });
       if (uploadData) {
         const { data: urlData } = supabase.storage
           .from('card-images')
           .getPublicUrl(`${user.id}/card.jpg`);
+        setCardImage(urlData.publicUrl);
         supabase.from('profiles').update({
           card_image_url:    urlData.publicUrl,
           card_image_params: params,
@@ -153,6 +153,14 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     supabase.from('profiles').update({ card_image_url: null, card_image_params: null })
       .eq('id', user.id);
   }
+
+  // Sync card state from Supabase profile when user changes (login/logout/account switch)
+  useEffect(() => {
+    if (!user) return;
+    if (user.card_gradient) setCardGradient(user.card_gradient);
+    setCardImage(user.card_image_url ?? null);
+    if (user.card_image_params) setCardCropParams(user.card_image_params as CropParams);
+  }, [user?.id, user?.card_gradient, user?.card_image_url, user?.card_image_params]);
 
   const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
 
