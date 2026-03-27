@@ -245,15 +245,15 @@
   <div class="section-title">Progress Overview</div>
   <div class="progress-grid">
     <div class="prog-card">
-      <div class="prog-num green">2</div>
+      <div class="prog-num green">4</div>
       <div class="prog-label">Shipped to production</div>
     </div>
     <div class="prog-card">
-      <div class="prog-num orange">2</div>
+      <div class="prog-num orange">0</div>
       <div class="prog-label">Spec written, ready to build</div>
     </div>
     <div class="prog-card">
-      <div class="prog-num muted">6</div>
+      <div class="prog-num muted">1</div>
       <div class="prog-label">Identified, not yet designed</div>
     </div>
   </div>
@@ -361,7 +361,7 @@
       <div class="item-body">
         <div class="item-top">
           <span class="item-title">Throttle Realtime channels when window not focused</span>
-          <span class="status shipped">Shipped</span>
+          <span class="status done">✓ Shipped</span>
         </div>
         <div class="item-desc">Increase Supabase presence heartbeat interval from 10 s to 30 s when <code>document.hidden</code>. Debounce store updates while hidden. Reduces JS wakeup frequency without losing message delivery.</div>
         <div class="item-meta">
@@ -376,7 +376,7 @@
       <div class="item-body">
         <div class="item-top">
           <span class="item-title">Memoize Zustand selectors — stop cascade re-renders</span>
-          <span class="status shipped">Shipped</span>
+          <span class="status done">✓ Shipped</span>
         </div>
         <div class="item-desc">Components selecting large objects (e.g. the full <code>friends</code> array) re-render on every presence tick. Add <code>shallow</code> equality selectors and split subscriptions to primitives to eliminate cascading re-renders during active chats.</div>
         <div class="item-meta">
@@ -390,7 +390,7 @@
       <div class="item-body">
         <div class="item-top">
           <span class="item-title">Virtualize the message list</span>
-          <span class="status shipped">Shipped</span>
+          <span class="status done">✓ Shipped</span>
         </div>
         <div class="item-desc">Currently renders all cached messages as DOM nodes (up to 300 per chat). <code>@tanstack/react-virtual</code> renders only visible rows, keeping DOM minimal regardless of history length.</div>
         <div class="item-meta">
@@ -506,9 +506,9 @@
         <div class="phase-title" style="color:var(--green)">Phase 3 — Polish &amp; maintenance (shipped 2026-03-27)</div>
         <div class="phase-desc">Lower-urgency items that improve stability and long-session health.</div>
         <div class="phase-items">
-          <div class="phase-item"><span class="pi-icon">⏳</span> Scope localStorage cache keys per user ID</div>
-          <div class="phase-item"><span class="pi-icon">⏳</span> Consolidate orb count to ≤3 across the app</div>
-          <div class="phase-item"><span class="pi-icon">⏳</span> DevTools rendering baseline before/after each phase</div>
+          <div class="phase-item"><span class="pi-icon">✅</span> Scope localStorage cache keys per user ID</div>
+          <div class="phase-item"><span class="pi-icon">✅</span> Consolidate orb count to ≤3 across the app</div>
+          <div class="phase-item"><span class="pi-icon">⏭</span> DevTools rendering baseline before/after each phase</div>
         </div>
       </div>
     </div>
