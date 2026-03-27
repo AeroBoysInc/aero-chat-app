@@ -394,7 +394,7 @@ export function ChatWindow({ contact, onBack }: Props) {
     : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
-  const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(contact.id));
+  const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(user!.id, contact.id));
   const [input,         setInput]         = useState('');
   const [sending,       setSending]       = useState(false);
   const [sendError,     setSendError]     = useState('');
@@ -451,7 +451,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   useEffect(() => {
     if (!user) return;
     // Show cache immediately while fresh data loads from DB
-    setMessages(loadChatCache(contact.id));
+    setMessages(loadChatCache(user!.id, contact.id));
     setShowClearModal(false);
     contactKeyRef.current = null;
     pendingDecrypt.current = [];
@@ -488,7 +488,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         // Build a fallback map from the existing cache so that if decryption
         // fails (e.g. the local key was rotated), we preserve any previously
         // decrypted plaintext rather than overwriting it with "[decryption failed]".
-        const cachedMap = new Map(loadChatCache(contact.id).map(m => [m.id, m.content]));
+        const cachedMap = new Map(loadChatCache(user!.id, contact.id).map(m => [m.id, m.content]));
         const decryptWithFallback = (m: { id: string; content: string }): string => {
           const result = decrypt(m.content);
           if (result === '[decryption failed]' && cachedMap.has(m.id)) return cachedMap.get(m.id)!;
@@ -504,7 +504,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         setMessages(allWithPending);
-        saveChatCache(contact.id, allWithPending);
+        saveChatCache(user!.id, contact.id, allWithPending);
         historyLoadedRef.current = true;
         markMessagesRead();
 
@@ -606,7 +606,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         const decoded: Message = { ...m, content };
         setMessages(prev => {
           const next = [...prev, decoded];
-          saveChatCache(contact.id, next);
+          saveChatCache(user!.id, contact.id, next);
           return next;
         });
         if (!useCornerStore.getState().gameViewActive || useCornerStore.getState().gameChatOverlay?.mode === 'conversation') {
@@ -627,7 +627,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           const next = prev.map(msg =>
             msg.id === m.id ? { ...msg, read_at: m.read_at } : msg
           );
-          saveChatCache(contact.id, next);
+          saveChatCache(user!.id, contact.id, next);
           return next;
         });
       })
@@ -738,7 +738,7 @@ export function ChatWindow({ contact, onBack }: Props) {
       setSendError('Failed to send. Please try again.');
     } else if (data) {
       const sent: Message = { ...data, content: input.trim(), read_at: null };
-      setMessages(prev => { const next = [...prev, sent]; saveChatCache(contact.id, next); return next; });
+      setMessages(prev => { const next = [...prev, sent]; saveChatCache(user!.id, contact.id, next); return next; });
       setInput('');
     }
     setSending(false);
@@ -848,7 +848,7 @@ export function ChatWindow({ contact, onBack }: Props) {
     if (error) { setSendError('Failed to send.'); }
     else if (data) {
       const sent: Message = { ...data, content: plaintext, read_at: null };
-      setMessages(prev => { const next = [...prev, sent]; saveChatCache(contact.id, next); return next; });
+      setMessages(prev => { const next = [...prev, sent]; saveChatCache(user!.id, contact.id, next); return next; });
     }
     setSending(false);
   }
@@ -1039,7 +1039,7 @@ export function ChatWindow({ contact, onBack }: Props) {
               <button
                 onClick={() => {
                   saveClearTimestamp(user!.id, contact.id);
-                  clearChatCache(contact.id);
+                  clearChatCache(user!.id, contact.id);
                   setMessages([]);
                   setShowClearModal(false);
                 }}

@@ -11,7 +11,7 @@ import { useCallStore } from './store/callStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
-import { clearAllChatCaches } from './lib/chatCache';
+import { clearAllChatCaches, pruneUnscopedCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
 import { GameNotification } from './components/ui/GameNotification';
@@ -132,6 +132,7 @@ export default function App() {
       // anywhere in the UI and we don't want it floating around in memory.
       const { encrypted_private_key: _epk, ...profile } = row;
       setUser(profile);
+      pruneUnscopedCaches();   // ← sweep legacy unscoped keys on every login
       settled = true;
       // Push locally-stored status to Supabase so other users see it immediately
       useStatusStore.getState().syncToSupabase(profile.id);
