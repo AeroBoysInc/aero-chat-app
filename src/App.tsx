@@ -197,8 +197,10 @@ export default function App() {
         const msg = payload.new as { sender_id: string };
         const activeId = useChatStore.getState().selectedContact?.id;
         const inGame   = useCornerStore.getState().gameViewActive;
-        // Treat as unread if sender isn't the open chat, OR if the user is in game view
-        if (msg.sender_id !== activeId || inGame) {
+        const appIdle  = document.hidden || !document.hasFocus();
+        // Treat as unread if: sender isn't the open chat, OR user is in game view,
+        // OR the app is idle (second monitor / other window) — user isn't watching.
+        if (msg.sender_id !== activeId || inGame || appIdle) {
           increment(msg.sender_id);
           // Desktop notification
           const sender = useFriendStore.getState().friends.find(f => f.id === msg.sender_id);
