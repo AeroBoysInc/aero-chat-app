@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AeroChat — Performance Optimization Roadmap</title>
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.07);
+    --border: rgba(255,255,255,0.08);
+    --cyan: #00d4ff;
+    --sky: #5bc8f5;
+    --deep: #0a3d8f;
+    --teal: #00b4d8;
+    --green: #00e676;
+    --orange: #ff9100;
+    --red: #ff5252;
+    --purple: #ce93d8;
+    --text: #e8f4fd;
+    --muted: rgba(232,244,253,0.5);
+    --tag-bg: rgba(0,212,255,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Orb background ── */
+  .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); animation: orb-drift 10s ease-in-out infinite;
+  }
+  @keyframes orb-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%       { transform: translate(24px, -18px) scale(1.04); }
+    66%       { transform: translate(-16px, 14px) scale(0.97); }
+  }
+
+  /* ── Layout ── */
+  .wrap { position: relative; z-index: 1; max-width: 1020px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center; margin-bottom: 48px;
+    padding: 44px 32px 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    backdrop-filter: blur(24px);
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,212,255,0.06) 0%, transparent 60%, rgba(91,200,245,0.04) 100%);
+    pointer-events: none;
+  }
+  .hero-logo {
+    width: 60px; height: 60px; margin: 0 auto 18px;
+    background: linear-gradient(135deg, var(--cyan), var(--deep));
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; box-shadow: 0 0 40px rgba(0,212,255,0.3);
+  }
+  .hero h1 {
+    font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--cyan), var(--sky), #ffffff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 10px;
+  }
+  .hero p { color: var(--muted); font-size: 14px; max-width: 540px; margin: 0 auto; }
+
+  .stats-row { display: flex; gap: 12px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+  .stat-pill {
+    padding: 7px 16px; border-radius: 100px;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .stat-pill .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Section title ── */
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.8px;
+    text-transform: uppercase; color: var(--muted);
+    margin: 44px 0 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Status badge ── */
+  .status {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 100px;
+    text-transform: uppercase; letter-spacing: 0.6px; flex-shrink: 0;
+  }
+  .status.done    { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.28); color: var(--green); }
+  .status.planned { background: rgba(0,212,255,0.10); border: 1px solid rgba(0,212,255,0.22); color: var(--sky); }
+  .status.next    { background: rgba(255,145,0,0.12); border: 1px solid rgba(255,145,0,0.28); color: var(--orange); }
+  .status.later   { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--muted); }
+
+  /* ── Progress overview ── */
+  .progress-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 8px;
+  }
+  @media (max-width: 600px) { .progress-grid { grid-template-columns: 1fr; } }
+  .prog-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 20px 18px; text-align: center;
+  }
+  .prog-num { font-size: 38px; font-weight: 800; letter-spacing: -1px; }
+  .prog-num.green  { color: var(--green); }
+  .prog-num.orange { color: var(--orange); }
+  .prog-num.muted  { color: var(--muted); }
+  .prog-label { font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+
+  /* ── Item list ── */
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px 20px;
+    transition: background 0.2s, border-color 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .item:hover { background: var(--surface-hover); border-color: rgba(255,255,255,0.12); }
+  .item.is-done  { border-left: 3px solid var(--green); }
+  .item.is-next  { border-left: 3px solid var(--orange); }
+  .item.is-planned { border-left: 3px solid rgba(0,212,255,0.5); }
+  .item.is-later { border-left: 3px solid rgba(255,255,255,0.1); }
+
+  .item-icon {
+    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
+  }
+  .item-icon.green  { background: rgba(0,230,118,0.12); }
+  .item-icon.orange { background: rgba(255,145,0,0.13); }
+  .item-icon.cyan   { background: rgba(0,212,255,0.10); }
+  .item-icon.purple { background: rgba(206,147,216,0.10); }
+  .item-icon.muted  { background: rgba(255,255,255,0.05); }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
+  .item-title { font-weight: 700; font-size: 14px; }
+  .item-desc { font-size: 13px; color: rgba(232,244,253,0.65); line-height: 1.6; }
+  .item-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  .tag {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
+    background: var(--tag-bg); border: 1px solid rgba(0,212,255,0.18); color: var(--sky);
+  }
+  .tag.green  { background: rgba(0,230,118,0.09); border-color: rgba(0,230,118,0.2); color: var(--green); }
+  .tag.orange { background: rgba(255,145,0,0.09); border-color: rgba(255,145,0,0.2); color: var(--orange); }
+  .tag.purple { background: rgba(206,147,216,0.09); border-color: rgba(206,147,216,0.2); color: var(--purple); }
+
+  .commit-ref {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px; background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
+    padding: 2px 8px; color: rgba(232,244,253,0.5);
+  }
+
+  /* ── Spec callout ── */
+  .spec-callout {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.18);
+    border-radius: 14px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 10px;
+  }
+  .spec-callout-icon { font-size: 22px; flex-shrink: 0; }
+  .spec-callout p { font-size: 13px; color: rgba(232,244,253,0.7); }
+  .spec-callout strong { color: var(--sky); }
+
+  /* ── Phase timeline ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .phase { display: flex; gap: 18px; position: relative; }
+  .phase-line { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; }
+  .phase-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px; flex-shrink: 0; border: 2px solid;
+  }
+  .phase-dot.done    { background: rgba(0,230,118,0.15); border-color: var(--green); color: var(--green); }
+  .phase-dot.active  { background: rgba(255,145,0,0.15); border-color: var(--orange); color: var(--orange); animation: pulse-border 2s ease-in-out infinite; }
+  .phase-dot.pending { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.3); color: rgba(0,212,255,0.5); }
+  .phase-dot.later   { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: var(--muted); }
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,145,0,0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(255,145,0,0); }
+  }
+  .phase-connector { flex: 1; width: 2px; background: var(--border); margin: 4px 0; min-height: 20px; }
+  .phase:last-child .phase-connector { display: none; }
+  .phase-content { flex: 1; padding-bottom: 32px; }
+  .phase-title { font-weight: 700; font-size: 15px; margin-bottom: 3px; padding-top: 5px; }
+  .phase-desc  { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .phase-items { display: flex; flex-direction: column; gap: 6px; }
+  .phase-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 14px; font-size: 13px;
+  }
+  .phase-item .pi-icon { font-size: 15px; flex-shrink: 0; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 60px; text-align: center; color: var(--muted); font-size: 12px;
+    padding-top: 24px; border-top: 1px solid var(--border);
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb" style="width:500px;height:500px;left:-100px;top:-100px;background:rgba(0,100,200,0.07);animation-duration:12s;"></div>
+  <div class="orb" style="width:400px;height:400px;right:-80px;top:30%;background:rgba(0,180,255,0.05);animation-duration:9s;animation-delay:-3s;"></div>
+  <div class="orb" style="width:350px;height:350px;left:30%;bottom:-60px;background:rgba(91,200,245,0.06);animation-duration:11s;animation-delay:-5s;"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-logo">✈</div>
+    <h1>AeroChat Performance Roadmap</h1>
+    <p>Living document — tracks completed fixes, in-progress designs, and planned optimizations.</p>
+    <div class="stats-row">
+      <div class="stat-pill"><div class="dot" style="background:var(--green)"></div> 9 shipped</div>
+      <div class="stat-pill"><div class="dot" style="background:var(--orange)"></div> 0 up next</div>
+      <div class="stat-pill"><div class="dot" style="background:var(--muted)"></div> 1 later</div>
+    </div>
+  </div>
+
+  <!-- Progress overview -->
+  <div class="section-title">Progress Overview</div>
+  <div class="progress-grid">
+    <div class="prog-card">
+      <div class="prog-num green">2</div>
+      <div class="prog-label">Shipped to production</div>
+    </div>
+    <div class="prog-card">
+      <div class="prog-num orange">2</div>
+      <div class="prog-label">Spec written, ready to build</div>
+    </div>
+    <div class="prog-card">
+      <div class="prog-num muted">6</div>
+      <div class="prog-label">Identified, not yet designed</div>
+    </div>
+  </div>
+
+  <!-- Shipped -->
+  <div class="section-title">Shipped ✓</div>
+  <div class="item-list">
+
+    <div class="item is-done">
+      <div class="item-icon green">🚫</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">No cross-user chat restore on login</span>
+          <span class="status done">✓ Shipped</span>
+          <span class="commit-ref">682c201</span>
+        </div>
+        <div class="item-desc">
+          Removed localStorage persistence of the selected contact. The key <code>aero-selected-contact-id</code> was device-wide — user2 would inherit user1's open chat on the same device. Login now always lands on the empty state; users choose a conversation manually.
+        </div>
+        <div class="item-meta">
+          <span class="tag green">chatCache.ts</span>
+          <span class="tag green">chatStore.ts</span>
+          <span class="tag green">App.tsx</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-done">
+      <div class="item-icon green">📋</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Performance roadmap documented</span>
+          <span class="status done">✓ Shipped</span>
+        </div>
+        <div class="item-desc">
+          All root causes diagnosed and documented. 10 optimization items identified with impact estimates, effort ratings, and code patterns. Served at <code>localhost:4200</code> (this page) as a living reference.
+        </div>
+        <div class="item-meta">
+          <span class="tag green">docs/performance-roadmap.html</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Designed & Ready -->
+  <div class="section-title">Designed — Ready to Build</div>
+
+  <div class="spec-callout">
+    <span class="spec-callout-icon">📄</span>
+    <p>Full spec at <strong>docs/superpowers/specs/2026-03-26-game-store-and-animation-pause-design.md</strong> — approved, pending implementation plan.</p>
+  </div>
+
+  <div class="item-list" style="margin-top:12px">
+
+    <div class="item is-next">
+      <div class="item-icon orange">🎮</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Game Store — downloadable games</span>
+          <span class="status next">Next up</span>
+        </div>
+        <div class="item-desc">
+          Games Corner gets a <strong>My Games / Store</strong> two-tab layout with detail rows (icon, name, description, size, genre tags). Games are not immediately playable — user browses the Store, clicks Install, watches a 1.5 s progress bar, then the game appears in their library. Install state persisted in localStorage per user ID. All 5 non-chess games converted to <code>React.lazy()</code> so no game JS is parsed at startup until installed and launched. Uninstall removes the game from the library.
+        </div>
+        <div class="item-meta">
+          <span class="tag orange">~993 KB off initial parse</span>
+          <span class="tag orange">Per-user library</span>
+          <span class="tag">GamesCorner.tsx</span>
+          <span class="tag">gameInstalls.ts (new)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-next">
+      <div class="item-icon orange">👁</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Pause all animations on focus loss</span>
+          <span class="status next">Next up</span>
+        </div>
+        <div class="item-desc">
+          When the app window loses focus (<code>visibilitychange</code>), a <code>.paused</code> class is toggled on <code>&lt;html&gt;</code>. One CSS rule freezes every <code>@keyframes</code> in the app — orbs, aura rings, typing dots, bubble floats — with zero per-component changes. The Three.js render loop in ChessBoard3D is stopped via <code>gl.setAnimationLoop(null)</code>. BubblePop and Tropico hook their existing <code>gamePaused</code> state to a custom <code>aerochat:visibilitychange</code> DOM event so mid-game freezes and resumes cleanly.
+        </div>
+        <div class="item-meta">
+          <span class="tag orange">~8–12% GPU saved when hidden</span>
+          <span class="tag orange">Games freeze mid-session cleanly</span>
+          <span class="tag">App.tsx</span>
+          <span class="tag">index.css</span>
+          <span class="tag">ChessBoard3D.tsx</span>
+          <span class="tag">BubblePop.tsx</span>
+          <span class="tag">Tropico.tsx</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Planned -->
+  <div class="section-title">Planned — Not Yet Designed</div>
+  <div class="item-list">
+
+    <div class="item is-planned">
+      <div class="item-icon cyan">⚡</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Throttle Realtime channels when window not focused</span>
+          <span class="status shipped">Shipped</span>
+        </div>
+        <div class="item-desc">Increase Supabase presence heartbeat interval from 10 s to 30 s when <code>document.hidden</code>. Debounce store updates while hidden. Reduces JS wakeup frequency without losing message delivery.</div>
+        <div class="item-meta">
+          <span class="tag">presenceStore.ts</span>
+          <span class="tag">friendStore.ts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-planned">
+      <div class="item-icon cyan">🔁</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Memoize Zustand selectors — stop cascade re-renders</span>
+          <span class="status shipped">Shipped</span>
+        </div>
+        <div class="item-desc">Components selecting large objects (e.g. the full <code>friends</code> array) re-render on every presence tick. Add <code>shallow</code> equality selectors and split subscriptions to primitives to eliminate cascading re-renders during active chats.</div>
+        <div class="item-meta">
+          <span class="tag">All store consumers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-planned">
+      <div class="item-icon cyan">🪟</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Virtualize the message list</span>
+          <span class="status shipped">Shipped</span>
+        </div>
+        <div class="item-desc">Currently renders all cached messages as DOM nodes (up to 300 per chat). <code>@tanstack/react-virtual</code> renders only visible rows, keeping DOM minimal regardless of history length.</div>
+        <div class="item-meta">
+          <span class="tag">ChatWindow.tsx</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-done">
+      <div class="item-icon green">🎨</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Reduce orb count &amp; compositor layers</span>
+          <span class="status done">✓ Shipped</span>
+        </div>
+        <div class="item-desc">5+ orb divs across the app each force a separate GPU compositor layer due to <code>filter: blur()</code>. Consolidate to ≤3 total, use <code>will-change: transform</code> only (not filter), consider a shared canvas orb layer.</div>
+        <div class="item-meta">
+          <span class="tag">ChatLayout.tsx</span>
+          <span class="tag">ChatWindow.tsx</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-done">
+      <div class="item-icon green">🧹</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Scope localStorage message cache keys per user ID</span>
+          <span class="status done">✓ Shipped</span>
+        </div>
+        <div class="item-desc">Message caches are keyed by contact ID only, not <code>userId:contactId</code>. On a shared device, user2 reads user1's decrypted message cache. Prefix all keys with the authenticated user's ID and prune stale entries on login. (Contact restore key already fixed.)</div>
+        <div class="item-meta">
+          <span class="tag">chatCache.ts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item is-later">
+      <div class="item-icon muted">📊</div>
+      <div class="item-body">
+        <div class="item-top">
+          <span class="item-title">Establish DevTools rendering baseline</span>
+          <span class="status later">Later</span>
+        </div>
+        <div class="item-desc">Run Chrome DevTools Rendering panel (paint flashing, layer borders, FPS meter) inside Tauri devtools before and after each phase to confirm real improvement and catch invisible regressions.</div>
+        <div class="item-meta">
+          <span class="tag purple">No code change</span>
+          <span class="tag purple">Measurement</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Phase timeline -->
+  <div class="section-title">Implementation Phases</div>
+
+  <div class="timeline">
+
+    <div class="phase">
+      <div class="phase-line">
+        <div class="phase-dot done">✓</div>
+        <div class="phase-connector"></div>
+      </div>
+      <div class="phase-content">
+        <div class="phase-title" style="color:var(--green)">Phase 0 — Housekeeping (done)</div>
+        <div class="phase-desc">Cross-user data bleed fix + roadmap documentation.</div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="pi-icon">✅</span> Remove cross-user contact restore from localStorage</div>
+          <div class="phase-item"><span class="pi-icon">✅</span> Document all optimization targets on localhost</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-line">
+        <div class="phase-dot done">✓</div>
+        <div class="phase-connector"></div>
+      </div>
+      <div class="phase-content">
+        <div class="phase-title" style="color:var(--green)">Phase 1 — Core perf wins (shipped 2026-03-26)</div>
+        <div class="phase-desc">Both features implemented, reviewed, and deployed to production.</div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="pi-icon">✅</span> Game Store with per-user library + all games lazy-loaded</div>
+          <div class="phase-item"><span class="pi-icon">✅</span> Animation pause on visibilitychange (CSS + R3F + game loops)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-line">
+        <div class="phase-dot done">3</div>
+        <div class="phase-connector"></div>
+      </div>
+      <div class="phase-content">
+        <div class="phase-title" style="color:var(--green)">Phase 2 — React render efficiency (shipped 2026-03-26)</div>
+        <div class="phase-desc">Surgical React optimizations deployed to production. Zero visual change — all gains are internal.</div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="pi-icon">✓</span> useShallow selectors + memoized FriendItem (per-friend primitive subscriptions)</div>
+          <div class="phase-item"><span class="pi-icon">✓</span> Memoized MessageItem with local hover/picker state (reactionsRef stabilizes toggleReaction)</div>
+          <div class="phase-item"><span class="pi-icon">✓</span> Throttle presence channel when document.hidden, flush on tab return</div>
+          <div class="phase-item"><span class="pi-icon">✓</span> Virtualize message list with @tanstack/react-virtual (overscan 8, dynamic heights)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-line">
+        <div class="phase-dot done">✓</div>
+        <div class="phase-connector"></div>
+      </div>
+      <div class="phase-content">
+        <div class="phase-title" style="color:var(--green)">Phase 3 — Polish &amp; maintenance (shipped 2026-03-27)</div>
+        <div class="phase-desc">Lower-urgency items that improve stability and long-session health.</div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="pi-icon">⏳</span> Scope localStorage cache keys per user ID</div>
+          <div class="phase-item"><span class="pi-icon">⏳</span> Consolidate orb count to ≤3 across the app</div>
+          <div class="phase-item"><span class="pi-icon">⏳</span> DevTools rendering baseline before/after each phase</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    AeroChat Performance Roadmap &mdash; Last updated 2026-03-27 &mdash; Phase 3 complete
+  </div>
+
+</div>
+</body>
+</html>
