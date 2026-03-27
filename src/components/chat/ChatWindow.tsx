@@ -1062,19 +1062,6 @@ export function ChatWindow({ contact, onBack }: Props) {
       >
         <BubbleLayer bubbles={bubbles} onRemove={removeBubble} />
         <SoapBubbles />
-        {/* Depth orbs — behind message content */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
-          <div className="orb" style={{
-            width: 160, height: 160, right: -20, top: -20,
-            background: 'rgba(0,160,255,0.08)',
-            animation: 'orb-drift 7s ease-in-out infinite',
-          }} />
-          <div className="orb" style={{
-            width: 120, height: 120, left: -20, bottom: -20,
-            background: 'rgba(120,0,255,0.06)',
-            animation: 'orb-drift 5s ease-in-out 2s infinite',
-          }} />
-        </div>
 
         {messages.length === 0 && (
           <div className="flex h-full items-center justify-center">
