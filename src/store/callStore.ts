@@ -632,6 +632,9 @@ export const useCallStore = create<CallState>((set, get) => ({
     _cameraTrack = null;
     _pendingOffer = null;
     if (_iceRestartTimer) { clearTimeout(_iceRestartTimer); _iceRestartTimer = null; }
+    _noisePipeline?.dispose();
+    _noisePipeline = null;
+    _rawAudioStream = null;
 
     useCallStore.setState(INITIAL_CALL_STATE);
   },
