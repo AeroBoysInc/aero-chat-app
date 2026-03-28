@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2, Palette, Camera } from 'lucide-react';
+import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2, PenTool, Palette, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -64,7 +64,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const clear             = useUnreadStore(s => s.clear);
   const { status: myStatus, setStatus: setMyStatus } = useStatusStore();
   const myPlayingGame     = usePresenceStore(s => s.playingGames.get(user?.id ?? '') ?? null);
-  const { openGameHub } = useCornerStore();
+  const { openGameHub, openWriterHub } = useCornerStore();
   const callStatus = useCallStore(s => s.status);
 
   const [query,           setQuery]           = useState('');
@@ -215,6 +215,16 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               title="Games"
             >
               <Gamepad2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={openWriterHub}
+              className="relative rounded-aero p-2 transition-all duration-150"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              title="Writers Corner"
+            >
+              <PenTool className="h-4 w-4" />
             </button>
             <button
               onClick={() => setRequestsOpen(true)}

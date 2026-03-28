@@ -4,7 +4,7 @@ import { useCornerStore } from '../../../store/cornerStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useWriterStore } from '../../../store/writerStore';
 import { StoryCard } from './StoryCard';
-import { CATEGORIES, type StoryCategory, hexToRgb, ROLE_CONFIG } from '../../../lib/writerUtils';
+import { CATEGORIES, hexToRgb, ROLE_CONFIG } from '../../../lib/writerUtils';
 
 export function WriterHub() {
   const user = useAuthStore(s => s.user);
