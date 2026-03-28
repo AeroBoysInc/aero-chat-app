@@ -122,9 +122,12 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
   source.connect(processor);
   processor.connect(dest);
 
+  let disposed = false;
   return {
     processedStream: dest.stream,
     dispose: () => {
+      if (disposed) return;
+      disposed = true;
       try {
         source.disconnect();
         processor.disconnect();

@@ -15,6 +15,7 @@ let _cameraTrack: MediaStreamTrack | null = null; // saved before screen share s
 let _pendingOffer: RTCSessionDescriptionInit | null = null; // stored on callee side
 let _rawAudioStream: MediaStream | null = null;  // unprocessed getUserMedia audio
 let _noisePipeline:  NoisePipeline | null = null; // active NC pipeline, null when off
+let _ncSeq = 0; // incremented on each setNoiseCancellation call to detect races
 
 // ─── State shape ─────────────────────────────────────────────────────────────
 export interface CallState {
@@ -602,6 +603,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     _noisePipeline?.dispose();
     _noisePipeline = null;
     _rawAudioStream = null;
+    _ncSeq++;
 
     // 7. Reset Zustand state
     useCallStore.setState(INITIAL_CALL_STATE);
@@ -738,19 +740,31 @@ export const useCallStore = create<CallState>((set, get) => ({
     // Nothing to do if there's no active call
     if (!_peerConnection || !_rawAudioStream) return;
 
-    // Build or tear down the pipeline
+    // Guard against rapid toggling: each call gets a unique sequence number.
+    // If the number has advanced by the time the await resolves, a newer call
+    // has taken over and this result should be discarded.
+    const seq = ++_ncSeq;
+
+    let nextPipeline: NoisePipeline | null = null;
     if (enabled) {
-      _noisePipeline = await createNoisePipeline(_rawAudioStream);
-    } else {
-      _noisePipeline?.dispose();
-      _noisePipeline = null;
+      nextPipeline = await createNoisePipeline(_rawAudioStream);
     }
 
+    // Stale: a newer toggle (or hangUp) has already taken over
+    if (seq !== _ncSeq) {
+      nextPipeline?.dispose();
+      return;
+    }
+
+    // Replace the current pipeline
+    _noisePipeline?.dispose();
+    _noisePipeline = nextPipeline;
+
     // Swap the audio track on the peer connection so the remote side hears the change
-    const newAudioTrack = enabled
-      ? _noisePipeline!.processedStream.getAudioTracks()[0]
-      : _rawAudioStream.getAudioTracks()[0];
-    const sender = _peerConnection.getSenders().find(s => s.track?.kind === 'audio');
+    const newAudioTrack = enabled && _noisePipeline
+      ? _noisePipeline.processedStream.getAudioTracks()[0]
+      : _rawAudioStream?.getAudioTracks()[0];
+    const sender = _peerConnection?.getSenders().find(s => s.track?.kind === 'audio');
     try {
       if (sender && newAudioTrack) await sender.replaceTrack(newAudioTrack);
     } catch (err) {
