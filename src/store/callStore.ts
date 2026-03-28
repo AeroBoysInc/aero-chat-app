@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
+import { createNoisePipeline, type NoisePipeline } from '../lib/noiseSuppression';
 
 // ─── Module-level refs — NOT in Zustand state ───────────────────────────────
 // Mutable native objects that would break devtools serialization if in Zustand.
@@ -12,6 +13,8 @@ let _signalingChannel: ReturnType<typeof supabase.channel> | null = null;
 let _screenStream: MediaStream | null = null;
 let _cameraTrack: MediaStreamTrack | null = null; // saved before screen share starts
 let _pendingOffer: RTCSessionDescriptionInit | null = null; // stored on callee side
+let _rawAudioStream: MediaStream | null = null;  // unprocessed getUserMedia audio
+let _noisePipeline:  NoisePipeline | null = null; // active NC pipeline, null when off
 
 // ─── State shape ─────────────────────────────────────────────────────────────
 export interface CallState {
@@ -60,6 +63,7 @@ export interface CallState {
   toggleCamera(): void;
   startScreenShare(): Promise<void>;
   stopScreenShare(): void;
+  setNoiseCancellation(enabled: boolean): Promise<void>;
 }
 
 export const INITIAL_CALL_STATE = {
@@ -230,7 +234,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     if (!myUserId) return;
 
     const nc = useAudioStore.getState().noiseCancellation;
-    const audioConstraints = { echoCancellation: true, noiseSuppression: nc, autoGainControl: nc };
+    const audioConstraints = { echoCancellation: true, noiseSuppression: false, autoGainControl: false };
 
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
@@ -267,6 +271,12 @@ export const useCallStore = create<CallState>((set, get) => ({
     _peerConnection = createPeerConnection();
     const remoteStream = new MediaStream();
 
+    // ── Store raw stream and build NC pipeline ────────────────────────
+    _rawAudioStream = stream;
+    if (nc) {
+      _noisePipeline = await createNoisePipeline(stream);
+    }
+
     // ── Add tracks ───────────────────────────────────────────────────────
     // Always add a black placeholder video sender so replaceTrack() is safe.
     // No stream arg: associating with the local getUserMedia stream causes SDP stream
@@ -274,8 +284,9 @@ export const useCallStore = create<CallState>((set, get) => ({
     const blackTrack = createBlackVideoTrack();
     _peerConnection.addTrack(blackTrack);
 
-    // Add audio
-    stream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+    // Add audio — use processed stream if NC is on, raw stream if off
+    const audioSource = nc && _noisePipeline ? _noisePipeline.processedStream : stream;
+    audioSource.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
 
     // For video calls, replace the black placeholder with the real camera track
     let cameraOn = false;
@@ -429,7 +440,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     if (!callId || !contact || !_pendingOffer || !_signalingChannel) return;
 
     const nc = useAudioStore.getState().noiseCancellation;
-    const audioConstraints = { echoCancellation: true, noiseSuppression: nc, autoGainControl: nc };
+    const audioConstraints = { echoCancellation: true, noiseSuppression: false, autoGainControl: false };
 
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
@@ -461,11 +472,19 @@ export const useCallStore = create<CallState>((set, get) => ({
     const remoteStream = new MediaStream();
     _peerConnection = createPeerConnection();
 
+    // ── Store raw stream and build NC pipeline ────────────────────────
+    _rawAudioStream = stream;
+    if (nc) {
+      _noisePipeline = await createNoisePipeline(stream);
+    }
+
     // ── Add local tracks ─────────────────────────────────────────────────
     // No stream arg on blackTrack — same reason as in startCall (SDP stream binding)
     const blackTrack = createBlackVideoTrack();
     _peerConnection.addTrack(blackTrack);
-    stream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+
+    const audioSource = nc && _noisePipeline ? _noisePipeline.processedStream : stream;
+    audioSource.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
 
     let cameraOn = false;
     if (callType === 'video' && stream.getVideoTracks().length > 0) {
@@ -580,6 +599,9 @@ export const useCallStore = create<CallState>((set, get) => ({
     _screenStream = null;
     _cameraTrack = null;
     _pendingOffer = null;
+    _noisePipeline?.dispose();
+    _noisePipeline = null;
+    _rawAudioStream = null;
 
     // 7. Reset Zustand state
     useCallStore.setState(INITIAL_CALL_STATE);
@@ -707,5 +729,32 @@ export const useCallStore = create<CallState>((set, get) => ({
     });
 
     set({ isScreenSharing: false, screenStream: null });
+  },
+
+  setNoiseCancellation: async (enabled: boolean) => {
+    // Persist the preference regardless of call state
+    useAudioStore.getState().set({ noiseCancellation: enabled });
+
+    // Nothing to do if there's no active call
+    if (!_peerConnection || !_rawAudioStream) return;
+
+    // Build or tear down the pipeline
+    if (enabled) {
+      _noisePipeline = await createNoisePipeline(_rawAudioStream);
+    } else {
+      _noisePipeline?.dispose();
+      _noisePipeline = null;
+    }
+
+    // Swap the audio track on the peer connection so the remote side hears the change
+    const newAudioTrack = enabled
+      ? _noisePipeline!.processedStream.getAudioTracks()[0]
+      : _rawAudioStream.getAudioTracks()[0];
+    const sender = _peerConnection.getSenders().find(s => s.track?.kind === 'audio');
+    try {
+      if (sender && newAudioTrack) await sender.replaceTrack(newAudioTrack);
+    } catch (err) {
+      console.error('[NC] replaceTrack failed:', err);
+    }
   },
 }));
