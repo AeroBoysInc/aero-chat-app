@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @jitsi/rnnoise-wasm before importing noiseSuppression
+// Mock @jitsi/rnnoise-wasm with the real named export
 vi.mock('@jitsi/rnnoise-wasm', () => ({
-  default: vi.fn(),
+  createRNNWasmModule: vi.fn(),
 }));
 
 // Mock AudioContext and related Web Audio APIs
@@ -41,7 +41,6 @@ function makeMockStream(hasAudio = true): MediaStream {
 describe('createNoisePipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset module-level WASM cache between tests
     vi.resetModules();
   });
 
@@ -54,8 +53,8 @@ describe('createNoisePipeline', () => {
   });
 
   it('returns raw stream as fallback when WASM fails to load', async () => {
-    const rnnoiseModule = await import('@jitsi/rnnoise-wasm');
-    (rnnoiseModule.default as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('WASM load failed'));
+    const mod = await import('@jitsi/rnnoise-wasm');
+    (mod.createRNNWasmModule as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('WASM load failed'));
 
     const { createNoisePipeline } = await import('./noiseSuppression');
     const rawStream = makeMockStream(true);
@@ -68,24 +67,29 @@ describe('createNoisePipeline', () => {
   });
 
   it('returns a processedStream and a dispose function when WASM loads successfully', async () => {
+    const mockHeapF32 = new Float32Array(4096);
     const mockState = 42;
-    const mockRNNoiseModule = {
-      newState: vi.fn(() => mockState),
-      deleteState: vi.fn(),
-      processFrame: vi.fn(),
+    const mockModule = {
+      _rnnoise_create: vi.fn(() => mockState),
+      _rnnoise_destroy: vi.fn(),
+      _rnnoise_process_frame: vi.fn(),
+      _malloc: vi.fn(() => 0),
+      _free: vi.fn(),
+      HEAPF32: mockHeapF32,
     };
-    const rnnoiseModule = await import('@jitsi/rnnoise-wasm');
-    (rnnoiseModule.default as ReturnType<typeof vi.fn>).mockResolvedValue(mockRNNoiseModule);
+    const mod = await import('@jitsi/rnnoise-wasm');
+    (mod.createRNNWasmModule as ReturnType<typeof vi.fn>).mockResolvedValue(mockModule);
 
     const { createNoisePipeline } = await import('./noiseSuppression');
     const rawStream = makeMockStream(true);
 
     const pipeline = await createNoisePipeline(rawStream);
     expect(pipeline.processedStream).toBe(mockDestinationStream);
-    expect(mockRNNoiseModule.newState).toHaveBeenCalled();
+    expect(mockModule._rnnoise_create).toHaveBeenCalledWith(0);
 
     pipeline.dispose();
-    expect(mockRNNoiseModule.deleteState).toHaveBeenCalledWith(mockState);
+    expect(mockModule._rnnoise_destroy).toHaveBeenCalledWith(mockState);
+    expect(mockModule._free).toHaveBeenCalledTimes(2); // inPtr and outPtr
     expect(mockClose).toHaveBeenCalled();
   });
 });

@@ -1,17 +1,24 @@
 /**
  * RNNoise-based noise suppression pipeline.
  *
- * Creates a Web Audio pipeline that processes a raw MediaStream through
- * the RNNoise ML model (via WASM) and returns a cleaned processed stream.
+ * Uses @jitsi/rnnoise-wasm (Emscripten-compiled C library).
+ * The module exposes raw C functions accessed via WASM heap pointers.
  *
  * The WASM module is loaded once and cached — subsequent calls reuse it.
  * Falls back to the raw stream if WASM fails to load.
  */
 
+import { createRNNWasmModule } from '@jitsi/rnnoise-wasm';
+
+// Emscripten module interface — exposes raw C functions and WASM heap
 interface RNNoiseModule {
-  newState(): number;
-  deleteState(state: number): void;
-  processFrame(state: number, input: Float32Array, output: Float32Array): number;
+  _rnnoise_create(modelPtr: number): number;
+  _rnnoise_destroy(state: number): void;
+  // Returns VAD probability; processes audio in-place via WASM heap pointers
+  _rnnoise_process_frame(state: number, outPtr: number, inPtr: number): number;
+  _malloc(size: number): number;
+  _free(ptr: number): void;
+  HEAPF32: Float32Array;
 }
 
 export interface NoisePipeline {
@@ -21,13 +28,15 @@ export interface NoisePipeline {
   dispose: () => void;
 }
 
-// Cached after first successful load — never re-fetched.
+// RNNoise requires exactly 480 samples per frame at 48 kHz
+const FRAME_SIZE = 480;
+
+// Cached after first successful load — cleared on rejection to allow retry
 let _wasmModulePromise: Promise<RNNoiseModule> | null = null;
 
 async function getRNNoiseModule(): Promise<RNNoiseModule> {
   if (!_wasmModulePromise) {
-    _wasmModulePromise = import('@jitsi/rnnoise-wasm')
-      .then(m => m.default())
+    _wasmModulePromise = (createRNNWasmModule() as unknown as Promise<RNNoiseModule>)
       .catch(err => {
         _wasmModulePromise = null; // allow retry on next call
         return Promise.reject(err);
@@ -50,9 +59,9 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
     return { processedStream: rawStream, dispose: () => {} };
   }
 
-  let rnnoise: RNNoiseModule;
+  let module: RNNoiseModule;
   try {
-    rnnoise = await getRNNoiseModule();
+    module = await getRNNoiseModule();
   } catch (err) {
     console.warn('[NC] RNNoise WASM failed to load, falling back to raw stream:', err);
     return { processedStream: rawStream, dispose: () => {} };
@@ -61,26 +70,28 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
   const ctx = new AudioContext({ sampleRate: 48000 });
   if (ctx.state === 'suspended') await ctx.resume();
 
-  const state = rnnoise.newState();
-  const source = ctx.createMediaStreamSource(rawStream);
-  const dest = ctx.createMediaStreamDestination();
+  // Allocate WASM state and heap buffers (Float32 = 4 bytes per sample)
+  const state = module._rnnoise_create(0);
+  const inPtr  = module._malloc(FRAME_SIZE * 4);
+  const outPtr = module._malloc(FRAME_SIZE * 4);
 
-  // RNNoise processes audio in 480-sample frames at 48 kHz.
-  // ScriptProcessorNode bufferSize must be a power of 2; 4096 ≈ 85 ms
-  // of latency — acceptable for voice chat. (AudioWorklet would be ideal
-  // but requires WASM available inside the worklet scope, which adds
-  // significant Vite configuration complexity.)
-  const FRAME_SIZE = 480;
+  const source = ctx.createMediaStreamSource(rawStream);
+  const dest   = ctx.createMediaStreamDestination();
+
+  // ScriptProcessorNode bufferSize must be a power of 2; 4096 ≈ 85 ms latency.
+  // AudioWorklet would be lower-latency but WASM-in-worklet requires more
+  // complex Vite configuration. ScriptProcessorNode is deprecated but still
+  // supported — expect deprecation warnings in DevTools.
   const processor = ctx.createScriptProcessor(4096, 1, 1);
 
   const inputAccum = new Float32Array(FRAME_SIZE);
   let inputOffset = 0;
   const pendingFrames: Float32Array[] = [];
-  let pendingHead = 0;        // index of the first unconsumed frame
+  let pendingHead = 0;
   let outputPendingOffset = 0;
 
   processor.onaudioprocess = (e: AudioProcessingEvent) => {
-    const input = e.inputBuffer.getChannelData(0);
+    const input  = e.inputBuffer.getChannelData(0);
     const output = e.outputBuffer.getChannelData(0);
 
     // ── Feed input into RNNoise 480-sample frames ──────────────────────
@@ -92,8 +103,18 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
       iPos += toCopy;
 
       if (inputOffset === FRAME_SIZE) {
+        // RNNoise expects int16-range floats [-32768, 32767]; Web Audio gives [-1, 1]
+        const heapIn = inPtr >> 2;
+        for (let i = 0; i < FRAME_SIZE; i++) {
+          module.HEAPF32[heapIn + i] = inputAccum[i] * 32768;
+        }
+        module._rnnoise_process_frame(state, outPtr, inPtr);
+        // Scale output back to Web Audio range [-1, 1]
+        const heapOut = outPtr >> 2;
         const processed = new Float32Array(FRAME_SIZE);
-        rnnoise.processFrame(state, inputAccum, processed);
+        for (let i = 0; i < FRAME_SIZE; i++) {
+          processed[i] = module.HEAPF32[heapOut + i] / 32768;
+        }
         pendingFrames.push(processed);
         inputOffset = 0;
       }
@@ -131,7 +152,9 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
       try {
         source.disconnect();
         processor.disconnect();
-        rnnoise.deleteState(state);
+        module._rnnoise_destroy(state);
+        module._free(inPtr);
+        module._free(outPtr);
         ctx.close();
       } catch {
         // Ignore errors during cleanup — call may already be torn down
