@@ -26,7 +26,12 @@ let _wasmModulePromise: Promise<RNNoiseModule> | null = null;
 
 async function getRNNoiseModule(): Promise<RNNoiseModule> {
   if (!_wasmModulePromise) {
-    _wasmModulePromise = import('@jitsi/rnnoise-wasm').then(m => m.default());
+    _wasmModulePromise = import('@jitsi/rnnoise-wasm')
+      .then(m => m.default())
+      .catch(err => {
+        _wasmModulePromise = null; // allow retry on next call
+        return Promise.reject(err);
+      });
   }
   return _wasmModulePromise;
 }
@@ -71,6 +76,7 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
   const inputAccum = new Float32Array(FRAME_SIZE);
   let inputOffset = 0;
   const pendingFrames: Float32Array[] = [];
+  let pendingHead = 0;        // index of the first unconsumed frame
   let outputPendingOffset = 0;
 
   processor.onaudioprocess = (e: AudioProcessingEvent) => {
@@ -95,16 +101,21 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
 
     // ── Drain pending processed frames into output ─────────────────────
     let oPos = 0;
-    while (oPos < output.length && pendingFrames.length > 0) {
-      const frame = pendingFrames[0];
+    while (oPos < output.length && pendingHead < pendingFrames.length) {
+      const frame = pendingFrames[pendingHead];
       const toCopy = Math.min(frame.length - outputPendingOffset, output.length - oPos);
       output.set(frame.subarray(outputPendingOffset, outputPendingOffset + toCopy), oPos);
       outputPendingOffset += toCopy;
       oPos += toCopy;
       if (outputPendingOffset >= frame.length) {
-        pendingFrames.shift();
+        pendingHead++;
         outputPendingOffset = 0;
       }
+    }
+    // Compact consumed frames to prevent unbounded growth
+    if (pendingHead > 0) {
+      pendingFrames.splice(0, pendingHead);
+      pendingHead = 0;
     }
   };
 
