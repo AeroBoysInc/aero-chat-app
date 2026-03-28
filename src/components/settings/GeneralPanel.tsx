@@ -2,6 +2,7 @@ import { X, Mic, Volume2, Headphones, Waves, Gamepad2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAudioStore } from '../../store/audioStore';
 import { useStatusStore } from '../../store/statusStore';
+import { useCallStore } from '../../store/callStore';
 
 interface Props { onClose: () => void; }
 
@@ -123,7 +124,7 @@ export function GeneralPanel({ onClose }: Props) {
             </div>
           </div>
           <button
-            onClick={() => set({ noiseCancellation: !noiseCancellation })}
+            onClick={() => useCallStore.getState().setNoiseCancellation(!noiseCancellation)}
             className="relative flex-shrink-0 h-5 w-9 rounded-full transition-colors duration-200"
             style={{ background: noiseCancellation ? '#00d4ff' : 'var(--btn-ghost-border)' }}
           >
