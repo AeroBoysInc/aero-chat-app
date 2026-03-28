@@ -250,11 +250,6 @@ export function ChatLayout() {
 
           {/* Chat area */}
           <main className="glass-chat flex flex-1 flex-col overflow-hidden min-w-0" style={{ position: 'relative', zIndex: 1 }}>
-            {callViewActive && (
-              <div style={{ position: 'absolute', inset: 0, zIndex: 20 }}>
-                <CallView />
-              </div>
-            )}
             {selectedContact ? (
               <ChatWindow contact={selectedContact} />
             ) : (
@@ -337,6 +332,13 @@ export function ChatLayout() {
             }}
           >
             <DevCorner />
+          </div>
+        )}
+
+        {/* CALL OVERLAY — above all layers so incoming calls are always visible */}
+        {callViewActive && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 50 }}>
+            <CallView />
           </div>
         )}
 
