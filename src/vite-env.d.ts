@@ -8,7 +8,9 @@ declare module '@jitsi/rnnoise-wasm' {
     _malloc(size: number): number;
     _free(ptr: number): void;
     HEAPF32: Float32Array;
+    ready: Promise<RNNoiseModule>;
   }
   export function createRNNWasmModule(): Promise<RNNoiseModule>;
+  // Sync variant has WASM inlined as base64 — no network fetch, works in production builds
   export function createRNNWasmModuleSync(): RNNoiseModule;
 }

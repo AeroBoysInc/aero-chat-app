@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @jitsi/rnnoise-wasm with the real named export
+// Mock @jitsi/rnnoise-wasm — only the sync variant is used
 vi.mock('@jitsi/rnnoise-wasm', () => ({
-  createRNNWasmModule: vi.fn(),
+  createRNNWasmModuleSync: vi.fn(),
 }));
 
 // Mock AudioContext and related Web Audio APIs
@@ -54,7 +54,10 @@ describe('createNoisePipeline', () => {
 
   it('returns raw stream as fallback when WASM fails to load', async () => {
     const mod = await import('@jitsi/rnnoise-wasm');
-    (mod.createRNNWasmModule as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('WASM load failed'));
+    // Simulate module returning an object whose .ready rejects
+    (mod.createRNNWasmModuleSync as ReturnType<typeof vi.fn>).mockReturnValue({
+      ready: Promise.reject(new Error('WASM load failed')),
+    });
 
     const { createNoisePipeline } = await import('./noiseSuppression');
     const rawStream = makeMockStream(true);
@@ -78,7 +81,11 @@ describe('createNoisePipeline', () => {
       HEAPF32: mockHeapF32,
     };
     const mod = await import('@jitsi/rnnoise-wasm');
-    (mod.createRNNWasmModule as ReturnType<typeof vi.fn>).mockResolvedValue(mockModule);
+    // Simulate createRNNWasmModuleSync() returning a module whose .ready resolves to itself
+    (mod.createRNNWasmModuleSync as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockModule,
+      ready: Promise.resolve(mockModule),
+    });
 
     const { createNoisePipeline } = await import('./noiseSuppression');
     const rawStream = makeMockStream(true);

@@ -8,17 +8,20 @@
  * Falls back to the raw stream if WASM fails to load.
  */
 
-import { createRNNWasmModule } from '@jitsi/rnnoise-wasm';
+import { createRNNWasmModuleSync } from '@jitsi/rnnoise-wasm';
 
-// Emscripten module interface — exposes raw C functions and WASM heap
+// Emscripten module interface — exposes raw C functions and WASM heap.
+// The sync variant has the WASM binary inlined as base64, so it works in
+// production Vite builds without a separate rnnoise.wasm network fetch.
 interface RNNoiseModule {
   _rnnoise_create(modelPtr: number): number;
   _rnnoise_destroy(state: number): void;
-  // Returns VAD probability; processes audio in-place via WASM heap pointers
+  // Returns VAD probability; processes audio via WASM heap pointers
   _rnnoise_process_frame(state: number, outPtr: number, inPtr: number): number;
   _malloc(size: number): number;
   _free(ptr: number): void;
   HEAPF32: Float32Array;
+  ready: Promise<RNNoiseModule>;
 }
 
 export interface NoisePipeline {
@@ -36,7 +39,9 @@ let _wasmModulePromise: Promise<RNNoiseModule> | null = null;
 
 async function getRNNoiseModule(): Promise<RNNoiseModule> {
   if (!_wasmModulePromise) {
-    _wasmModulePromise = (createRNNWasmModule() as unknown as Promise<RNNoiseModule>)
+    // createRNNWasmModuleSync() returns the Module immediately (WASM is inlined),
+    // but functions are only available after module.ready resolves.
+    _wasmModulePromise = (createRNNWasmModuleSync() as unknown as RNNoiseModule).ready
       .catch(err => {
         _wasmModulePromise = null; // allow retry on next call
         return Promise.reject(err);
