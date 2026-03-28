@@ -11,6 +11,8 @@ const mockDisconnect = vi.fn();
 const mockClose = vi.fn();
 const mockResume = vi.fn().mockResolvedValue(undefined);
 const mockCreateMediaStreamSource = vi.fn(() => ({ connect: mockConnect, disconnect: mockDisconnect }));
+const mockGainNode = { connect: mockConnect, disconnect: mockDisconnect, gain: { value: 1 } };
+const mockCreateGain = vi.fn(() => mockGainNode);
 const mockCreateScriptProcessor = vi.fn(() => ({
   connect: mockConnect,
   disconnect: mockDisconnect,
@@ -24,6 +26,7 @@ vi.stubGlobal('AudioContext', vi.fn(function () {
     state: 'running',
     resume: mockResume,
     createMediaStreamSource: mockCreateMediaStreamSource,
+    createGain: mockCreateGain,
     createScriptProcessor: mockCreateScriptProcessor,
     createMediaStreamDestination: mockCreateMediaStreamDestination,
     close: mockClose,
@@ -64,7 +67,8 @@ describe('createNoisePipeline', () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const pipeline = await createNoisePipeline(rawStream);
-    expect(pipeline.processedStream).toBe(rawStream);
+    // Falls back to gain pipeline — processedStream is the gain pipeline's destination
+    expect(pipeline.processedStream).toBe(mockDestinationStream);
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[NC]'), expect.anything());
     pipeline.dispose();
   });
