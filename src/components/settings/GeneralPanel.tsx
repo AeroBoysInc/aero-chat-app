@@ -124,6 +124,7 @@ export function GeneralPanel({ onClose }: Props) {
             </div>
           </div>
           <button
+            // Write goes through callStore so mid-call toggle also swaps the WebRTC audio track
             onClick={() => useCallStore.getState().setNoiseCancellation(!noiseCancellation)}
             className="relative flex-shrink-0 h-5 w-9 rounded-full transition-colors duration-200"
             style={{ background: noiseCancellation ? '#00d4ff' : 'var(--btn-ghost-border)' }}
