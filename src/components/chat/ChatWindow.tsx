@@ -439,6 +439,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const audioChunksRef        = useRef<Blob[]>([]);
   const recordTimerRef        = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingPipelineRef  = useRef<NoisePipeline | null>(null);
+  const rawStreamRef          = useRef<MediaStream | null>(null);
   const inputRef           = useRef<HTMLInputElement>(null);
   const fileInputRef       = useRef<HTMLInputElement>(null);
 
@@ -780,11 +781,18 @@ export function ChatWindow({ contact, onBack }: Props) {
         ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
       };
       const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      rawStreamRef.current = rawStream;
 
       // Route through RNNoise pipeline when NC is enabled
       let recordStream = rawStream;
       if (noiseCancellation) {
         const pipeline = await createNoisePipeline(rawStream);
+        // If cancelRecording() fired during the await, rawStreamRef was cleared — bail out
+        if (!rawStreamRef.current) {
+          pipeline.dispose();
+          rawStream.getTracks().forEach(t => t.stop());
+          return;
+        }
         recordingPipelineRef.current = pipeline;
         recordStream = pipeline.processedStream;
       }
@@ -795,7 +803,8 @@ export function ChatWindow({ contact, onBack }: Props) {
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => {
-        rawStream.getTracks().forEach(t => t.stop());
+        rawStreamRef.current?.getTracks().forEach(t => t.stop());
+        rawStreamRef.current = null;
         recordingPipelineRef.current?.dispose();
         recordingPipelineRef.current = null;
       };
@@ -815,6 +824,11 @@ export function ChatWindow({ contact, onBack }: Props) {
   }
 
   function cancelRecording() {
+    // Null rawStreamRef first — signals any pending startRecording await to bail out
+    const rs = rawStreamRef.current;
+    rawStreamRef.current = null;
+    rs?.getTracks().forEach(t => t.stop());
+
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.onstop = null;
@@ -837,6 +851,11 @@ export function ChatWindow({ contact, onBack }: Props) {
     setIsRecording(false);
     setRecordDuration(0);
     await new Promise<void>(resolve => { mr.onstop = () => resolve(); mr.stop(); });
+    // Clean up raw stream and pipeline (mr.onstop was overwritten above so we do it here)
+    rawStreamRef.current?.getTracks().forEach(t => t.stop());
+    rawStreamRef.current = null;
+    recordingPipelineRef.current?.dispose();
+    recordingPipelineRef.current = null;
     if (audioChunksRef.current.length === 0) return;
     const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
     audioChunksRef.current = [];
