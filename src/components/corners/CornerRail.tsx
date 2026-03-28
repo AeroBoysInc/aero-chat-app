@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gamepad2, Terminal } from 'lucide-react';
+import { Gamepad2, Terminal, PenTool } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 
 interface RailBtnProps {
@@ -79,7 +79,7 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
 }
 
 export function CornerRail() {
-  const { gameViewActive, openGameHub, closeGameView, devViewActive, openDevView, closeDevView } = useCornerStore();
+  const { gameViewActive, openGameHub, closeGameView, devViewActive, openDevView, closeDevView, writerViewActive, openWriterHub, closeWriterView } = useCornerStore();
 
   return (
     <div
@@ -101,6 +101,13 @@ export function CornerRail() {
           color="#00d4ff"
           tooltip={gameViewActive ? 'Back to Chat' : 'Games Corner'}
           onClick={() => gameViewActive ? closeGameView() : openGameHub()}
+        />
+        <RailBtn
+          icon={PenTool}
+          isActive={writerViewActive}
+          color="#a855f7"
+          tooltip={writerViewActive ? 'Back to Chat' : 'Writers Corner'}
+          onClick={() => writerViewActive ? closeWriterView() : openWriterHub()}
         />
       </div>
 

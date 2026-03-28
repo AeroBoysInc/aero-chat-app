@@ -1,5 +1,5 @@
 import { Lock, Bell, LogOut } from 'lucide-react';
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { lazy, Suspense, useRef, useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from './ChatWindow';
 import { AeroLogo } from '../ui/AeroLogo';
@@ -8,6 +8,7 @@ import { CornerRail } from '../corners/CornerRail';
 import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
+const WritersCorner = lazy(() => import('../corners/WritersCorner').then(m => ({ default: m.WritersCorner })));
 import { CallView } from '../call/CallView';
 import { FriendRequestModal } from './FriendRequestModal';
 import { useChatStore } from '../../store/chatStore';
@@ -30,8 +31,8 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive, devViewActive } = useCornerStore();
-  const anyViewActive = gameViewActive || devViewActive;
+  const { gameViewActive, devViewActive, writerViewActive } = useCornerStore();
+  const anyViewActive = gameViewActive || devViewActive || writerViewActive;
   const callStatus = useCallStore(s => s.status);
   const callViewActive = callStatus !== 'idle';
   const { signOut } = useAuthStore();
@@ -300,6 +301,26 @@ export function ChatLayout() {
         >
           <GamesCorner />
           <GameChatOverlay />
+        </div>
+
+        {/* ── WRITER LAYER ──────────────────────────────────── */}
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            transform: writerViewActive ? 'translateX(0)' : 'translateX(102%)',
+            opacity: writerViewActive ? 1 : 0,
+            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+            pointerEvents: writerViewActive ? 'auto' : 'none',
+            willChange: 'transform, opacity',
+          }}
+        >
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center" style={{ color: 'rgba(168,85,247,0.7)', fontSize: 13 }}>
+              Loading Writers Corner...
+            </div>
+          }>
+            <WritersCorner />
+          </Suspense>
         </div>
 
         {/* DEV LAYER — only rendered in dev builds */}
