@@ -17,6 +17,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
+import { createNoisePipeline, type NoisePipeline } from '../../lib/noiseSuppression';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
@@ -369,7 +370,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { setTyping } = useTypingStore();
   const friends = useFriendStore(useShallow(s => s.friends));
   const { gameViewActive, gameChatOverlay } = useCornerStore();
-  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
+  const { inputDeviceId, outputDeviceId, noiseCancellation, outputVolume } = useAudioStore();
   const playingGames  = usePresenceStore(s => s.playingGames);
   const onlineIds     = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
@@ -434,9 +435,10 @@ export function ChatWindow({ contact, onBack }: Props) {
   const isTypingRef        = useRef(false);
   const historyLoadedRef   = useRef(false);
   const pendingDecrypt     = useRef<Message[]>([]);
-  const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
-  const audioChunksRef     = useRef<Blob[]>([]);
-  const recordTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mediaRecorderRef      = useRef<MediaRecorder | null>(null);
+  const audioChunksRef        = useRef<Blob[]>([]);
+  const recordTimerRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingPipelineRef  = useRef<NoisePipeline | null>(null);
   const inputRef           = useRef<HTMLInputElement>(null);
   const fileInputRef       = useRef<HTMLInputElement>(null);
 
@@ -773,18 +775,30 @@ export function ChatWindow({ contact, onBack }: Props) {
   async function startRecording() {
     try {
       const audioConstraints: MediaTrackConstraints = {
-        noiseSuppression: noiseCancellation,
-        echoCancellation: noiseCancellation,
-        ...(inputVolume !== 80 ? { } : {}), // volume is applied at playback side
+        noiseSuppression: false,
+        echoCancellation: true,
         ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
       };
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+
+      // Route through RNNoise pipeline when NC is enabled
+      let recordStream = rawStream;
+      if (noiseCancellation) {
+        const pipeline = await createNoisePipeline(rawStream);
+        recordingPipelineRef.current = pipeline;
+        recordStream = pipeline.processedStream;
+      }
+
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus' : 'audio/webm';
-      const mr = new MediaRecorder(stream, { mimeType });
+      const mr = new MediaRecorder(recordStream, { mimeType });
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => stream.getTracks().forEach(t => t.stop());
+      mr.onstop = () => {
+        rawStream.getTracks().forEach(t => t.stop());
+        recordingPipelineRef.current?.dispose();
+        recordingPipelineRef.current = null;
+      };
       mr.start(100);
       mediaRecorderRef.current = mr;
       setIsRecording(true);
@@ -807,6 +821,8 @@ export function ChatWindow({ contact, onBack }: Props) {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
+    recordingPipelineRef.current?.dispose();
+    recordingPipelineRef.current = null;
     audioChunksRef.current = [];
     setIsRecording(false);
     setRecordDuration(0);
