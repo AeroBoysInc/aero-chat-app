@@ -7,7 +7,7 @@ import { useUnreadStore } from '../../store/unreadStore';
 import { useTypingStore } from '../../store/typingStore';
 import { useFriendStore } from '../../store/friendStore';
 import { useCornerStore } from '../../store/cornerStore';
-import { loadChatCache, saveChatCache, clearChatCache, saveClearTimestamp, loadClearTimestamp } from '../../lib/chatCache';
+import { loadChatCache, saveChatCache, saveChatCacheDebounced, clearChatCache, saveClearTimestamp, loadClearTimestamp } from '../../lib/chatCache';
 import { AvatarImage, statusColor, statusLabel, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
@@ -369,18 +369,17 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { clear } = useUnreadStore();
   const { setTyping } = useTypingStore();
   const friends = useFriendStore(useShallow(s => s.friends));
-  const { gameViewActive, gameChatOverlay } = useCornerStore();
-  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
-  const playingGames  = usePresenceStore(s => s.playingGames);
-  const onlineIds     = usePresenceStore(s => s.onlineIds);
+  const { gameViewActive, gameChatOverlay } = useCornerStore(useShallow(s => ({ gameViewActive: s.gameViewActive, gameChatOverlay: s.gameChatOverlay })));
+  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore(useShallow(s => ({ inputDeviceId: s.inputDeviceId, outputDeviceId: s.outputDeviceId, noiseCancellation: s.noiseCancellation, inputVolume: s.inputVolume, outputVolume: s.outputVolume })));
+  const contactGame   = usePresenceStore(s => s.playingGames.get(contact.id));
+  const contactOnline = usePresenceStore(s => s.onlineIds.has(contact.id));
   const presenceReady = usePresenceStore(s => s.presenceReady);
-  const contactGame = playingGames.get(contact.id);
   const callStatus = useCallStore(s => s.status);
-  const { startCall } = useCallStore();
+  const startCall  = useCallStore(s => s.startCall);
   // Mirror the same logic as Sidebar: presence channel overrides stored status to 'offline'
   // when the contact is not in the live online set (covers app-close / tab-close / logout).
   const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
-  const liveStatus: Status = presenceReady && !onlineIds.has(contact.id) ? 'offline' : storedStatus;
+  const liveStatus: Status = presenceReady && !contactOnline ? 'offline' : storedStatus;
 
   // Contact card bleed — gradient preset or photo background
   // For gradients: use the preview hex color to build a vivid directional bleed.
@@ -609,7 +608,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         const decoded: Message = { ...m, content };
         setMessages(prev => {
           const next = [...prev, decoded];
-          saveChatCache(user!.id, contact.id, next);
+          saveChatCacheDebounced(user!.id, contact.id, next);
           return next;
         });
         if (!useCornerStore.getState().gameViewActive || useCornerStore.getState().gameChatOverlay?.mode === 'conversation') {
@@ -630,7 +629,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           const next = prev.map(msg =>
             msg.id === m.id ? { ...msg, read_at: m.read_at } : msg
           );
-          saveChatCache(user!.id, contact.id, next);
+          saveChatCacheDebounced(user!.id, contact.id, next);
           return next;
         });
       })
@@ -691,9 +690,9 @@ export function ChatWindow({ contact, onBack }: Props) {
     if (nearBottom) {
       virtualizer.scrollToIndex(itemList.length - 1, { align: 'end' });
     }
-  }, [itemList.length, contactTyping]);
+  }, [itemList.length]);
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     // Only broadcast typing=true once per typing session, not on every keystroke
     if (!isTypingRef.current && channelRef.current) {
@@ -706,7 +705,7 @@ export function ChatWindow({ contact, onBack }: Props) {
       isTypingRef.current = false;
       if (channelRef.current) channelRef.current.track({ typing: false });
     }, 2500);
-  }
+  }, []);
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();

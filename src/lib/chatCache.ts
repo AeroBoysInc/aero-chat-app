@@ -53,6 +53,25 @@ export function saveChatCache(userId: string, contactId: string, messages: Cache
   } catch {}
 }
 
+// ── Debounced save — batches rapid writes into a single flush ────────────────
+const pendingWrites = new Map<string, { userId: string; contactId: string; messages: CachedMessage[] }>();
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushPending() {
+  for (const entry of pendingWrites.values()) {
+    saveChatCache(entry.userId, entry.contactId, entry.messages);
+  }
+  pendingWrites.clear();
+  flushTimer = null;
+}
+
+export function saveChatCacheDebounced(userId: string, contactId: string, messages: CachedMessage[]) {
+  const key = msgKey(userId, contactId);
+  pendingWrites.set(key, { userId, contactId, messages });
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(flushPending, 500);
+}
+
 export function clearChatCache(userId: string, contactId: string) {
   try { localStorage.removeItem(msgKey(userId, contactId)); } catch {}
 }
