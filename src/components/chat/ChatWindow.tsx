@@ -17,7 +17,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
-import { createNoisePipeline, type NoisePipeline } from '../../lib/noiseSuppression';
+import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../../lib/noiseSuppression';
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
@@ -370,7 +370,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const { setTyping } = useTypingStore();
   const friends = useFriendStore(useShallow(s => s.friends));
   const { gameViewActive, gameChatOverlay } = useCornerStore();
-  const { inputDeviceId, outputDeviceId, noiseCancellation, outputVolume } = useAudioStore();
+  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume } = useAudioStore();
   const playingGames  = usePresenceStore(s => s.playingGames);
   const onlineIds     = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
@@ -783,16 +783,19 @@ export function ChatWindow({ contact, onBack }: Props) {
       const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       rawStreamRef.current = rawStream;
 
-      // Route through RNNoise pipeline when NC is enabled
+      // Route through pipeline for noise cancellation and/or input gain control
       let recordStream = rawStream;
-      if (noiseCancellation) {
-        const pipeline = await createNoisePipeline(rawStream);
+      if (noiseCancellation || inputVolume !== 100) {
+        const pipeline = noiseCancellation
+          ? await createNoisePipeline(rawStream)
+          : await createGainPipeline(rawStream);
         // If cancelRecording() fired during the await, rawStreamRef was cleared — bail out
         if (!rawStreamRef.current) {
           pipeline.dispose();
           rawStream.getTracks().forEach(t => t.stop());
           return;
         }
+        pipeline.setInputGain(inputVolume / 100);
         recordingPipelineRef.current = pipeline;
         recordStream = pipeline.processedStream;
       }
@@ -889,11 +892,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   }
 
   // ── File / image sharing ──────────────────────────────────────────────────────
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    if (fileInputRef.current) fileInputRef.current.value = '';
-
+  async function uploadAndSendFile(file: File) {
+    if (!user) return;
     if (file.size > 10 * 1024 * 1024) {
       setSendError('File too large. Maximum size is 10 MB.');
       return;
@@ -920,6 +920,26 @@ export function ChatWindow({ contact, onBack }: Props) {
       mime: file.type || 'application/octet-stream',
     }));
     setIsUploading(false);
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    await uploadAndSendFile(file);
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) uploadAndSendFile(file);
+        return;
+      }
+    }
   }
 
   return (
@@ -1204,6 +1224,7 @@ export function ChatWindow({ contact, onBack }: Props) {
               placeholder={`Message ${contact.username}…`}
               value={input}
               onChange={handleInputChange}
+              onPaste={handlePaste}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }}
               disabled={!hasPrivateKey}
             />
