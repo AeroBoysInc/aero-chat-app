@@ -109,7 +109,8 @@ export function GeneralPanel({ onClose }: Props) {
           <input
             type="range" min={0} max={100}
             value={inputVolume}
-            onChange={e => set({ inputVolume: Number(e.target.value) })}
+            // Write goes through callStore so active calls hear the change immediately
+            onChange={e => useCallStore.getState().setInputGain(Number(e.target.value))}
             className="aero-slider w-full"
           />
         </div>

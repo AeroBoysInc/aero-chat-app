@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
-import { createNoisePipeline, type NoisePipeline } from '../lib/noiseSuppression';
+import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
 
 // ─── Module-level refs — NOT in Zustand state ───────────────────────────────
 // Mutable native objects that would break devtools serialization if in Zustand.
@@ -65,6 +65,7 @@ export interface CallState {
   startScreenShare(): Promise<void>;
   stopScreenShare(): void;
   setNoiseCancellation(enabled: boolean): Promise<void>;
+  setInputGain(value: number): void;
 }
 
 export const INITIAL_CALL_STATE = {
@@ -272,11 +273,13 @@ export const useCallStore = create<CallState>((set, get) => ({
     _peerConnection = createPeerConnection();
     const remoteStream = new MediaStream();
 
-    // ── Store raw stream and build NC pipeline ────────────────────────
+    // ── Store raw stream and build audio pipeline ─────────────────────
+    // Always create a pipeline so gain control works whether NC is on or off.
     _rawAudioStream = stream;
-    if (nc) {
-      _noisePipeline = await createNoisePipeline(stream);
-    }
+    _noisePipeline = nc
+      ? await createNoisePipeline(stream)
+      : await createGainPipeline(stream);
+    _noisePipeline.setInputGain(useAudioStore.getState().inputVolume / 100);
 
     // ── Add tracks ───────────────────────────────────────────────────────
     // Always add a black placeholder video sender so replaceTrack() is safe.
@@ -285,9 +288,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     const blackTrack = createBlackVideoTrack();
     _peerConnection.addTrack(blackTrack);
 
-    // Add audio — use processed stream if NC is on, raw stream if off
-    const audioSource = nc && _noisePipeline ? _noisePipeline.processedStream : stream;
-    audioSource.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+    _noisePipeline.processedStream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
 
     // For video calls, replace the black placeholder with the real camera track
     let cameraOn = false;
@@ -473,19 +474,20 @@ export const useCallStore = create<CallState>((set, get) => ({
     const remoteStream = new MediaStream();
     _peerConnection = createPeerConnection();
 
-    // ── Store raw stream and build NC pipeline ────────────────────────
+    // ── Store raw stream and build audio pipeline ─────────────────────
+    // Always create a pipeline so gain control works whether NC is on or off.
     _rawAudioStream = stream;
-    if (nc) {
-      _noisePipeline = await createNoisePipeline(stream);
-    }
+    _noisePipeline = nc
+      ? await createNoisePipeline(stream)
+      : await createGainPipeline(stream);
+    _noisePipeline.setInputGain(useAudioStore.getState().inputVolume / 100);
 
     // ── Add local tracks ─────────────────────────────────────────────────
     // No stream arg on blackTrack — same reason as in startCall (SDP stream binding)
     const blackTrack = createBlackVideoTrack();
     _peerConnection.addTrack(blackTrack);
 
-    const audioSource = nc && _noisePipeline ? _noisePipeline.processedStream : stream;
-    audioSource.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
+    _noisePipeline.processedStream.getAudioTracks().forEach(t => _peerConnection!.addTrack(t, stream));
 
     let cameraOn = false;
     if (callType === 'video' && stream.getVideoTracks().length > 0) {
@@ -748,30 +750,36 @@ export const useCallStore = create<CallState>((set, get) => ({
     // has taken over and this result should be discarded.
     const seq = ++_ncSeq;
 
-    let nextPipeline: NoisePipeline | null = null;
-    if (enabled) {
-      nextPipeline = await createNoisePipeline(_rawAudioStream);
-    }
+    // Always build a pipeline (NC on → noise+gain, NC off → gain-only)
+    const nextPipeline = enabled
+      ? await createNoisePipeline(_rawAudioStream)
+      : await createGainPipeline(_rawAudioStream);
 
     // Stale: a newer toggle (or hangUp) has already taken over
     if (seq !== _ncSeq) {
-      nextPipeline?.dispose();
+      nextPipeline.dispose();
       return;
     }
 
-    // Replace the current pipeline
+    // Replace the current pipeline and restore the current gain setting
     _noisePipeline?.dispose();
     _noisePipeline = nextPipeline;
+    _noisePipeline.setInputGain(useAudioStore.getState().inputVolume / 100);
 
     // Swap the audio track on the peer connection so the remote side hears the change
-    const newAudioTrack = enabled && _noisePipeline
-      ? _noisePipeline.processedStream.getAudioTracks()[0]
-      : _rawAudioStream?.getAudioTracks()[0];
+    const newAudioTrack = _noisePipeline.processedStream.getAudioTracks()[0];
     const sender = _peerConnection?.getSenders().find(s => s.track?.kind === 'audio');
     try {
       if (sender && newAudioTrack) await sender.replaceTrack(newAudioTrack);
     } catch (err) {
       console.error('[NC] replaceTrack failed:', err);
     }
+  },
+
+  setInputGain: (value: number) => {
+    // Persist preference regardless of call state
+    useAudioStore.getState().set({ inputVolume: value });
+    // Apply immediately to active pipeline if in a call
+    _noisePipeline?.setInputGain(value / 100);
   },
 }));

@@ -1,5 +1,5 @@
 /**
- * RNNoise-based noise suppression pipeline.
+ * RNNoise-based noise suppression pipeline + gain-only pipeline.
  *
  * Uses @jitsi/rnnoise-wasm (Emscripten-compiled C library).
  * The module exposes raw C functions accessed via WASM heap pointers.
@@ -25,8 +25,10 @@ interface RNNoiseModule {
 }
 
 export interface NoisePipeline {
-  /** Use this stream for WebRTC tracks and MediaRecorder — it contains cleaned audio. */
+  /** Use this stream for WebRTC tracks and MediaRecorder — it contains processed audio. */
   processedStream: MediaStream;
+  /** Adjusts microphone input gain. gain=1.0 is unity (100%); 0.5 = 50%; 1.5 = 150%. */
+  setInputGain(gain: number): void;
   /** Closes the AudioContext, frees WASM state, stops processed tracks. */
   dispose: () => void;
 }
@@ -51,7 +53,39 @@ async function getRNNoiseModule(): Promise<RNNoiseModule> {
 }
 
 /**
- * Builds a noise suppression pipeline around rawStream.
+ * Lightweight gain-only pipeline: source → gainNode → dest.
+ * Use when noise cancellation is off but input volume control is still needed.
+ */
+export async function createGainPipeline(rawStream: MediaStream): Promise<NoisePipeline> {
+  if (rawStream.getAudioTracks().length === 0) {
+    return { processedStream: rawStream, setInputGain: () => {}, dispose: () => {} };
+  }
+
+  const ctx = new AudioContext({ sampleRate: 48000 });
+  if (ctx.state === 'suspended') await ctx.resume();
+
+  const source   = ctx.createMediaStreamSource(rawStream);
+  const gainNode = ctx.createGain();
+  const dest     = ctx.createMediaStreamDestination();
+
+  source.connect(gainNode);
+  gainNode.connect(dest);
+
+  let disposed = false;
+  return {
+    processedStream: dest.stream,
+    setInputGain: (gain: number) => { gainNode.gain.value = gain; },
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      try { source.disconnect(); gainNode.disconnect(); ctx.close(); } catch {}
+    },
+  };
+}
+
+/**
+ * Builds a noise suppression + gain pipeline around rawStream.
+ * Graph: source → gainNode → scriptProcessor(RNNoise) → dest
  *
  * Returns a NoisePipeline whose processedStream contains the cleaned audio.
  * If rawStream has no audio tracks, or if the WASM fails to load, returns
@@ -61,15 +95,15 @@ async function getRNNoiseModule(): Promise<RNNoiseModule> {
 export async function createNoisePipeline(rawStream: MediaStream): Promise<NoisePipeline> {
   // No audio — nothing to process
   if (rawStream.getAudioTracks().length === 0) {
-    return { processedStream: rawStream, dispose: () => {} };
+    return { processedStream: rawStream, setInputGain: () => {}, dispose: () => {} };
   }
 
   let module: RNNoiseModule;
   try {
     module = await getRNNoiseModule();
   } catch (err) {
-    console.warn('[NC] RNNoise WASM failed to load, falling back to raw stream:', err);
-    return { processedStream: rawStream, dispose: () => {} };
+    console.warn('[NC] RNNoise WASM failed to load, falling back to gain-only pipeline:', err);
+    return createGainPipeline(rawStream);
   }
 
   const ctx = new AudioContext({ sampleRate: 48000 });
@@ -80,8 +114,9 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
   const inPtr  = module._malloc(FRAME_SIZE * 4);
   const outPtr = module._malloc(FRAME_SIZE * 4);
 
-  const source = ctx.createMediaStreamSource(rawStream);
-  const dest   = ctx.createMediaStreamDestination();
+  const source   = ctx.createMediaStreamSource(rawStream);
+  const gainNode = ctx.createGain();
+  const dest     = ctx.createMediaStreamDestination();
 
   // ScriptProcessorNode bufferSize must be a power of 2; 4096 ≈ 85 ms latency.
   // AudioWorklet would be lower-latency but WASM-in-worklet requires more
@@ -145,17 +180,21 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
     }
   };
 
-  source.connect(processor);
+  // source → gainNode → processor → dest
+  source.connect(gainNode);
+  gainNode.connect(processor);
   processor.connect(dest);
 
   let disposed = false;
   return {
     processedStream: dest.stream,
+    setInputGain: (gain: number) => { gainNode.gain.value = gain; },
     dispose: () => {
       if (disposed) return;
       disposed = true;
       try {
         source.disconnect();
+        gainNode.disconnect();
         processor.disconnect();
         module._rnnoise_destroy(state);
         module._free(inPtr);
