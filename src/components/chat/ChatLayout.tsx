@@ -96,8 +96,7 @@ export function ChatLayout() {
         <div style={{
           position: 'absolute', inset: 0,
           transform: mobilePaneShowChat ? 'translateX(-100%)' : 'translateX(0)',
-          transition: 'transform 0.30s cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
+          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}>
           <Sidebar selectedUser={selectedContact} onSelectUser={setSelectedContact} isMobile />
         </div>
@@ -106,8 +105,7 @@ export function ChatLayout() {
         <div style={{
           position: 'absolute', inset: 0,
           transform: mobilePaneShowChat ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.30s cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
+          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}>
           {selectedContact && (
             <div className="flex h-full flex-col" style={{ background: 'var(--sidebar-bg)' }}>
@@ -205,26 +203,25 @@ export function ChatLayout() {
             gap: 0,
             transform: anyViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
             opacity: anyViewActive ? 0 : 1,
-            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: anyViewActive ? 'none' : 'auto',
-            willChange: 'transform, opacity',
           }}
         >
           {/* Atmospheric background orbs — behind both glass panels */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
             <div className="orb" style={{
               width: 320, height: 320, left: '8%', top: '10%',
-              background: isNight ? 'rgba(0,160,255,0.10)' : 'rgba(0,180,255,0.12)',
+              background: `radial-gradient(circle, ${isNight ? 'rgba(0,160,255,0.10)' : 'rgba(0,180,255,0.12)'} 0%, transparent 70%)`,
               animation: 'orb-drift 8s ease-in-out infinite',
             }} />
             <div className="orb" style={{
               width: 260, height: 260, right: '6%', bottom: '20%',
-              background: isNight ? 'rgba(120,0,200,0.08)' : 'rgba(255,160,0,0.10)',
+              background: `radial-gradient(circle, ${isNight ? 'rgba(120,0,200,0.08)' : 'rgba(255,160,0,0.10)'} 0%, transparent 70%)`,
               animation: 'orb-drift 7s ease-in-out 2s infinite',
             }} />
             <div className="orb" style={{
               width: 200, height: 200, left: '40%', bottom: '8%',
-              background: isNight ? 'rgba(0,200,160,0.09)' : 'rgba(80,200,120,0.08)',
+              background: `radial-gradient(circle, ${isNight ? 'rgba(0,200,160,0.09)' : 'rgba(80,200,120,0.08)'} 0%, transparent 70%)`,
               animation: 'orb-drift 9s ease-in-out 4s infinite',
             }} />
           </div>
@@ -256,9 +253,9 @@ export function ChatLayout() {
               <div className="relative flex h-full items-center justify-center overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 overflow-hidden">
                   <div className="orb h-60 w-60"
-                    style={{ background: 'rgba(0,190,255,0.14)', left: '18%', top: '8%', animation: 'orb-drift 8s ease-in-out infinite' }} />
+                    style={{ background: 'radial-gradient(circle, rgba(0,190,255,0.14) 0%, transparent 70%)', left: '18%', top: '8%', animation: 'orb-drift 8s ease-in-out infinite' }} />
                   <div className="orb h-48 w-48"
-                    style={{ background: 'rgba(255,160,0,0.12)', right: '12%', bottom: '18%', animation: 'orb-drift 6s ease-in-out 1.5s infinite' }} />
+                    style={{ background: 'radial-gradient(circle, rgba(255,160,0,0.12) 0%, transparent 70%)', right: '12%', bottom: '18%', animation: 'orb-drift 6s ease-in-out 1.5s infinite' }} />
                 </div>
 
                 <div className="relative text-center animate-fade-in">
@@ -289,9 +286,8 @@ export function ChatLayout() {
             inset: 0,
             transform: gameViewActive ? 'translateX(0)' : 'translateX(102%)',
             opacity: gameViewActive ? 1 : 0,
-            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: gameViewActive ? 'auto' : 'none',
-            willChange: 'transform',
           }}
         >
           <GamesCorner />
@@ -304,9 +300,8 @@ export function ChatLayout() {
             position: 'absolute', inset: 0,
             transform: writerViewActive ? 'translateX(0)' : 'translateX(102%)',
             opacity: writerViewActive ? 1 : 0,
-            transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: writerViewActive ? 'auto' : 'none',
-            willChange: 'transform, opacity',
           }}
         >
           <Suspense fallback={
@@ -326,9 +321,8 @@ export function ChatLayout() {
               inset: 0,
               transform: devViewActive ? 'translateX(0)' : 'translateX(102%)',
               opacity: devViewActive ? 1 : 0,
-              transition: 'transform 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease',
+              transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
               pointerEvents: devViewActive ? 'auto' : 'none',
-              willChange: 'transform',
             }}
           >
             <DevCorner />

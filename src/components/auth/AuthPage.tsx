@@ -10,10 +10,10 @@ export function AuthPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       {/* Extra bokeh orbs layered on the auth screen */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="orb h-72 w-72 animate-pulse-glow" style={{ background: 'rgba(255,180,40,0.30)', left: '5%', top: '60%' }} />
-        <div className="orb h-56 w-56 animate-pulse-glow" style={{ background: 'rgba(80,210,80,0.22)', left: '2%', top: '25%', animationDelay: '1s' }} />
-        <div className="orb h-80 w-80 animate-pulse-glow" style={{ background: 'rgba(0,185,255,0.22)', right: '-4%', top: '5%', animationDelay: '0.5s' }} />
-        <div className="orb h-52 w-52 animate-pulse-glow" style={{ background: 'rgba(0,150,220,0.18)', right: '5%', bottom: '10%', animationDelay: '1.8s' }} />
+        <div className="orb h-72 w-72 animate-pulse-glow" style={{ background: 'radial-gradient(circle, rgba(255,180,40,0.30) 0%, transparent 70%)', left: '5%', top: '60%' }} />
+        <div className="orb h-56 w-56 animate-pulse-glow" style={{ background: 'radial-gradient(circle, rgba(80,210,80,0.22) 0%, transparent 70%)', left: '2%', top: '25%', animationDelay: '1s' }} />
+        <div className="orb h-80 w-80 animate-pulse-glow" style={{ background: 'radial-gradient(circle, rgba(0,185,255,0.22) 0%, transparent 70%)', right: '-4%', top: '5%', animationDelay: '0.5s' }} />
+        <div className="orb h-52 w-52 animate-pulse-glow" style={{ background: 'radial-gradient(circle, rgba(0,150,220,0.18) 0%, transparent 70%)', right: '5%', bottom: '10%', animationDelay: '1.8s' }} />
         {/* Horizontal light stripe */}
         <div
           className="absolute w-full h-px opacity-30"
