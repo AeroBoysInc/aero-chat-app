@@ -4,7 +4,7 @@ import { Chess } from 'chess.js';
 import { Flag, Wifi, WifiOff } from 'lucide-react';
 import { useChessStore } from '../../store/chessStore';
 import { useAuthStore } from '../../store/authStore';
-import { ChessBoard3D } from './ChessBoard3D';
+import { ChessBoard } from './ChessBoard';
 import { supabase } from '../../lib/supabase';
 
 const HEARTBEAT_INTERVAL = 10_000; // 10s
@@ -148,9 +148,9 @@ export function ChessGame() {
   const oppCaptures  = myColor === 'blue' ? capturedByGreen : capturedByBlue;
   const oppAdvantage = myColor === 'blue' ? greenAdvantage  : blueAdvantage;
 
-  const opponentColorName = myColor === 'blue' ? 'Green' : 'Blue';
-  const opponentDot = myColor === 'blue' ? '🟢' : '🔵';
-  const myDot       = myColor === 'blue' ? '🔵' : '🟢';
+  const opponentColorName = myColor === 'blue' ? 'Black' : 'White';
+  const opponentDot = myColor === 'blue' ? '⚫' : '⚪';
+  const myDot       = myColor === 'blue' ? '⚪' : '⚫';
 
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
@@ -224,7 +224,7 @@ export function ChessGame() {
             Array.from({ length: count }).map((_, i) => (
               <span key={`${type}-${i}`} style={{
                 fontSize: 13,
-                color: myColor === 'blue' ? '#34d399' : '#00d4ff',
+                color: myColor === 'blue' ? 'var(--text-primary)' : 'var(--text-muted)',
                 opacity: 0.75,
               }}>
                 {PIECE_GLYPHS[type]}
@@ -238,7 +238,7 @@ export function ChessGame() {
       </div>
 
       {/* Board */}
-      <ChessBoard3D
+      <ChessBoard
         chess={chess}
         myColor={myColor}
         lastMove={gameData.last_move}
@@ -259,7 +259,7 @@ export function ChessGame() {
             Array.from({ length: count }).map((_, i) => (
               <span key={`${type}-${i}`} style={{
                 fontSize: 13,
-                color: myColor === 'blue' ? '#34d399' : '#00d4ff',
+                color: myColor === 'blue' ? 'var(--text-primary)' : 'var(--text-muted)',
                 opacity: 0.75,
               }}>
                 {PIECE_GLYPHS[type]}

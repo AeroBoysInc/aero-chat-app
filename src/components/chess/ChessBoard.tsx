@@ -1,8 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import type { Chess, Square } from 'chess.js';
 
-// Unicode pieces — filled black glyphs, colored via CSS
-const GLYPHS: Record<string, string> = {
+/* ── Piece glyphs ────────────────────────────────────────────────────────────
+   White uses outline glyphs (♔♕♖♗♘♙), black uses filled (♚♛♜♝♞♟).
+   Both render cleanly at large sizes with drop-shadows for depth. */
+const WHITE_GLYPHS: Record<string, string> = {
+  k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙',
+};
+const BLACK_GLYPHS: Record<string, string> = {
   k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
 };
 
@@ -14,6 +19,107 @@ interface ChessBoardProps {
   disabled: boolean;
 }
 
+/* ── Individual square ──────────────────────────────────────────────────── */
+interface SquareProps {
+  sq: Square;
+  piece: ReturnType<Chess['get']>;
+  isLight: boolean;
+  isSelected: boolean;
+  isValidTarget: boolean;
+  isLastFrom: boolean;
+  isLastTo: boolean;
+  isKingInCheck: boolean;
+  disabled: boolean;
+  onClick: (sq: Square) => void;
+  size: number;
+}
+
+const SquareCell = memo(function SquareCell({
+  sq, piece, isLight, isSelected, isValidTarget,
+  isLastFrom, isLastTo, isKingInCheck, disabled, onClick, size,
+}: SquareProps) {
+  let bg: string;
+  if (isSelected) {
+    bg = 'rgba(168,85,247,0.50)';
+  } else if (isKingInCheck) {
+    bg = 'rgba(239,68,68,0.50)';
+  } else if (isLastFrom || isLastTo) {
+    bg = isLight
+      ? 'rgba(245,180,50,0.32)'
+      : 'rgba(245,180,50,0.22)';
+  } else if (isLight) {
+    bg = 'rgba(255,255,255,0.62)';
+  } else {
+    bg = 'rgba(0,90,180,0.18)';
+  }
+
+  const isWhitePiece = piece?.color === 'w';
+  const glyph = piece
+    ? (isWhitePiece ? WHITE_GLYPHS[piece.type] : BLACK_GLYPHS[piece.type])
+    : null;
+
+  return (
+    <div
+      onClick={() => onClick(sq)}
+      style={{
+        width: size,
+        height: size,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: bg,
+        cursor: disabled ? 'default' : 'pointer',
+        position: 'relative',
+        boxShadow: isLight && !isSelected && !isLastFrom && !isLastTo && !isKingInCheck
+          ? 'inset 0 1px 2px rgba(255,255,255,0.50)'
+          : undefined,
+      }}
+    >
+      {/* Valid move dot */}
+      {isValidTarget && !piece && (
+        <div style={{
+          width: size * 0.28,
+          height: size * 0.28,
+          borderRadius: '50%',
+          background: 'rgba(0,212,255,0.55)',
+          boxShadow: '0 0 6px rgba(0,212,255,0.50)',
+        }} />
+      )}
+
+      {/* Valid capture ring */}
+      {isValidTarget && piece && (
+        <div style={{
+          position: 'absolute',
+          inset: 2,
+          border: '3px solid rgba(0,212,255,0.65)',
+          borderRadius: 4,
+          boxShadow: 'inset 0 0 6px rgba(0,212,255,0.25)',
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Piece */}
+      {glyph && (
+        <span style={{
+          fontSize: size * 0.68,
+          lineHeight: 1,
+          color: isWhitePiece ? '#ffffff' : '#1a1a2e',
+          textShadow: isWhitePiece
+            ? '0 1px 3px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.30)'
+            : '0 1px 2px rgba(0,0,0,0.35)',
+          userSelect: 'none',
+          zIndex: 1,
+          position: 'relative',
+          filter: isSelected ? 'drop-shadow(0 0 6px rgba(168,85,247,0.70))' : undefined,
+        }}>
+          {glyph}
+        </span>
+      )}
+    </div>
+  );
+});
+
+/* ── Board ──────────────────────────────────────────────────────────────── */
 export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: ChessBoardProps) {
   const [selected, setSelected]     = useState<Square | null>(null);
   const [validMoves, setValidMoves] = useState<Square[]>([]);
@@ -39,7 +145,6 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
         setValidMoves([]);
         return;
       }
-      // Re-select own piece
       const piece = chess.get(sq);
       const isMyPiece =
         piece &&
@@ -56,7 +161,6 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
       return;
     }
 
-    // Select a piece
     const piece = chess.get(sq);
     const isMyPiece =
       piece &&
@@ -68,28 +172,38 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
     setValidMoves(moves);
   }, [disabled, selected, validMoves, chess, myColor, onMove]);
 
-  const boardSize = 52; // px per square
+  const SQ = 56;
 
   return (
     <div style={{
       display: 'inline-block',
-      borderRadius: 14,
+      borderRadius: 16,
       overflow: 'hidden',
-      boxShadow: '0 8px 40px rgba(0,150,255,0.25), 0 0 0 2px rgba(0,212,255,0.20)',
+      background: 'rgba(255,255,255,0.10)',
+      backdropFilter: 'blur(20px) saturate(1.6)',
+      WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+      border: '1px solid rgba(255,255,255,0.22)',
+      boxShadow: '0 8px 40px rgba(0,60,140,0.22), inset 0 1px 0 rgba(255,255,255,0.30)',
     }}>
       <div style={{ display: 'flex' }}>
         {/* Rank labels */}
         <div style={{
-          display: 'flex', flexDirection: 'column',
+          display: 'flex',
+          flexDirection: 'column',
           justifyContent: 'space-around',
-          padding: '0 4px 20px 6px',
-          background: 'rgba(0,130,210,0.15)',
+          padding: `4px 5px ${20 + 4}px 7px`,
         }}>
           {orderedRanks.map(r => (
             <span key={r} style={{
-              fontSize: 10, color: 'rgba(0,212,255,0.65)', fontWeight: 700,
-              width: 10, height: boardSize,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10,
+              color: 'var(--text-muted)',
+              fontWeight: 700,
+              width: 12,
+              height: SQ,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0.7,
             }}>
               {r}
             </span>
@@ -100,93 +214,37 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
           {/* Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(8, ${boardSize}px)`,
-            gridTemplateRows:    `repeat(8, ${boardSize}px)`,
+            gridTemplateColumns: `repeat(8, ${SQ}px)`,
+            gridTemplateRows: `repeat(8, ${SQ}px)`,
+            borderRadius: 8,
+            overflow: 'hidden',
+            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
           }}>
             {orderedRanks.map(rank =>
               orderedFiles.map(file => {
                 const sq      = `${file}${rank}` as Square;
                 const piece   = chess.get(sq);
                 const isLight = (file.charCodeAt(0) + parseInt(rank)) % 2 === 0;
-                const isSelected    = sq === selected;
-                const isValidTarget = validMoves.includes(sq);
-                const isLastFrom    = lastMove?.from === sq;
-                const isLastTo      = lastMove?.to   === sq;
                 const isKingInCheck =
                   chess.inCheck() &&
                   piece?.type === 'k' &&
                   piece.color === chess.turn();
 
-                let bg: string;
-                if (isSelected) {
-                  bg = 'rgba(168,85,247,0.55)';
-                } else if (isLastFrom || isLastTo) {
-                  bg = isLight ? 'rgba(245,158,11,0.40)' : 'rgba(245,158,11,0.28)';
-                } else if (isKingInCheck) {
-                  bg = 'rgba(239,68,68,0.60)';
-                } else if (isLight) {
-                  bg = 'radial-gradient(ellipse at 30% 35%, rgba(255,255,255,0.92) 0%, rgba(200,235,255,0.82) 55%, rgba(160,215,255,0.72) 100%)';
-                } else {
-                  bg = 'rgba(0,130,210,0.24)';
-                }
-
-                const pieceColor = piece
-                  ? (piece.color === 'w' ? '#00d4ff' : '#34d399')
-                  : undefined;
-
                 return (
-                  <div
+                  <SquareCell
                     key={sq}
-                    onClick={() => handleSquareClick(sq)}
-                    style={{
-                      width: boardSize, height: boardSize,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: bg,
-                      cursor: disabled ? 'default' : 'pointer',
-                      position: 'relative',
-                      transition: 'background 0.1s',
-                      boxShadow: isLight && !isSelected && !isLastFrom && !isLastTo && !isKingInCheck
-                        ? 'inset 0 1px 3px rgba(255,255,255,0.55)'
-                        : undefined,
-                    }}
-                  >
-                    {/* Valid move dot (empty square) */}
-                    {isValidTarget && !piece && (
-                      <div style={{
-                        width: 16, height: 16, borderRadius: '50%',
-                        background: 'rgba(0,212,255,0.60)',
-                        boxShadow: '0 0 8px rgba(0,212,255,0.65)',
-                        pointerEvents: 'none',
-                      }} />
-                    )}
-
-                    {/* Valid capture ring */}
-                    {isValidTarget && piece && (
-                      <div style={{
-                        position: 'absolute', inset: 2,
-                        border: '3px solid rgba(0,212,255,0.75)',
-                        borderRadius: 4,
-                        boxShadow: 'inset 0 0 8px rgba(0,212,255,0.30)',
-                        pointerEvents: 'none',
-                      }} />
-                    )}
-
-                    {/* Piece */}
-                    {piece && (
-                      <span style={{
-                        fontSize: 34, lineHeight: 1,
-                        color: pieceColor,
-                        textShadow: pieceColor === '#00d4ff'
-                          ? '0 0 10px rgba(0,212,255,0.85), 0 1px 2px rgba(0,0,0,0.40)'
-                          : '0 0 10px rgba(52,211,153,0.85), 0 1px 2px rgba(0,0,0,0.40)',
-                        userSelect: 'none',
-                        zIndex: 1,
-                        position: 'relative',
-                      }}>
-                        {GLYPHS[piece.type]}
-                      </span>
-                    )}
-                  </div>
+                    sq={sq}
+                    piece={piece}
+                    isLight={isLight}
+                    isSelected={sq === selected}
+                    isValidTarget={validMoves.includes(sq)}
+                    isLastFrom={lastMove?.from === sq}
+                    isLastTo={lastMove?.to === sq}
+                    isKingInCheck={isKingInCheck}
+                    disabled={disabled}
+                    onClick={handleSquareClick}
+                    size={SQ}
+                  />
                 );
               })
             )}
@@ -195,14 +253,17 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
           {/* File labels */}
           <div style={{
             display: 'flex',
-            background: 'rgba(0,130,210,0.15)',
-            paddingBottom: 4, paddingTop: 2,
+            paddingBottom: 5,
+            paddingTop: 4,
           }}>
-            <div style={{ width: 0 }} /> {/* spacer aligns with rank label column */}
             {orderedFiles.map(f => (
               <span key={f} style={{
-                width: boardSize, textAlign: 'center',
-                fontSize: 10, color: 'rgba(0,212,255,0.65)', fontWeight: 700,
+                width: SQ,
+                textAlign: 'center',
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                fontWeight: 700,
+                opacity: 0.7,
               }}>
                 {f}
               </span>
