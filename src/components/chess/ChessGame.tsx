@@ -48,7 +48,7 @@ function statusLabel(status: string, myColor: 'blue' | 'green') {
 }
 
 export function ChessGame() {
-  const { gameData, myColor, makeMove, resign, updateHeartbeat, backToLobby, setGameData, setDisconnectSecondsLeft, disconnectSecondsLeft } = useChessStore();
+  const { gameData, myColor, makeMove, resign, updateHeartbeat, backToLobby, setGameData, setDisconnectSecondsLeft, disconnectSecondsLeft, botGame, makeBotMove } = useChessStore();
   useAuthStore(); // keep store subscription alive
   const [resignConfirm, setResignConfirm] = useState(false);
   const [opponentOnline, setOpponentOnline] = useState(true);
@@ -56,6 +56,7 @@ export function ChessGame() {
   // Poll for remote state: pending→active transition + opponent moves
   // (fallback for when Supabase Realtime is not enabled on chess_games)
   useEffect(() => {
+    if (botGame) return;
     if (!gameData?.id) return;
     if (gameData.status !== 'pending' && gameData.status !== 'active') return;
 
@@ -78,17 +79,30 @@ export function ChessGame() {
 
   // Heartbeat: keep my last_seen fresh
   useEffect(() => {
+    if (botGame) return;
     if (!myColor || !gameData || gameData.status !== 'active') return;
     updateHeartbeat(myColor);
     const id = setInterval(() => updateHeartbeat(myColor), HEARTBEAT_INTERVAL);
     return () => clearInterval(id);
   }, [myColor, gameData?.status, updateHeartbeat]);
 
+  // Bot move: after player moves, wait a short delay then trigger bot
+  useEffect(() => {
+    if (!botGame || !gameData || gameData.status !== 'active') return;
+    const chess = new Chess(gameData.fen);
+    if (chess.turn() !== 'b') return;
+
+    const delay = 400 + Math.random() * 600;
+    const timer = setTimeout(() => { makeBotMove(); }, delay);
+    return () => clearTimeout(timer);
+  }, [botGame, gameData?.fen, gameData?.status, makeBotMove]);
+
   // Disconnect detection
   const secondsRef = useRef<number | null>(null);
   const checkInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const checkOpponent = useCallback(async () => {
+    if (botGame) return;
     if (!gameData || gameData.status !== 'active') return;
     const { data: row } = await supabase
       .from('chess_games')
@@ -114,7 +128,7 @@ export function ChessGame() {
       setOpponentOnline(true);
       setDisconnectSecondsLeft(null);
     }
-  }, [gameData, myColor, resign, setDisconnectSecondsLeft]);
+  }, [botGame, gameData, myColor, resign, setDisconnectSecondsLeft]);
 
   useEffect(() => {
     checkInterval.current = setInterval(checkOpponent, CHECK_INTERVAL);
@@ -204,17 +218,17 @@ export function ChessGame() {
       <div className="flex w-full max-w-[450px] items-center gap-2 px-1">
         <span style={{ fontSize: 16 }}>{opponentDot}</span>
         <span className="flex-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          {opponentColorName}
+          {botGame ? `Bot (${useChessStore.getState().botDifficulty})` : opponentColorName}
         </span>
 
-        {/* Disconnect warning */}
-        {!opponentOnline && disconnectSecondsLeft !== null && (
+        {/* Disconnect warning — online games only */}
+        {!botGame && !opponentOnline && disconnectSecondsLeft !== null && (
           <span className="flex items-center gap-1 text-xs font-bold" style={{ color: '#f59e0b' }}>
             <WifiOff className="h-3 w-3" />
             {disconnectSecondsLeft}s
           </span>
         )}
-        {opponentOnline && (
+        {!botGame && opponentOnline && (
           <Wifi className="h-3.5 w-3.5" style={{ color: 'rgba(52,211,153,0.60)' }} />
         )}
 
@@ -275,7 +289,7 @@ export function ChessGame() {
       {/* Turn indicator */}
       {!finished && (
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {isMyTurn ? 'Your move' : `Waiting for ${opponentColorName}…`}
+          {isMyTurn ? 'Your move' : botGame ? 'Bot is thinking...' : `Waiting for ${opponentColorName}…`}
         </p>
       )}
 

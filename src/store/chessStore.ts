@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { getBotMove, type BotDifficulty } from '../lib/chessAI';
 
 export type ChessPhase = 'lobby' | 'queue' | 'game';
 export type ChessColor = 'blue' | 'green';
@@ -32,6 +33,10 @@ interface ChessState {
   // Disconnect grace
   disconnectSecondsLeft: number | null;
 
+  // Bot
+  botGame: boolean;
+  botDifficulty: BotDifficulty | null;
+
   // Actions
   openLobby:   () => void;
   closeChess:  () => void;
@@ -48,6 +53,9 @@ interface ChessState {
   updateHeartbeat:          (myColor: ChessColor) => Promise<void>;
   setGameData:              (data: ChessGameRow) => void;
   setDisconnectSecondsLeft: (n: number | null) => void;
+
+  startBotGame: (difficulty: BotDifficulty) => void;
+  makeBotMove:  () => Promise<void>;
 }
 
 let _gameChannel:  ReturnType<typeof supabase.channel> | null = null;
@@ -61,12 +69,14 @@ export const useChessStore = create<ChessState>((set, get) => ({
   gameData: null,
   myColor: null,
   disconnectSecondsLeft: null,
+  botGame: false,
+  botDifficulty: null,
 
   openLobby: () => set({ chessViewActive: true, phase: 'lobby' }),
 
   backToLobby: () => {
     if (_gameChannel) { supabase.removeChannel(_gameChannel); _gameChannel = null; }
-    set({ phase: 'lobby', gameId: null, gameData: null, myColor: null, disconnectSecondsLeft: null });
+    set({ phase: 'lobby', gameId: null, gameData: null, myColor: null, disconnectSecondsLeft: null, botGame: false, botDifficulty: null });
   },
 
   closeChess: () => {
@@ -84,6 +94,8 @@ export const useChessStore = create<ChessState>((set, get) => ({
       gameData: null,
       myColor: null,
       disconnectSecondsLeft: null,
+      botGame: false,
+      botDifficulty: null,
     });
   },
 
@@ -172,6 +184,59 @@ export const useChessStore = create<ChessState>((set, get) => ({
     set({ queueEntryId: null, phase: 'lobby' });
   },
 
+  startBotGame: (difficulty) => {
+    const localGame: ChessGameRow = {
+      id: `bot-${Date.now()}`,
+      blue_player_id: 'local-player',
+      green_player_id: 'bot',
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      status: 'active',
+      last_move: null,
+      blue_last_seen: new Date().toISOString(),
+      green_last_seen: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    set({
+      phase: 'game',
+      gameId: localGame.id,
+      gameData: localGame,
+      myColor: 'blue',
+      botGame: true,
+      botDifficulty: difficulty,
+    });
+  },
+
+  makeBotMove: async () => {
+    const { gameData, botDifficulty } = get();
+    if (!gameData || !botDifficulty) return;
+
+    const result = getBotMove(gameData.fen, botDifficulty);
+    if (!result) return;
+
+    const { Chess } = await import('chess.js');
+    const chess = new Chess(gameData.fen);
+    const move = chess.move({ from: result.from, to: result.to, ...(result.promotion ? { promotion: result.promotion } : {}) });
+    if (!move) return;
+
+    const newFen = chess.fen();
+    let newStatus: ChessGameRow['status'] = 'active';
+    if (chess.isCheckmate()) {
+      newStatus = chess.turn() === 'w' ? 'green_wins' : 'blue_wins';
+    } else if (chess.isDraw()) {
+      newStatus = 'draw';
+    }
+
+    set({
+      gameData: {
+        ...gameData,
+        fen: newFen,
+        last_move: { from: result.from, to: result.to, promotion: result.promotion },
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      },
+    });
+  },
+
   startGame: async (gameId, myColor) => {
     const { data: game } = await supabase
       .from('chess_games')
@@ -223,22 +288,28 @@ export const useChessStore = create<ChessState>((set, get) => ({
       updated_at: updatedAt,
     });
 
-    await supabase
-      .from('chess_games')
-      .update({
-        fen: newFen,
-        last_move: { from, to, promotion },
-        status: newStatus,
-        updated_at: updatedAt,
-      })
-      .eq('id', gameId);
+    if (!get().botGame) {
+      await supabase
+        .from('chess_games')
+        .update({
+          fen: newFen,
+          last_move: { from, to, promotion },
+          status: newStatus,
+          updated_at: updatedAt,
+        })
+        .eq('id', gameId);
+    }
   },
 
   resign: async (losingColor) => {
-    const { gameId } = get();
+    const { gameId, gameData, botGame } = get();
     if (!gameId) return;
     const status = losingColor === 'blue' ? 'green_wins' : 'blue_wins';
-    await supabase.from('chess_games').update({ status }).eq('id', gameId);
+    if (botGame) {
+      if (gameData) set({ gameData: { ...gameData, status } });
+    } else {
+      await supabase.from('chess_games').update({ status }).eq('id', gameId);
+    }
   },
 
   updateHeartbeat: async (myColor) => {

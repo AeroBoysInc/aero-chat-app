@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Swords, UserPlus, X } from 'lucide-react';
+import { Swords, UserPlus, X, Bot } from 'lucide-react';
 import { useChessStore } from '../../store/chessStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -11,7 +11,7 @@ import { encryptMessage, loadPrivateKey } from '../../lib/crypto';
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
 export function ChessLobby() {
-  const { closeChess, joinQueue, startGame } = useChessStore();
+  const { closeChess, joinQueue, startGame, startBotGame } = useChessStore();
   const { selectGame } = useCornerStore();
 
   function handleClose() { closeChess(); selectGame(null); }
@@ -97,7 +97,7 @@ export function ChessLobby() {
           Aero<span style={{ color: '#00d4ff' }}>Chess</span>
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Real-time 1v1 — 🔵 Blue vs 🟢 Green
+          Play friends, find opponents, or challenge a bot
         </p>
       </div>
 
@@ -119,6 +119,39 @@ export function ChessLobby() {
         <Swords className="h-5 w-5" />
         {finding ? 'Searching…' : 'Find a Match'}
       </button>
+
+      {/* Play vs Bot */}
+      <div className="w-full max-w-sm">
+        <p className="mb-3 flex items-center gap-1.5 text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          <Bot className="h-3 w-3" />
+          Play vs Bot
+        </p>
+        <div className="flex gap-2">
+          {([
+            { level: 'easy' as const,   label: 'Easy',   color: '#34d399' },
+            { level: 'medium' as const, label: 'Medium', color: '#f59e0b' },
+            { level: 'hard' as const,   label: 'Hard',   color: '#ef4444' },
+          ]).map(({ level, label, color }) => (
+            <button
+              key={level}
+              onClick={() => startBotGame(level)}
+              className="flex-1 flex flex-col items-center gap-1 rounded-xl px-4 py-3 text-sm font-bold"
+              style={{
+                background: `${color}12`,
+                border: `1px solid ${color}40`,
+                color,
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = `${color}22`}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = `${color}12`}
+            >
+              {label}
+              <span className="text-[10px] font-normal opacity-60">
+                {level === 'easy' ? 'Beginner' : level === 'medium' ? 'Intermediate' : 'Advanced'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Friends list */}
       {friends.length > 0 && (
