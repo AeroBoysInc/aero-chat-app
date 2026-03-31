@@ -10,6 +10,7 @@ import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../
 // Pattern follows presenceChannelRef in App.tsx.
 let _peerConnection: RTCPeerConnection | null = null;
 let _signalingChannel: ReturnType<typeof supabase.channel> | null = null;
+let _channelSubscribed = false; // true once signaling channel reaches SUBSCRIBED state
 let _screenStream: MediaStream | null = null;
 let _cameraTrack: MediaStreamTrack | null = null; // saved before screen share starts
 let _pendingOffer: RTCSessionDescriptionInit | null = null; // stored on callee side
@@ -139,6 +140,7 @@ export const useCallStore = create<CallState>((set, get) => ({
         supabase.removeChannel(_signalingChannel!);
         _peerConnection = null;
         _signalingChannel = null;
+        _channelSubscribed = false;
         _screenStream = null;
         _cameraTrack = null;
         // Reset state to idle before setting ringing below
@@ -209,8 +211,9 @@ export const useCallStore = create<CallState>((set, get) => ({
       })
       .subscribe((status) => {
         // Send ringing ONLY after channel is SUBSCRIBED — send() on an unsubscribed
-        // channel is silently dropped, causing the caller to never see "Ringing…"
+        // channel silently falls back to REST, causing unreliable signaling.
         if (status === 'SUBSCRIBED') {
+          _channelSubscribed = true;
           _signalingChannel?.send({
             type: 'broadcast',
             event: 'call:ringing',
@@ -300,9 +303,11 @@ export const useCallStore = create<CallState>((set, get) => ({
       }
     }
 
-    // ── Subscribe to signaling channel BEFORE creating offer ────────────
+    // ── Subscribe to signaling channel and WAIT for SUBSCRIBED ─────────
     // CRITICAL: onicecandidate fires as soon as setLocalDescription() is called.
-    // _signalingChannel must exist by then or early ICE candidates are silently dropped.
+    // If the channel isn't SUBSCRIBED yet, send() falls back to REST (unreliable
+    // and being deprecated by Supabase). We must await SUBSCRIBED before creating
+    // the offer so all ICE candidates go through the Realtime WebSocket.
     _signalingChannel = supabase
       .channel(channelName)
       .on('broadcast', { event: 'call:ringing' }, ({ payload }) => {
@@ -330,7 +335,6 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:reject' }, ({ payload }) => {
         if (payload.callId !== callId) return;
         get().hangUp();
-        // TODO: show "Call declined" toast
       })
       .on('broadcast', { event: 'call:hangup' }, ({ payload }) => {
         if (payload.callId !== callId) return;
@@ -339,7 +343,6 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:busy' }, ({ payload }) => {
         if (payload.callId !== callId) return;
         get().hangUp();
-        // TODO: show "Contact is in another call" toast
       })
       .on('broadcast', { event: 'call:screenshare-start' }, ({ payload }) => {
         if (payload.callId !== callId) return;
@@ -348,13 +351,39 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:screenshare-stop' }, ({ payload }) => {
         if (payload.callId !== callId) return;
         set({ contactIsSharing: false });
-      })
-      .subscribe();
+      });
 
-    // ── Wire up peer connection events (after channel is ready) ──────────
+    // Wait for the channel to be fully SUBSCRIBED before proceeding
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Signaling channel subscription timeout')), 10_000);
+        _signalingChannel!.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            _channelSubscribed = true;
+            clearTimeout(timeout);
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            clearTimeout(timeout);
+            reject(new Error(`Signaling channel failed: ${status}`));
+          }
+        });
+      });
+    } catch (err) {
+      console.error('[call] Signaling channel failed to subscribe', err);
+      stream.getTracks().forEach(t => t.stop());
+      _peerConnection?.close();
+      _peerConnection = null;
+      if (_signalingChannel) supabase.removeChannel(_signalingChannel);
+      _signalingChannel = null;
+      _channelSubscribed = false;
+      _noisePipeline?.dispose();
+      _noisePipeline = null;
+      _rawAudioStream = null;
+      return;
+    }
+
+    // ── Wire up peer connection events (channel is now SUBSCRIBED) ───────
     _peerConnection.ontrack = (e) => {
-      // Use e.track directly — e.streams[0] is empty when the sender added
-      // the track without a stream arg (e.g. black placeholder video track).
       remoteStream.addTrack(e.track);
       useCallStore.setState({ remoteStream });
     };
@@ -377,12 +406,11 @@ export const useCallStore = create<CallState>((set, get) => ({
         handleIceRestart(callId);
       }
       if (state === 'failed') {
-        // TODO: show "Call ended (connection lost)" toast
         get().hangUp();
       }
     };
 
-    // ── Create offer (ICE gathering starts here — channel is already ready) ─
+    // ── Create offer (ICE gathering starts here — channel is SUBSCRIBED) ─
     const offer = await _peerConnection.createOffer();
     await _peerConnection.setLocalDescription(offer);
 
@@ -399,24 +427,42 @@ export const useCallStore = create<CallState>((set, get) => ({
       isMuted: false,
     });
 
-    // ── Send ring notification via REST broadcast (no subscription needed) ─
+    // ── Send ring notification via REST broadcast with retry ────────────
+    // REST broadcast is fire-and-forget: if the receiver's ring channel dropped
+    // momentarily, the notification is lost. Retry up to 3 times with 2s gaps,
+    // stopping early once the callee responds with call:ringing.
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-    await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: [{
-          topic: `call:ring:${contact.id}`,
-          event: 'call:offer',
-          payload: { sdp: offer, callId, callType, callerId: myUserId },
-        }],
-      }),
-    }).catch(err => console.error('[call] Failed to send ring notification', err));
+    const ringPayload = JSON.stringify({
+      messages: [{
+        topic: `call:ring:${contact.id}`,
+        event: 'call:offer',
+        payload: { sdp: offer, callId, callType, callerId: myUserId },
+      }],
+    });
+    const ringHeaders = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    const sendRing = () => fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: 'POST', headers: ringHeaders, body: ringPayload,
+    }).catch(err => console.error('[call] Ring notification failed', err));
+
+    await sendRing();
+
+    // Retry ring if callee hasn't responded yet
+    let ringRetries = 0;
+    const ringRetryInterval = setInterval(() => {
+      const s = get();
+      if (s.callId !== callId || s.status !== 'calling' || s.contactIsRinging || ringRetries >= 2) {
+        clearInterval(ringRetryInterval);
+        return;
+      }
+      ringRetries++;
+      sendRing();
+    }, 2_000);
 
     // ── 30-second no-answer timeout ───────────────────────────────────────
     setTimeout(() => {
@@ -528,6 +574,16 @@ export const useCallStore = create<CallState>((set, get) => ({
       }
     };
 
+    // ── Wait for channel to be SUBSCRIBED (should already be from handleIncomingOffer)
+    if (!_channelSubscribed) {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Signaling channel not ready')), 5_000);
+        const check = setInterval(() => {
+          if (_channelSubscribed) { clearInterval(check); clearTimeout(timeout); resolve(); }
+        }, 50);
+      });
+    }
+
     // ── SDP exchange ─────────────────────────────────────────────────────
     await _peerConnection.setRemoteDescription(_pendingOffer);
 
@@ -599,6 +655,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     // 6. Null all module-level refs
     _peerConnection = null;
     _signalingChannel = null;
+    _channelSubscribed = false;
     _screenStream = null;
     _cameraTrack = null;
     _pendingOffer = null;
@@ -624,12 +681,12 @@ export const useCallStore = create<CallState>((set, get) => ({
     }
 
     // Directly clean up without sending a second hangup:
-    // Stop any acquired local media tracks (may have been obtained if answerCall() was called)
     get().localStream?.getTracks().forEach(t => t.stop());
     _screenStream?.getTracks().forEach(t => t.stop());
     if (_signalingChannel) supabase.removeChannel(_signalingChannel);
     _peerConnection = null;
     _signalingChannel = null;
+    _channelSubscribed = false;
     _screenStream = null;
     _cameraTrack = null;
     _pendingOffer = null;
