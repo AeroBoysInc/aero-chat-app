@@ -550,7 +550,89 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     });
   },
   escalateToGroup: async () => { /* Task 5 */ },
-  joinGroupCall: async () => { /* Task 3 */ },
+  joinGroupCall: async (callId, _inviterUserId, existingParticipants) => {
+    const { useAuthStore } = await import('./authStore');
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    const myUserId = user.id;
+
+    const { noiseCancellation, inputVolume } = useAudioStore.getState();
+
+    try {
+      _rawAudioStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
+        video: false,
+      });
+    } catch {
+      set(INITIAL_STATE);
+      return;
+    }
+
+    _noisePipeline = noiseCancellation
+      ? await createNoisePipeline(_rawAudioStream)
+      : await createGainPipeline(_rawAudioStream);
+    _noisePipeline.setInputGain(inputVolume / 100);
+    _localStream = _noisePipeline.processedStream;
+
+    _audioContext = new AudioContext({ sampleRate: 48000 });
+
+    try {
+      await subscribeToGroupChannel(callId, myUserId);
+    } catch {
+      _rawAudioStream?.getTracks().forEach(t => t.stop());
+      _rawAudioStream = null;
+      _noisePipeline?.dispose();
+      _noisePipeline = null;
+      _localStream = null;
+      _audioContext?.close().catch(() => {});
+      _audioContext = null;
+      if (_groupChannel) supabase.removeChannel(_groupChannel);
+      _groupChannel = null;
+      set(INITIAL_STATE);
+      return;
+    }
+
+    // Build participants map from existing + self
+    const participants = new Map<string, GroupParticipant>();
+    for (const p of existingParticipants) {
+      participants.set(p.userId, p);
+    }
+    participants.set(myUserId, {
+      userId: myUserId,
+      username: user.username,
+      avatarUrl: user.avatar_url ?? null,
+      isMuted: false,
+      isSpeaking: false,
+      audioLevel: 0,
+    });
+
+    set({
+      status: 'connected',
+      callId,
+      myUserId,
+      participants,
+      callStartedAt: Date.now(),
+      isMuted: false,
+    });
+
+    // Broadcast join
+    _groupChannel!.send({
+      type: 'broadcast',
+      event: 'group:join',
+      payload: {
+        callId,
+        userId: myUserId,
+        username: user.username,
+        avatar_url: user.avatar_url ?? null,
+      },
+    });
+
+    startVAD(myUserId);
+
+    window.addEventListener('beforeunload', () => {
+      get().leaveCall();
+    });
+  },
   leaveCall: () => {
     const { callId } = get();
     if (callId) {
@@ -569,5 +651,15 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
   },
   startScreenShare: async () => { /* Task 4 */ },
   stopScreenShare: () => { /* Task 4 */ },
-  handleIncomingGroupInvite: () => { /* Task 3 */ },
+  handleIncomingGroupInvite: (callId, participants, _inviter) => {
+    const { status } = get();
+    if (status !== 'idle') return;
+
+    set({
+      status: 'ringing',
+      callId,
+      participants: new Map(participants.map(p => [p.userId, p])),
+      invitedUserIds: [],
+    });
+  },
 }));

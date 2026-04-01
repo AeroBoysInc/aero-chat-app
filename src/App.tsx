@@ -8,6 +8,7 @@ import { useUnreadStore } from './store/unreadStore';
 import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
 import { useCallStore } from './store/callStore';
+import { useGroupCallStore } from './store/groupCallStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
@@ -290,6 +291,25 @@ export default function App() {
         if (!caller) return; // Only accept calls from confirmed friends
 
         useCallStore.getState().handleIncomingOffer(sdp, callId, caller, callType ?? 'audio', user.id);
+      })
+      .on('broadcast', { event: 'call:group-invite' }, ({ payload }) => {
+        const { callId, inviter, participants } = payload;
+        if (!callId || !inviter) return;
+
+        // Only accept from friends
+        const friend = useFriendStore.getState().friends.find(f => f.id === inviter.userId);
+        if (!friend) return;
+
+        // Check not already in a call
+        const groupStatus = useGroupCallStore.getState().status;
+        const callStatus = useCallStore.getState().status;
+        if (groupStatus !== 'idle' || callStatus !== 'idle') return;
+
+        useGroupCallStore.getState().handleIncomingGroupInvite(
+          callId,
+          participants ?? [],
+          { ...friend },
+        );
       })
       .subscribe();
 
