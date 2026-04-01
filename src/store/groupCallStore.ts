@@ -858,3 +858,8 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     });
   },
 }));
+
+// Accessor for remote streams (used by GroupCallView's hidden audio elements)
+export function _getRemoteStream(userId: string): MediaStream | undefined {
+  return _remoteStreams.get(userId);
+}
