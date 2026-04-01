@@ -1,16 +1,10 @@
 // src/store/groupCallStore.ts
-// Imports used by placeholder actions in Tasks 2–5:
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
-
-// Suppress noUnusedLocals for skeleton — these are used in Tasks 2–5
-void createPeerConnection; void createBlackVideoTrack; void useAudioStore;
-void createNoisePipeline; void createGainPipeline;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -56,7 +50,8 @@ const _remoteStreams = new Map<string, MediaStream>();
 const _analysers = new Map<string, AnalyserNode>();
 
 let _groupChannel: ReturnType<typeof supabase.channel> | null = null;
-let _channelSubscribed = false;
+// eslint-disable-next-line prefer-const -- written in subscribe callback, read in joinGroupCall (Task 3)
+let _channelSubscribed = false; void _channelSubscribed;
 let _rawAudioStream: MediaStream | null = null;
 let _noisePipeline: NoisePipeline | null = null;
 let _screenStream: MediaStream | null = null;
@@ -88,8 +83,6 @@ function cleanupAll() {
   // Remove channel
   if (_groupChannel) supabase.removeChannel(_groupChannel);
 
-  // Null refs (void reads suppress noUnusedLocals until Tasks 2–5 use them)
-  void _channelSubscribed; void _rawAudioStream;
   _groupChannel = null;
   _channelSubscribed = false;
   _rawAudioStream = null;
@@ -113,12 +106,449 @@ const INITIAL_STATE = {
   invitedUserIds: [],
 };
 
+// ─── Helper: setup a peer connection for a remote user ─────────────────────
+
+function setupPeerConnection(
+  remoteUserId: string,
+  callId: string,
+  myUserId: string,
+): RTCPeerConnection {
+  const pc = createPeerConnection();
+  _peerConnections.set(remoteUserId, pc);
+
+  // Add local audio track from noise pipeline
+  if (_noisePipeline) {
+    for (const track of _noisePipeline.processedStream.getAudioTracks()) {
+      pc.addTrack(track, _noisePipeline.processedStream);
+    }
+  }
+
+  // Add black video placeholder so video sender exists for later replaceTrack
+  const blackTrack = createBlackVideoTrack();
+  const blackStream = new MediaStream([blackTrack]);
+  pc.addTrack(blackTrack, blackStream);
+
+  // Forward ICE candidates via broadcast channel
+  pc.onicecandidate = (e) => {
+    if (e.candidate && _groupChannel) {
+      _groupChannel.send({
+        type: 'broadcast',
+        event: 'group:ice',
+        payload: {
+          candidate: e.candidate.toJSON(),
+          callId,
+          fromUserId: myUserId,
+          toUserId: remoteUserId,
+        },
+      });
+    }
+  };
+
+  // Remote stream setup
+  const remoteStream = new MediaStream();
+  _remoteStreams.set(remoteUserId, remoteStream);
+
+  pc.ontrack = (e) => {
+    remoteStream.addTrack(e.track);
+
+    // Set up AnalyserNode for VAD if we have an audio context and this is audio
+    if (_audioContext && e.track.kind === 'audio') {
+      const source = _audioContext.createMediaStreamSource(new MediaStream([e.track]));
+      const analyser = _audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      _analysers.set(remoteUserId, analyser);
+    }
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    if (state === 'failed') {
+      // Clean up this peer
+      pc.close();
+      _peerConnections.delete(remoteUserId);
+      _remoteStreams.delete(remoteUserId);
+      _analysers.delete(remoteUserId);
+      _pendingCandidates.delete(remoteUserId);
+
+      const store = useGroupCallStore.getState();
+      const nextParticipants = new Map(store.participants);
+      nextParticipants.delete(remoteUserId);
+      useGroupCallStore.setState({ participants: nextParticipants });
+
+      // Auto-end if alone (only self remains)
+      if (_peerConnections.size === 0) {
+        store.leaveCall();
+      }
+    } else if (state === 'connected' || state === 'completed') {
+      useGroupCallStore.setState({ status: 'connected' });
+    }
+  };
+
+  return pc;
+}
+
+// ─── Helper: create & send an SDP offer to a remote peer ───────────────────
+
+async function createOfferForPeer(
+  remoteUserId: string,
+  callId: string,
+  myUserId: string,
+): Promise<void> {
+  const pc = _peerConnections.get(remoteUserId);
+  if (!pc) return;
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  _groupChannel?.send({
+    type: 'broadcast',
+    event: 'group:offer',
+    payload: {
+      sdp: pc.localDescription,
+      callId,
+      fromUserId: myUserId,
+      toUserId: remoteUserId,
+    },
+  });
+}
+
+// ─── Helper: subscribe to group signaling channel ──────────────────────────
+
+async function subscribeToGroupChannel(
+  callId: string,
+  myUserId: string,
+): Promise<void> {
+  const channel = supabase.channel(`call:group:${callId}`);
+  _groupChannel = channel;
+
+  channel.on('broadcast', { event: 'group:offer' }, async ({ payload }) => {
+    if (payload.toUserId !== myUserId) return;
+    const fromUserId: string = payload.fromUserId;
+
+    let pc = _peerConnections.get(fromUserId);
+    if (!pc) {
+      pc = setupPeerConnection(fromUserId, callId, myUserId);
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+
+    // Drain pending ICE candidates
+    const pending = _pendingCandidates.get(fromUserId);
+    if (pending) {
+      for (const c of pending) await pc.addIceCandidate(new RTCIceCandidate(c));
+      _pendingCandidates.delete(fromUserId);
+    }
+
+    // Send answer
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    _groupChannel?.send({
+      type: 'broadcast',
+      event: 'group:answer',
+      payload: {
+        sdp: pc.localDescription,
+        callId,
+        fromUserId: myUserId,
+        toUserId: fromUserId,
+      },
+    });
+  });
+
+  channel.on('broadcast', { event: 'group:answer' }, async ({ payload }) => {
+    if (payload.toUserId !== myUserId) return;
+    const fromUserId: string = payload.fromUserId;
+    const pc = _peerConnections.get(fromUserId);
+    if (!pc) return;
+
+    await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+
+    // Drain pending ICE candidates
+    const pending = _pendingCandidates.get(fromUserId);
+    if (pending) {
+      for (const c of pending) await pc.addIceCandidate(new RTCIceCandidate(c));
+      _pendingCandidates.delete(fromUserId);
+    }
+  });
+
+  channel.on('broadcast', { event: 'group:ice' }, async ({ payload }) => {
+    if (payload.toUserId !== myUserId) return;
+    const fromUserId: string = payload.fromUserId;
+    const pc = _peerConnections.get(fromUserId);
+
+    if (pc && pc.remoteDescription) {
+      await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+    } else {
+      // Queue until remote description is set
+      const pending = _pendingCandidates.get(fromUserId) ?? [];
+      pending.push(payload.candidate);
+      _pendingCandidates.set(fromUserId, pending);
+    }
+  });
+
+  channel.on('broadcast', { event: 'group:join' }, async ({ payload }) => {
+    if (payload.userId === myUserId) return;
+
+    // Add participant to store
+    const store = useGroupCallStore.getState();
+    const nextParticipants = new Map(store.participants);
+    nextParticipants.set(payload.userId, {
+      userId: payload.userId,
+      username: payload.username,
+      avatarUrl: payload.avatar_url ?? null,
+      isMuted: false,
+      isSpeaking: false,
+      audioLevel: 0,
+    });
+    useGroupCallStore.setState({ participants: nextParticipants });
+
+    // Set up peer connection
+    setupPeerConnection(payload.userId, callId, myUserId);
+
+    // Lower ID creates the offer (deterministic tie-breaking)
+    if (myUserId < payload.userId) {
+      await createOfferForPeer(payload.userId, callId, myUserId);
+    }
+  });
+
+  channel.on('broadcast', { event: 'group:leave' }, ({ payload }) => {
+    if (payload.userId === myUserId) return;
+    const remoteUserId: string = payload.userId;
+
+    // Tear down peer
+    const pc = _peerConnections.get(remoteUserId);
+    if (pc) pc.close();
+    _peerConnections.delete(remoteUserId);
+    _remoteStreams.delete(remoteUserId);
+    _analysers.delete(remoteUserId);
+    _pendingCandidates.delete(remoteUserId);
+
+    // Remove from store
+    const store = useGroupCallStore.getState();
+    const nextParticipants = new Map(store.participants);
+    nextParticipants.delete(remoteUserId);
+    useGroupCallStore.setState({ participants: nextParticipants });
+
+    // Auto-end if alone
+    if (_peerConnections.size === 0) {
+      store.leaveCall();
+    }
+  });
+
+  channel.on('broadcast', { event: 'group:mute' }, ({ payload }) => {
+    if (payload.userId === myUserId) return;
+    const store = useGroupCallStore.getState();
+    const p = store.participants.get(payload.userId);
+    if (!p) return;
+    const nextParticipants = new Map(store.participants);
+    nextParticipants.set(payload.userId, { ...p, isMuted: payload.muted });
+    useGroupCallStore.setState({ participants: nextParticipants });
+  });
+
+  channel.on('broadcast', { event: 'group:ringing' }, ({ payload }) => {
+    const store = useGroupCallStore.getState();
+    useGroupCallStore.setState({
+      invitedUserIds: store.invitedUserIds.filter((id) => id !== payload.userId),
+    });
+  });
+
+  channel.on('broadcast', { event: 'group:reject' }, ({ payload }) => {
+    const store = useGroupCallStore.getState();
+    useGroupCallStore.setState({
+      invitedUserIds: store.invitedUserIds.filter((id) => id !== payload.userId),
+    });
+  });
+
+  channel.on('broadcast', { event: 'group:screenshare-start' }, ({ payload }) => {
+    useGroupCallStore.setState({ screenSharingUserId: payload.userId });
+  });
+
+  channel.on('broadcast', { event: 'group:screenshare-stop' }, () => {
+    useGroupCallStore.setState({ screenSharingUserId: null });
+  });
+
+  // Subscribe with timeout
+  return new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Group channel subscription timed out'));
+    }, 10_000);
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        clearTimeout(timeout);
+        _channelSubscribed = true;
+        resolve();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        clearTimeout(timeout);
+        reject(new Error(`Group channel subscription failed: ${status}`));
+      }
+    });
+  });
+}
+
+// ─── Helper: Voice Activity Detection interval ─────────────────────────────
+
+function startVAD(myUserId: string): void {
+  if (_vadInterval) clearInterval(_vadInterval);
+
+  _vadInterval = setInterval(() => {
+    const store = useGroupCallStore.getState();
+    let changed = false;
+    const nextParticipants = new Map(store.participants);
+
+    for (const [userId, analyser] of _analysers) {
+      if (userId === myUserId) continue;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length / 255; // normalize to 0-1
+
+      const p = nextParticipants.get(userId);
+      if (!p) continue;
+
+      const speaking = avg > 0.04;
+      if (p.isSpeaking !== speaking || Math.abs(p.audioLevel - avg) > 0.01) {
+        nextParticipants.set(userId, { ...p, isSpeaking: speaking, audioLevel: avg });
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      useGroupCallStore.setState({ participants: nextParticipants });
+    }
+  }, 100);
+}
+
 // ─── Store ──────────────────────────────────────────────────────────────────
 
 export const useGroupCallStore = create<GroupCallState>((set, get) => ({
   ...INITIAL_STATE,
 
-  startGroupCall: async () => { /* Task 2 */ },
+  startGroupCall: async (friends: Profile[]) => {
+    // Get auth user
+    const { useAuthStore } = await import('./authStore');
+    const user = useAuthStore.getState().user;
+    if (!user) throw new Error('Not authenticated');
+    const myUserId = user.id;
+
+    // Audio settings
+    const { noiseCancellation, inputVolume } = useAudioStore.getState();
+
+    // Generate call ID
+    const callId = `group-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    try {
+      // Get audio stream
+      _rawAudioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+        video: false,
+      });
+
+      // Create noise / gain pipeline
+      _noisePipeline = noiseCancellation
+        ? await createNoisePipeline(_rawAudioStream)
+        : await createGainPipeline(_rawAudioStream);
+
+      _noisePipeline.setInputGain(inputVolume / 100);
+
+      // Store processed stream as localStream for mute toggle
+      _localStream = _noisePipeline.processedStream;
+
+      // Audio context for VAD analyser nodes
+      _audioContext = new AudioContext({ sampleRate: 48000 });
+
+      // Subscribe to group signaling channel
+      await subscribeToGroupChannel(callId, myUserId);
+    } catch (err) {
+      // Cleanup on failure
+      _rawAudioStream?.getTracks().forEach((t) => t.stop());
+      _rawAudioStream = null;
+      _noisePipeline?.dispose();
+      _noisePipeline = null;
+      _localStream = null;
+      _audioContext?.close().catch(() => {});
+      _audioContext = null;
+      if (_groupChannel) supabase.removeChannel(_groupChannel);
+      _groupChannel = null;
+      throw err;
+    }
+
+    // Build participant map with self
+    const participants = new Map<string, GroupParticipant>();
+    participants.set(myUserId, {
+      userId: myUserId,
+      username: user.username,
+      avatarUrl: user.avatar_url ?? null,
+      isMuted: false,
+      isSpeaking: false,
+      audioLevel: 0,
+    });
+
+    // Set state to calling
+    set({
+      status: 'calling',
+      callId,
+      myUserId,
+      participants,
+      callStartedAt: Date.now(),
+      invitedUserIds: friends.map((f) => f.id),
+    });
+
+    // Broadcast join for self
+    _groupChannel!.send({
+      type: 'broadcast',
+      event: 'group:join',
+      payload: {
+        callId,
+        userId: myUserId,
+        username: user.username,
+        avatar_url: user.avatar_url ?? null,
+      },
+    });
+
+    // Ring each friend via REST broadcast
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    for (const friend of friends) {
+      fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              topic: `realtime:call:ring:${friend.id}`,
+              event: 'call:group-invite',
+              payload: {
+                callId,
+                inviter: {
+                  userId: myUserId,
+                  username: user.username,
+                  avatar_url: user.avatar_url ?? null,
+                },
+                participants: Array.from(participants.values()),
+              },
+            },
+          ],
+        }),
+      }).catch((err) => console.warn('[GroupCall] Failed to ring', friend.id, err));
+    }
+
+    // Start VAD
+    startVAD(myUserId);
+
+    // beforeunload listener
+    window.addEventListener('beforeunload', () => {
+      get().leaveCall();
+    });
+  },
   escalateToGroup: async () => { /* Task 5 */ },
   joinGroupCall: async () => { /* Task 3 */ },
   leaveCall: () => {
