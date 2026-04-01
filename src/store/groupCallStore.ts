@@ -641,7 +641,41 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     cleanupAll();
     set(INITIAL_STATE);
   },
-  addParticipant: async () => { /* Task 4 */ },
+  addParticipant: async (friend) => {
+    const { callId, myUserId, participants } = get();
+    if (!callId || !myUserId) return;
+    if (participants.size >= 4) return; // Max 4
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const { useAuthStore } = await import('./authStore');
+    const user = useAuthStore.getState().user;
+
+    const participantList = Array.from(participants.values());
+
+    fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{
+          topic: `realtime:call:ring:${friend.id}`,
+          event: 'call:group-invite',
+          payload: {
+            callId,
+            inviter: {
+              userId: myUserId,
+              username: user?.username,
+              avatar_url: user?.avatar_url ?? null,
+            },
+            participants: participantList,
+          },
+        }],
+      }),
+    }).catch(err => console.error('[group-call] Ring failed for', friend.id, err));
+
+    set(s => ({ invitedUserIds: [...s.invitedUserIds, friend.id] }));
+  },
   toggleMute: () => {
     const { isMuted, callId, myUserId } = get();
     const next = !isMuted;
@@ -649,8 +683,67 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     _groupChannel?.send({ type: 'broadcast', event: 'group:mute', payload: { callId, userId: myUserId, muted: next } });
     set({ isMuted: next });
   },
-  startScreenShare: async () => { /* Task 4 */ },
-  stopScreenShare: () => { /* Task 4 */ },
+  startScreenShare: async () => {
+    const { callId, myUserId, screenSharingUserId } = get();
+    if (!callId || !myUserId) return;
+    if (screenSharingUserId && screenSharingUserId !== myUserId) return;
+
+    let screenStream: MediaStream;
+    try {
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30, width: { ideal: 1920 } },
+        audio: true,
+      });
+    } catch (err: unknown) {
+      if ((err as DOMException)?.name === 'NotAllowedError') return;
+      throw err;
+    }
+
+    _screenStream = screenStream;
+    const screenTrack = screenStream.getVideoTracks()[0];
+
+    // Replace black video placeholder on all peer connections
+    for (const pc of _peerConnections.values()) {
+      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) await videoSender.replaceTrack(screenTrack);
+    }
+
+    // Auto-stop when browser "Stop sharing" is clicked
+    screenTrack.addEventListener('ended', () => {
+      useGroupCallStore.getState().stopScreenShare();
+    });
+
+    _groupChannel?.send({
+      type: 'broadcast',
+      event: 'group:screenshare-start',
+      payload: { callId, userId: myUserId },
+    });
+
+    set({ screenSharingUserId: myUserId, localScreenStream: screenStream });
+  },
+  stopScreenShare: () => {
+    const { callId, myUserId } = get();
+    if (!callId || !myUserId) return;
+
+    _screenStream?.getTracks().forEach(t => t.stop());
+
+    // Replace with black track on all peers
+    const blackTrack = createBlackVideoTrack();
+    for (const pc of _peerConnections.values()) {
+      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+      if (videoSender) videoSender.replaceTrack(blackTrack).catch(() => {});
+    }
+
+    _screenStream = null;
+
+    _groupChannel?.send({
+      type: 'broadcast',
+      event: 'group:screenshare-stop',
+      payload: { callId, userId: myUserId },
+    });
+
+    set({ screenSharingUserId: null, localScreenStream: null });
+  },
   handleIncomingGroupInvite: (callId, participants, _inviter) => {
     const { status } = get();
     if (status !== 'idle') return;
