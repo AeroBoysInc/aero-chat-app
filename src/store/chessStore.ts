@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { getBotMove, type BotDifficulty } from '../lib/chessAI';
+import { useAuthStore } from './authStore';
 
 export type ChessPhase = 'lobby' | 'queue' | 'game';
 export type ChessColor = 'blue' | 'green';
+
+export interface ChessPlayerInfo {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+}
 
 export interface ChessGameRow {
   id: string;
@@ -30,6 +37,14 @@ interface ChessState {
   gameData: ChessGameRow | null;
   myColor: ChessColor | null;
 
+  // Player info
+  myPlayer: ChessPlayerInfo | null;
+  opponentPlayer: ChessPlayerInfo | null;
+
+  // Timer (seconds remaining per player)
+  blueTime: number;
+  greenTime: number;
+
   // Disconnect grace
   disconnectSecondsLeft: number | null;
 
@@ -53,10 +68,13 @@ interface ChessState {
   updateHeartbeat:          (myColor: ChessColor) => Promise<void>;
   setGameData:              (data: ChessGameRow) => void;
   setDisconnectSecondsLeft: (n: number | null) => void;
+  tickTimer:                () => void;
 
   startBotGame: (difficulty: BotDifficulty) => void;
   makeBotMove:  () => Promise<void>;
 }
+
+const INITIAL_TIME = 10 * 60; // 10 minutes per player
 
 let _gameChannel:  ReturnType<typeof supabase.channel> | null = null;
 let _queueChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -68,6 +86,10 @@ export const useChessStore = create<ChessState>((set, get) => ({
   gameId: null,
   gameData: null,
   myColor: null,
+  myPlayer: null,
+  opponentPlayer: null,
+  blueTime: INITIAL_TIME,
+  greenTime: INITIAL_TIME,
   disconnectSecondsLeft: null,
   botGame: false,
   botDifficulty: null,
@@ -76,7 +98,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
 
   backToLobby: () => {
     if (_gameChannel) { supabase.removeChannel(_gameChannel); _gameChannel = null; }
-    set({ phase: 'lobby', gameId: null, gameData: null, myColor: null, disconnectSecondsLeft: null, botGame: false, botDifficulty: null });
+    set({ phase: 'lobby', gameId: null, gameData: null, myColor: null, myPlayer: null, opponentPlayer: null, blueTime: INITIAL_TIME, greenTime: INITIAL_TIME, disconnectSecondsLeft: null, botGame: false, botDifficulty: null });
   },
 
   closeChess: () => {
@@ -93,6 +115,10 @@ export const useChessStore = create<ChessState>((set, get) => ({
       gameId: null,
       gameData: null,
       myColor: null,
+      myPlayer: null,
+      opponentPlayer: null,
+      blueTime: INITIAL_TIME,
+      greenTime: INITIAL_TIME,
       disconnectSecondsLeft: null,
       botGame: false,
       botDifficulty: null,
@@ -185,9 +211,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
   },
 
   startBotGame: (difficulty) => {
+    const user = useAuthStore.getState().user;
+
     const localGame: ChessGameRow = {
       id: `bot-${Date.now()}`,
-      blue_player_id: 'local-player',
+      blue_player_id: user?.id ?? 'local-player',
       green_player_id: 'bot',
       fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       status: 'active',
@@ -196,11 +224,16 @@ export const useChessStore = create<ChessState>((set, get) => ({
       green_last_seen: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    const diffLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
     set({
       phase: 'game',
       gameId: localGame.id,
       gameData: localGame,
       myColor: 'blue',
+      myPlayer: user ? { id: user.id, username: user.username, avatar_url: user.avatar_url ?? null } : null,
+      opponentPlayer: { id: 'bot', username: `Bot (${diffLabel})`, avatar_url: null },
+      blueTime: INITIAL_TIME,
+      greenTime: INITIAL_TIME,
       botGame: true,
       botDifficulty: difficulty,
     });
@@ -244,7 +277,19 @@ export const useChessStore = create<ChessState>((set, get) => ({
       .eq('id', gameId)
       .single();
 
-    set({ gameId, myColor, gameData: game as ChessGameRow, phase: 'game' });
+    // Fetch both players' profiles
+    const user = useAuthStore.getState().user;
+    const opponentId = myColor === 'blue' ? game?.green_player_id : game?.blue_player_id;
+    const { data: opponentProfile } = opponentId
+      ? await supabase.from('profiles').select('id, username, avatar_url').eq('id', opponentId).single()
+      : { data: null };
+
+    set({
+      gameId, myColor, gameData: game as ChessGameRow, phase: 'game',
+      blueTime: INITIAL_TIME, greenTime: INITIAL_TIME,
+      myPlayer: user ? { id: user.id, username: user.username, avatar_url: user.avatar_url ?? null } : null,
+      opponentPlayer: opponentProfile ? { id: opponentProfile.id, username: opponentProfile.username, avatar_url: opponentProfile.avatar_url } : null,
+    });
 
     if (_gameChannel) { supabase.removeChannel(_gameChannel); }
     _gameChannel = supabase
@@ -324,4 +369,19 @@ export const useChessStore = create<ChessState>((set, get) => ({
 
   setGameData:              (data) => set({ gameData: data }),
   setDisconnectSecondsLeft: (n)    => set({ disconnectSecondsLeft: n }),
+  tickTimer: () => {
+    const { gameData, blueTime, greenTime } = get();
+    if (!gameData || gameData.status !== 'active') return;
+    // Determine whose turn it is from the FEN
+    const turnColor = gameData.fen.split(' ')[1]; // 'w' or 'b'
+    if (turnColor === 'w') {
+      const next = blueTime - 1;
+      set({ blueTime: Math.max(0, next) });
+      if (next <= 0) get().resign('blue');
+    } else {
+      const next = greenTime - 1;
+      set({ greenTime: Math.max(0, next) });
+      if (next <= 0) get().resign('green');
+    }
+  },
 }));

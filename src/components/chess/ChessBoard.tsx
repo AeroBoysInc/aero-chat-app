@@ -172,7 +172,7 @@ export function ChessBoard({ chess, myColor, lastMove, onMove, disabled }: Chess
     setValidMoves(moves);
   }, [disabled, selected, validMoves, chess, myColor, onMove]);
 
-  const SQ = 56;
+  const SQ = 76;
 
   return (
     <div style={{
