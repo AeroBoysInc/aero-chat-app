@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -15,6 +15,8 @@ import { useAudioStore } from '../../store/audioStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useCallStore } from '../../store/callStore';
+import { useGroupCallStore } from '../../store/groupCallStore';
+import { AddToCallModal } from '../call/AddToCallModal';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../../lib/noiseSuppression';
@@ -376,6 +378,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   const presenceReady = usePresenceStore(s => s.presenceReady);
   const callStatus = useCallStore(s => s.status);
   const startCall  = useCallStore(s => s.startCall);
+  const groupCallStatus = useGroupCallStore(s => s.status);
+  const [showGroupCallModal, setShowGroupCallModal] = useState(false);
   // Mirror the same logic as Sidebar: presence channel overrides stored status to 'offline'
   // when the contact is not in the live online set (covers app-close / tab-close / logout).
   const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
@@ -1018,7 +1022,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         </div>
         <div className="no-drag flex items-center gap-2">
           {/* Call buttons — only when idle */}
-          {callStatus === 'idle' && (
+          {callStatus === 'idle' && groupCallStatus === 'idle' && (
             <>
               <button
                 onClick={() => startCall(contact, 'audio')}
@@ -1034,6 +1038,21 @@ export function ChatWindow({ contact, onBack }: Props) {
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
                 <Phone className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowGroupCallModal(true)}
+                title="Group call"
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
+                style={{
+                  color: 'var(--text-muted)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              >
+                <Users className="h-4 w-4" />
               </button>
               <button
                 onClick={() => startCall(contact, 'video')}
@@ -1267,6 +1286,9 @@ export function ChatWindow({ contact, onBack }: Props) {
           onConfirm={() => { window.open(pendingLinkUrl, '_blank', 'noopener,noreferrer'); setPendingLinkUrl(null); }}
           onCancel={() => setPendingLinkUrl(null)}
         />
+      )}
+      {showGroupCallModal && (
+        <AddToCallModal onClose={() => setShowGroupCallModal(false)} multiSelect />
       )}
     </div>
   );
