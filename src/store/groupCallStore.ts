@@ -549,7 +549,109 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       get().leaveCall();
     });
   },
-  escalateToGroup: async () => { /* Task 5 */ },
+  escalateToGroup: async (newFriend) => {
+    const { useAuthStore } = await import('./authStore');
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    const myUserId = user.id;
+
+    // Extract refs from 1:1 call
+    const { extractCallRefsForEscalation } = await import('./callStore');
+    const refs = extractCallRefsForEscalation();
+    if (!refs.peerConnection || !refs.contact) return;
+
+    const callId = `group-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    // Transfer refs
+    _peerConnections.set(refs.contact.id, refs.peerConnection);
+    _rawAudioStream = refs.rawAudioStream;
+    _noisePipeline = refs.noisePipeline;
+    _localStream = refs.localStream;
+    _audioContext = new AudioContext({ sampleRate: 48000 });
+
+    // Set up remote stream tracking for existing peer
+    const existingRemoteStream = new MediaStream();
+    refs.peerConnection.getReceivers().forEach(r => {
+      if (r.track) existingRemoteStream.addTrack(r.track);
+    });
+    _remoteStreams.set(refs.contact.id, existingRemoteStream);
+
+    // Subscribe to group channel
+    try {
+      await subscribeToGroupChannel(callId, myUserId);
+    } catch (err) {
+      console.error('[group-call] Escalation channel failed', err);
+      return;
+    }
+
+    // Build participants (me + existing contact)
+    const participants = new Map<string, GroupParticipant>();
+    participants.set(myUserId, {
+      userId: myUserId, username: user.username, avatarUrl: user.avatar_url ?? null,
+      isMuted: false, isSpeaking: false, audioLevel: 0,
+    });
+    participants.set(refs.contact.id, {
+      userId: refs.contact.id, username: refs.contact.username, avatarUrl: refs.contact.avatar_url ?? null,
+      isMuted: false, isSpeaking: false, audioLevel: 0,
+    });
+
+    set({
+      status: 'connected',
+      callId,
+      myUserId,
+      participants,
+      callStartedAt: Date.now(),
+      isMuted: false,
+      invitedUserIds: [newFriend.id],
+    });
+
+    // Broadcast join
+    _groupChannel?.send({
+      type: 'broadcast',
+      event: 'group:join',
+      payload: { callId, userId: myUserId, username: user.username, avatar_url: user.avatar_url ?? null },
+    });
+
+    // Ring the new friend
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const participantList = Array.from(participants.values());
+
+    fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{
+          topic: `realtime:call:ring:${newFriend.id}`,
+          event: 'call:group-invite',
+          payload: {
+            callId,
+            inviter: { userId: myUserId, username: user.username, avatar_url: user.avatar_url ?? null },
+            participants: participantList,
+          },
+        }],
+      }),
+    }).catch(err => console.error('[group-call] Ring failed for', newFriend.id, err));
+
+    // Also tell existing contact to join group channel
+    fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{
+          topic: `realtime:call:ring:${refs.contact.id}`,
+          event: 'call:group-invite',
+          payload: {
+            callId,
+            inviter: { userId: myUserId, username: user.username, avatar_url: user.avatar_url ?? null },
+            participants: participantList,
+          },
+        }],
+      }),
+    }).catch(() => {});
+
+    startVAD(myUserId);
+  },
   joinGroupCall: async (callId, _inviterUserId, existingParticipants) => {
     const { useAuthStore } = await import('./authStore');
     const user = useAuthStore.getState().user;

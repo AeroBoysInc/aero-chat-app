@@ -840,3 +840,30 @@ export const useCallStore = create<CallState>((set, get) => ({
     _noisePipeline?.setInputGain(value / 100);
   },
 }));
+
+// ─── Escalation helper — extracts refs for group call migration ─────────
+export function extractCallRefsForEscalation() {
+  const pc = _peerConnection;
+  const rawStream = _rawAudioStream;
+  const pipeline = _noisePipeline;
+  const localStream = useCallStore.getState().localStream;
+  const contact = useCallStore.getState().contact;
+
+  // Null the refs so hangUp doesn't close them
+  _peerConnection = null;
+  _rawAudioStream = null;
+  _noisePipeline = null;
+  _screenStream = null;
+
+  // Reset callStore to idle without closing the peer connection
+  if (_signalingChannel) supabase.removeChannel(_signalingChannel);
+  _signalingChannel = null;
+  _channelSubscribed = false;
+  _cameraTrack = null;
+  _pendingOffer = null;
+  if (_iceRestartTimer) { clearTimeout(_iceRestartTimer); _iceRestartTimer = null; }
+
+  useCallStore.setState(INITIAL_CALL_STATE);
+
+  return { peerConnection: pc, rawAudioStream: rawStream, noisePipeline: pipeline, localStream, contact };
+}
