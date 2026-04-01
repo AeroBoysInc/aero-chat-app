@@ -3,6 +3,7 @@ import { useCallStore } from '../../store/callStore';
 import { CameraFeed } from './CameraFeed';
 import { CallControls } from './CallControls';
 import { IncomingCallModal } from './IncomingCallModal';
+import { AddToCallModal } from './AddToCallModal';
 import { ChatWindow } from '../chat/ChatWindow';
 import { Phone, Video, Monitor } from 'lucide-react';
 
@@ -31,6 +32,7 @@ export function CallView() {
   } = useCallStore();
 
   const [chatOpen, setChatOpen] = useState(false);
+  const [showAddToCall, setShowAddToCall] = useState(false);
   const [duration, setDuration] = useState('0:00');
 
   // Hidden audio output for audio-only calls — video calls are handled by
@@ -327,7 +329,11 @@ export function CallView() {
             </div>
 
             {/* Controls bar */}
-            <CallControls onToggleChat={() => setChatOpen(o => !o)} chatOpen={chatOpen} />
+            <CallControls
+              onToggleChat={() => setChatOpen(o => !o)}
+              chatOpen={chatOpen}
+              onAddPerson={status === 'connected' ? () => setShowAddToCall(true) : undefined}
+            />
           </>
         )}
       </div>
@@ -345,6 +351,10 @@ export function CallView() {
           <ChatWindow contact={contact} />
         )}
       </div>
+
+      {showAddToCall && (
+        <AddToCallModal onClose={() => setShowAddToCall(false)} />
+      )}
 
       <style>{`
         @keyframes fadeSlideIn {

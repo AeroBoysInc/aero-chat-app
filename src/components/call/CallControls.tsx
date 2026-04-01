@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Mic, MicOff, Video, VideoOff, Monitor, MessageSquare, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Monitor, MessageSquare, PhoneOff, UserPlus } from 'lucide-react';
 import { useCallStore } from '../../store/callStore';
 
 interface CallControlsProps {
   onToggleChat: () => void;
   chatOpen: boolean;
+  onAddPerson?: () => void;
 }
 
-export function CallControls({ onToggleChat, chatOpen }: CallControlsProps) {
+export function CallControls({ onToggleChat, chatOpen, onAddPerson }: CallControlsProps) {
   const { isMuted, isCameraOn, isScreenSharing, callType, toggleMute, toggleCamera, startScreenShare, stopScreenShare, hangUp } = useCallStore();
   const [visible, setVisible] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,6 +104,17 @@ export function CallControls({ onToggleChat, chatOpen }: CallControlsProps) {
         >
           <Monitor className="h-4 w-4" />
         </button>
+
+        {/* Add person (escalate to group) */}
+        {onAddPerson && (
+          <button
+            onClick={onAddPerson}
+            title="Add person to call"
+            style={btnBase}
+          >
+            <UserPlus className="h-4 w-4" />
+          </button>
+        )}
 
         {/* Chat */}
         <button

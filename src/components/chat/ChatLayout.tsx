@@ -10,10 +10,12 @@ import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
 const WritersCorner = lazy(() => import('../corners/WritersCorner').then(m => ({ default: m.WritersCorner })));
 import { CallView } from '../call/CallView';
+import { GroupCallView } from '../call/GroupCallView';
 import { FriendRequestModal } from './FriendRequestModal';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
+import { useGroupCallStore } from '../../store/groupCallStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
 import { useIsMobile } from '../../lib/useIsMobile';
@@ -35,6 +37,7 @@ export function ChatLayout() {
   const anyViewActive = gameViewActive || devViewActive || writerViewActive;
   const callStatus = useCallStore(s => s.status);
   const callViewActive = callStatus !== 'idle';
+  const groupCallStatus = useGroupCallStore(s => s.status);
   const { signOut } = useAuthStore();
   const { pendingIncoming } = useFriendStore();
   const [requestsOpen, setRequestsOpen] = useState(false);
@@ -335,6 +338,8 @@ export function ChatLayout() {
             <CallView />
           </div>
         )}
+
+        {groupCallStatus !== 'idle' && <GroupCallView />}
 
       </div>
 
