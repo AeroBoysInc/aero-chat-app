@@ -541,6 +541,14 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       }).catch((err) => console.warn('[GroupCall] Failed to ring', friend.id, err));
     }
 
+    // 30s timeout for unanswered invites
+    setTimeout(() => {
+      const { invitedUserIds } = useGroupCallStore.getState();
+      if (invitedUserIds.length > 0) {
+        useGroupCallStore.setState({ invitedUserIds: [] });
+      }
+    }, 30_000);
+
     // Start VAD
     startVAD(myUserId);
 
