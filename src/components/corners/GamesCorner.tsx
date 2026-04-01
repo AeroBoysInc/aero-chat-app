@@ -81,10 +81,10 @@ const GAMES: GameEntry[] = [
     id: 'chess',
     icon: '♟️',
     label: 'AeroChess',
-    desc: 'Real-time 1v1 — 🔵 Blue vs 🟢 Green',
+    desc: 'Classic chess — play friends or challenge a bot',
     available: true,
     color: '#00d4ff',
-    size: '~1 MB',
+    size: '~30 KB',
     tags: ['Strategy', 'Multiplayer'],
   },
 ];
