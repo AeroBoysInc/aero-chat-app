@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -7,43 +5,17 @@ const CORS_HEADERS = {
 };
 
 Deno.serve(async (req) => {
-  // Preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
   try {
-    // Authenticate caller via Supabase JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
-        status: 401,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-
-    // Generate short-lived TURN credentials from Cloudflare
+    // JWT is already verified by Supabase's gateway — no need to re-check auth.
     const keyId = Deno.env.get("CLOUDFLARE_TURN_KEY_ID");
     const apiToken = Deno.env.get("CLOUDFLARE_TURN_API_TOKEN");
 
     if (!keyId || !apiToken) {
+      console.error("Missing CLOUDFLARE_TURN_KEY_ID or CLOUDFLARE_TURN_API_TOKEN");
       return new Response(
         JSON.stringify({ error: "TURN not configured" }),
         {
@@ -61,7 +33,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ttl: 86400 }), // 24 hours
+        body: JSON.stringify({ ttl: 86400 }),
       },
     );
 
