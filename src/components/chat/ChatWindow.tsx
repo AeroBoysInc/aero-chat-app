@@ -713,7 +713,8 @@ export function ChatWindow({ contact, onBack }: Props) {
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || !user) return;
+    const text = input.trim();
+    if (!text || !user) return;
     setSending(true);
     setSendError('');
 
@@ -726,26 +727,38 @@ export function ChatWindow({ contact, onBack }: Props) {
     if (!privateKey) { setSendError('Encryption key missing. Please reload.'); setSending(false); return; }
     if (!contactKeyRef.current) { setSendError('Contact key not loaded yet. Please try again.'); setSending(false); return; }
 
-    // Re-fetch the contact's public key to ensure we encrypt with the latest
-    // version. If their key rotated since we opened the chat, using the stale
-    // cached key would produce a ciphertext the recipient can't decrypt.
-    const { data: freshKey } = await supabase
-      .from('profiles').select('public_key').eq('id', contact.id).single();
-    if (freshKey?.public_key) contactKeyRef.current = freshKey.public_key;
+    // ── Optimistic UI: show the message instantly ──
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: Message = {
+      id: optimisticId,
+      sender_id: user.id,
+      content: text,
+      created_at: new Date().toISOString(),
+      read_at: null,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setInput('');
 
+    // ── Encrypt & send in background ──
     const expiresAt = getExpiresAt();
-    const ciphertext = encryptMessage(input.trim(), contactKeyRef.current!, privateKey);
+    const ciphertext = encryptMessage(text, contactKeyRef.current!, privateKey);
     const { data, error } = await supabase.from('messages').insert({
       sender_id: user.id, recipient_id: contact.id, content: ciphertext,
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     }).select('id, sender_id, content, created_at, expires_at').single();
 
     if (error) {
+      // Remove the optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
       setSendError('Failed to send. Please try again.');
     } else if (data) {
-      const sent: Message = { ...data, content: input.trim(), read_at: null };
-      setMessages(prev => { const next = [...prev, sent]; saveChatCache(user!.id, contact.id, next); return next; });
-      setInput('');
+      // Replace optimistic message with the real server record
+      const sent: Message = { ...data, content: text, read_at: null };
+      setMessages(prev => {
+        const next = prev.map(m => m.id === optimisticId ? sent : m);
+        saveChatCache(user!.id, contact.id, next);
+        return next;
+      });
     }
     setSending(false);
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -878,18 +891,31 @@ export function ChatWindow({ contact, onBack }: Props) {
     setSending(true);
     const privateKey = loadPrivateKey(user.id);
     if (!privateKey) { setSendError('Encryption key missing.'); setSending(false); return; }
-    const { data: freshKey } = await supabase.from('profiles').select('public_key').eq('id', contact.id).single();
-    if (freshKey?.public_key) contactKeyRef.current = freshKey.public_key;
+
+    // Optimistic UI
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: Message = {
+      id: optimisticId, sender_id: user.id, content: plaintext,
+      created_at: new Date().toISOString(), read_at: null,
+    };
+    setMessages(prev => [...prev, optimistic]);
+
     const expiresAt = getExpiresAt();
     const ciphertext = encryptMessage(plaintext, contactKeyRef.current!, privateKey);
     const { data, error } = await supabase.from('messages').insert({
       sender_id: user.id, recipient_id: contact.id, content: ciphertext,
       ...(expiresAt ? { expires_at: expiresAt } : {}),
     }).select('id, sender_id, content, created_at, expires_at').single();
-    if (error) { setSendError('Failed to send.'); }
-    else if (data) {
+    if (error) {
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      setSendError('Failed to send.');
+    } else if (data) {
       const sent: Message = { ...data, content: plaintext, read_at: null };
-      setMessages(prev => { const next = [...prev, sent]; saveChatCache(user!.id, contact.id, next); return next; });
+      setMessages(prev => {
+        const next = prev.map(m => m.id === optimisticId ? sent : m);
+        saveChatCache(user!.id, contact.id, next);
+        return next;
+      });
     }
     setSending(false);
   }
