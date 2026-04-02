@@ -451,7 +451,7 @@ function SplitPanel({
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         {/* Avatar */}
         <div style={{ position: 'relative' }}>
-          <div style={{ width: 80, height: 80 }}>
+          <div style={{ width: 50, height: 50 }}>
             <AvatarImage username={username} avatarUrl={avatarUrl} size="xl" />
           </div>
           {isMuted && (

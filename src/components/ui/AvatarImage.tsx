@@ -15,7 +15,7 @@ const sizeClass = {
   sm: 'h-6  w-6  text-[10px]',
   md: 'h-8  w-8  text-xs',
   lg: 'h-10 w-10 text-sm',
-  xl: 'h-20 w-20 text-xl',
+  xl: 'h-12 w-12 text-base',
 };
 
 export const statusColor: Record<Status, string> = {
