@@ -8,6 +8,7 @@ import { AddToCallModal } from './AddToCallModal';
 import { ChatWindow } from '../chat/ChatWindow';
 import { AvatarImage } from '../ui/AvatarImage';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
+import { useAudioStore } from '../../store/audioStore';
 import { Phone, Video, Monitor, MicOff } from 'lucide-react';
 import type { Profile } from '../../store/authStore';
 
@@ -53,6 +54,7 @@ export function CallView() {
   } = useCallStore();
 
   const user = useAuthStore(s => s.user);
+  const chatPosition = useAudioStore(s => s.chatPosition);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddToCall, setShowAddToCall] = useState(false);
@@ -162,11 +164,14 @@ export function CallView() {
   const localSpeaking = localLevel > 0.04;
   const remoteSpeaking = remoteLevel > 0.04;
 
+  const isBottom = chatPosition === 'bottom';
+
   return (
     <div style={{
       position: 'absolute',
       inset: 0,
       display: 'flex',
+      flexDirection: isBottom ? 'column' : 'row',
       background: '#060e1f',
       borderRadius: 16,
       overflow: 'hidden',
@@ -316,11 +321,21 @@ export function CallView() {
         )}
       </div>
 
-      {/* ── Chat side panel ── */}
+      {/* ── Chat panel (right or bottom) ── */}
       <div style={{
-        width: chatOpen ? 572 : 0, flexShrink: 0, overflow: 'hidden',
-        transition: 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
-        borderLeft: chatOpen ? '1px solid rgba(0,200,255,0.18)' : 'none',
+        ...(isBottom
+          ? { height: chatOpen ? 320 : 0, width: '100%' }
+          : { width: chatOpen ? 572 : 0 }),
+        flexShrink: 0,
+        overflow: 'hidden',
+        transition: isBottom
+          ? 'height 0.28s cubic-bezier(0.4, 0, 0.2, 1)'
+          : 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+        ...(chatOpen
+          ? isBottom
+            ? { borderTop: '1px solid rgba(0,200,255,0.18)' }
+            : { borderLeft: '1px solid rgba(0,200,255,0.18)' }
+          : {}),
         background: 'rgba(4, 10, 28, 0.95)',
       }}>
         {contact && chatOpen && <ChatWindow contact={contact} />}

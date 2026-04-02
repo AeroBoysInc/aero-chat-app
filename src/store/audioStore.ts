@@ -8,6 +8,7 @@ export interface AudioSettings {
   noiseCancellation: boolean;
   inputVolume:  number;     // 0–100
   outputVolume: number;     // 0–100
+  chatPosition: 'right' | 'bottom'; // where chat panel appears during calls
 }
 
 interface AudioStore extends AudioSettings {
@@ -22,7 +23,7 @@ function load(): AudioSettings {
 }
 
 function defaults(): AudioSettings {
-  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100 };
+  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100, chatPosition: 'right' as const };
 }
 
 function save(s: AudioSettings) {

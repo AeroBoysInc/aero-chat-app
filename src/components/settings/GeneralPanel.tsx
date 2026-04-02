@@ -1,4 +1,4 @@
-import { X, Mic, Volume2, Headphones, Waves, Gamepad2 } from 'lucide-react';
+import { X, Mic, Volume2, Headphones, Waves, Gamepad2, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAudioStore } from '../../store/audioStore';
 import { useStatusStore } from '../../store/statusStore';
@@ -20,7 +20,7 @@ const panelStyle: React.CSSProperties = {
 };
 
 export function GeneralPanel({ onClose }: Props) {
-  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume, set } = useAudioStore();
+  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume, chatPosition, set } = useAudioStore();
   const { showGameActivity, setShowGameActivity } = useStatusStore();
   const [inputs,  setInputs]  = useState<DeviceEntry[]>([]);
   const [outputs, setOutputs] = useState<DeviceEntry[]>([]);
@@ -171,6 +171,32 @@ export function GeneralPanel({ onClose }: Props) {
             onChange={e => set({ outputVolume: Number(e.target.value) })}
             className="aero-slider w-full"
           />
+        </div>
+
+        <div className="h-px" style={{ background: 'var(--popup-divider)' }} />
+
+        {/* Chat position during calls */}
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <MessageSquare className="h-3.5 w-3.5" style={{ color: 'var(--popup-text-muted)' }} />
+            <p className="text-xs font-semibold" style={{ color: 'var(--popup-text-label)' }}>In-call Chat Position</p>
+          </div>
+          <div className="flex gap-2">
+            {(['right', 'bottom'] as const).map(pos => (
+              <button
+                key={pos}
+                onClick={() => set({ chatPosition: pos })}
+                className="flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+                style={{
+                  background: chatPosition === pos ? 'rgba(0,212,255,0.12)' : 'var(--popup-select-bg)',
+                  border: chatPosition === pos ? '1px solid rgba(0,212,255,0.35)' : '1px solid var(--popup-select-border)',
+                  color: chatPosition === pos ? '#00d4ff' : 'var(--popup-select-text)',
+                }}
+              >
+                {pos === 'right' ? 'Right' : 'Bottom'}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="h-px" style={{ background: 'var(--popup-divider)' }} />
