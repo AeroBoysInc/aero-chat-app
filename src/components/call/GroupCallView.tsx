@@ -87,8 +87,8 @@ export function GroupCallView() {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col"
-      style={{ background: '#060e1f' }}
+      className="flex flex-col"
+      style={{ background: '#060e1f', width: '100%', height: '100%', position: 'relative', borderRadius: 16, overflow: 'hidden' }}
     >
       {/* ── Split panels ── */}
       <div className="flex-1 flex" style={{ position: 'relative', overflow: 'hidden' }}>

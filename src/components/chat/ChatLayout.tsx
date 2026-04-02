@@ -11,6 +11,7 @@ import { DevCorner } from '../corners/DevCorner';
 const WritersCorner = lazy(() => import('../corners/WritersCorner').then(m => ({ default: m.WritersCorner })));
 import { CallView } from '../call/CallView';
 import { GroupCallView } from '../call/GroupCallView';
+import { MiniCallWidget } from '../call/MiniCallWidget';
 import { FriendRequestModal } from './FriendRequestModal';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
@@ -36,8 +37,10 @@ export function ChatLayout() {
   const { gameViewActive, devViewActive, writerViewActive } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive;
   const callStatus = useCallStore(s => s.status);
-  const callViewActive = callStatus !== 'idle';
+  const callActive = callStatus !== 'idle';
   const groupCallStatus = useGroupCallStore(s => s.status);
+  const groupCallActive = groupCallStatus !== 'idle' && groupCallStatus !== 'ringing';
+  const anyCallActive = callActive || groupCallActive;
   const { signOut } = useAuthStore();
   const { pendingIncoming } = useFriendStore();
   const [requestsOpen, setRequestsOpen] = useState(false);
@@ -248,9 +251,14 @@ export function ChatLayout() {
             />
           </div>
 
-          {/* Chat area */}
+          {/* Chat area / Call area */}
           <main className="glass-chat flex flex-1 flex-col overflow-hidden min-w-0" style={{ position: 'relative', zIndex: 1 }}>
-            {selectedContact ? (
+            {/* 1:1 call — replaces chat window */}
+            {callActive ? (
+              <CallView />
+            ) : groupCallActive ? (
+              <GroupCallView />
+            ) : selectedContact ? (
               <ChatWindow contact={selectedContact} />
             ) : (
               <div className="relative flex h-full items-center justify-center overflow-hidden">
@@ -332,14 +340,15 @@ export function ChatLayout() {
           </div>
         )}
 
-        {/* CALL OVERLAY — above all layers so incoming calls are always visible */}
-        {callViewActive && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 50 }}>
-            <CallView />
+        {/* MINI CALL WIDGET — shown over corners when a call is active */}
+        {anyCallActive && anyViewActive && <MiniCallWidget />}
+
+        {/* GROUP CALL RINGING MODAL — always on top */}
+        {groupCallStatus === 'ringing' && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+            <GroupCallView />
           </div>
         )}
-
-        {groupCallStatus !== 'idle' && <GroupCallView />}
 
       </div>
 
