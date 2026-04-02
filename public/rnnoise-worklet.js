@@ -70,6 +70,10 @@ class RNNoiseProcessor extends AudioWorkletProcessor {
       this._exports = instance.exports;
       this._memory = this._exports.c; // memory export
 
+      // Run required initialization functions
+      this._exports.d(); // __wasm_call_ctors (Emscripten global constructors)
+      this._exports.e(); // rnnoise_init
+
       // Allocate RNNoise state and IO buffers
       this._state = this._exports.f(0); // rnnoise_create(NULL)
       this._inPtr = this._exports.g(FRAME_SIZE * 4); // malloc (float32 = 4 bytes)
