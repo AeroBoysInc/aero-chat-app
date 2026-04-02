@@ -1,28 +1,13 @@
 /**
- * RNNoise-based noise suppression pipeline + gain-only pipeline.
+ * RNNoise-based noise suppression via AudioWorklet + gain-only pipeline.
  *
- * Uses @jitsi/rnnoise-wasm (Emscripten-compiled C library).
- * The module exposes raw C functions accessed via WASM heap pointers.
+ * The AudioWorklet runs RNNoise in the audio rendering thread (off main thread),
+ * cutting latency from ~85ms (old ScriptProcessorNode) to ~10ms.
  *
- * The WASM module is loaded once and cached — subsequent calls reuse it.
- * Falls back to the raw stream if WASM fails to load.
+ * The WASM binary is loaded from /rnnoise.wasm (public/), compiled in the main
+ * thread, then the WebAssembly.Module is transferred to the worklet for
+ * instantiation.
  */
-
-import { createRNNWasmModuleSync } from '@jitsi/rnnoise-wasm';
-
-// Emscripten module interface — exposes raw C functions and WASM heap.
-// The sync variant has the WASM binary inlined as base64, so it works in
-// production Vite builds without a separate rnnoise.wasm network fetch.
-interface RNNoiseModule {
-  _rnnoise_create(modelPtr: number): number;
-  _rnnoise_destroy(state: number): void;
-  // Returns VAD probability; processes audio via WASM heap pointers
-  _rnnoise_process_frame(state: number, outPtr: number, inPtr: number): number;
-  _malloc(size: number): number;
-  _free(ptr: number): void;
-  HEAPF32: Float32Array;
-  ready: Promise<RNNoiseModule>;
-}
 
 export interface NoisePipeline {
   /** Use this stream for WebRTC tracks and MediaRecorder — it contains processed audio. */
@@ -33,19 +18,14 @@ export interface NoisePipeline {
   dispose: () => void;
 }
 
-// RNNoise requires exactly 480 samples per frame at 48 kHz
-const FRAME_SIZE = 480;
+// Cached compiled WASM module — shared across pipelines
+let _wasmModulePromise: Promise<WebAssembly.Module> | null = null;
 
-// Cached after first successful load — cleared on rejection to allow retry
-let _wasmModulePromise: Promise<RNNoiseModule> | null = null;
-
-async function getRNNoiseModule(): Promise<RNNoiseModule> {
+async function getCompiledWasmModule(): Promise<WebAssembly.Module> {
   if (!_wasmModulePromise) {
-    // createRNNWasmModuleSync() returns the Module immediately (WASM is inlined),
-    // but functions are only available after module.ready resolves.
-    _wasmModulePromise = (createRNNWasmModuleSync() as unknown as RNNoiseModule).ready
+    _wasmModulePromise = WebAssembly.compileStreaming(fetch('/rnnoise.wasm'))
       .catch(err => {
-        _wasmModulePromise = null; // allow retry on next call
+        _wasmModulePromise = null;
         return Promise.reject(err);
       });
   }
@@ -84,23 +64,20 @@ export async function createGainPipeline(rawStream: MediaStream): Promise<NoiseP
 }
 
 /**
- * Builds a noise suppression + gain pipeline around rawStream.
- * Graph: source → gainNode → scriptProcessor(RNNoise) → dest
+ * Builds a noise suppression + gain pipeline using AudioWorklet.
+ * Graph: source → gainNode → AudioWorkletNode(RNNoise) → dest
  *
  * Returns a NoisePipeline whose processedStream contains the cleaned audio.
- * If rawStream has no audio tracks, or if the WASM fails to load, returns
- * a no-op pipeline wrapping the original stream so callers never need to
- * branch on success.
+ * Falls back to gain-only if WASM or AudioWorklet setup fails.
  */
 export async function createNoisePipeline(rawStream: MediaStream): Promise<NoisePipeline> {
-  // No audio — nothing to process
   if (rawStream.getAudioTracks().length === 0) {
     return { processedStream: rawStream, setInputGain: () => {}, dispose: () => {} };
   }
 
-  let module: RNNoiseModule;
+  let wasmModule: WebAssembly.Module;
   try {
-    module = await getRNNoiseModule();
+    wasmModule = await getCompiledWasmModule();
   } catch (err) {
     console.warn('[NC] RNNoise WASM failed to load, falling back to gain-only pipeline:', err);
     return createGainPipeline(rawStream);
@@ -109,81 +86,55 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
   const ctx = new AudioContext({ sampleRate: 48000 });
   if (ctx.state === 'suspended') await ctx.resume();
 
-  // Allocate WASM state and heap buffers (Float32 = 4 bytes per sample)
-  const state = module._rnnoise_create(0);
-  const inPtr  = module._malloc(FRAME_SIZE * 4);
-  const outPtr = module._malloc(FRAME_SIZE * 4);
+  // Register the worklet processor
+  try {
+    await ctx.audioWorklet.addModule('/rnnoise-worklet.js');
+  } catch (err) {
+    console.warn('[NC] AudioWorklet failed to load, falling back to gain-only pipeline:', err);
+    ctx.close();
+    return createGainPipeline(rawStream);
+  }
 
   const source   = ctx.createMediaStreamSource(rawStream);
   const gainNode = ctx.createGain();
   const dest     = ctx.createMediaStreamDestination();
 
-  // ScriptProcessorNode bufferSize must be a power of 2; 4096 ≈ 85 ms latency.
-  // AudioWorklet would be lower-latency but WASM-in-worklet requires more
-  // complex Vite configuration. ScriptProcessorNode is deprecated but still
-  // supported — expect deprecation warnings in DevTools.
-  const processor = ctx.createScriptProcessor(4096, 1, 1);
+  const workletNode = new AudioWorkletNode(ctx, 'rnnoise-processor', {
+    numberOfInputs: 1,
+    numberOfOutputs: 1,
+    outputChannelCount: [1],
+  });
 
-  const inputAccum = new Float32Array(FRAME_SIZE);
-  let inputOffset = 0;
-  const pendingFrames: Float32Array[] = [];
-  let pendingHead = 0;
-  let outputPendingOffset = 0;
+  // Send the compiled WASM module to the worklet for instantiation
+  workletNode.port.postMessage({ type: 'init', wasmModule });
 
-  processor.onaudioprocess = (e: AudioProcessingEvent) => {
-    const input  = e.inputBuffer.getChannelData(0);
-    const output = e.outputBuffer.getChannelData(0);
-
-    // ── Feed input into RNNoise 480-sample frames ──────────────────────
-    let iPos = 0;
-    while (iPos < input.length) {
-      const toCopy = Math.min(FRAME_SIZE - inputOffset, input.length - iPos);
-      inputAccum.set(input.subarray(iPos, iPos + toCopy), inputOffset);
-      inputOffset += toCopy;
-      iPos += toCopy;
-
-      if (inputOffset === FRAME_SIZE) {
-        // RNNoise expects int16-range floats [-32768, 32767]; Web Audio gives [-1, 1]
-        const heapIn = inPtr >> 2;
-        for (let i = 0; i < FRAME_SIZE; i++) {
-          module.HEAPF32[heapIn + i] = inputAccum[i] * 32768;
+  // Wait for worklet to confirm it's ready (with timeout)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Worklet init timeout')), 5000);
+      workletNode.port.onmessage = (e) => {
+        if (e.data.type === 'ready') {
+          clearTimeout(timeout);
+          resolve();
+        } else if (e.data.type === 'error') {
+          clearTimeout(timeout);
+          reject(new Error(e.data.message));
         }
-        module._rnnoise_process_frame(state, outPtr, inPtr);
-        // Scale output back to Web Audio range [-1, 1]
-        const heapOut = outPtr >> 2;
-        const processed = new Float32Array(FRAME_SIZE);
-        for (let i = 0; i < FRAME_SIZE; i++) {
-          processed[i] = module.HEAPF32[heapOut + i] / 32768;
-        }
-        pendingFrames.push(processed);
-        inputOffset = 0;
-      }
-    }
+      };
+    });
+  } catch (err) {
+    console.warn('[NC] Worklet WASM init failed, falling back to gain-only:', err);
+    workletNode.disconnect();
+    source.disconnect();
+    gainNode.disconnect();
+    ctx.close();
+    return createGainPipeline(rawStream);
+  }
 
-    // ── Drain pending processed frames into output ─────────────────────
-    let oPos = 0;
-    while (oPos < output.length && pendingHead < pendingFrames.length) {
-      const frame = pendingFrames[pendingHead];
-      const toCopy = Math.min(frame.length - outputPendingOffset, output.length - oPos);
-      output.set(frame.subarray(outputPendingOffset, outputPendingOffset + toCopy), oPos);
-      outputPendingOffset += toCopy;
-      oPos += toCopy;
-      if (outputPendingOffset >= frame.length) {
-        pendingHead++;
-        outputPendingOffset = 0;
-      }
-    }
-    // Compact consumed frames to prevent unbounded growth
-    if (pendingHead > 0) {
-      pendingFrames.splice(0, pendingHead);
-      pendingHead = 0;
-    }
-  };
-
-  // source → gainNode → processor → dest
+  // source → gainNode → workletNode → dest
   source.connect(gainNode);
-  gainNode.connect(processor);
-  processor.connect(dest);
+  gainNode.connect(workletNode);
+  workletNode.connect(dest);
 
   let disposed = false;
   return {
@@ -193,15 +144,13 @@ export async function createNoisePipeline(rawStream: MediaStream): Promise<Noise
       if (disposed) return;
       disposed = true;
       try {
+        workletNode.port.postMessage({ type: 'dispose' });
         source.disconnect();
         gainNode.disconnect();
-        processor.disconnect();
-        module._rnnoise_destroy(state);
-        module._free(inPtr);
-        module._free(outPtr);
+        workletNode.disconnect();
         ctx.close();
       } catch {
-        // Ignore errors during cleanup — call may already be torn down
+        // Ignore errors during cleanup
       }
     },
   };
