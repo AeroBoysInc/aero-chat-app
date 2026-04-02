@@ -55,6 +55,8 @@ export function CallView() {
 
   const user = useAuthStore(s => s.user);
   const chatPosition = useAudioStore(s => s.chatPosition);
+  const chatSizeRight = useAudioStore(s => s.chatSizeRight);
+  const chatSizeBottom = useAudioStore(s => s.chatSizeBottom);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddToCall, setShowAddToCall] = useState(false);
@@ -145,6 +147,41 @@ export function CallView() {
     const onUp = () => {
       draggingPip.current = false;
       document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
+
+  // ── Chat panel resize drag ─────────────────────────────────────────
+  const resizing = useRef(false);
+  const resizeStart = useRef({ mouse: 0, size: 0 });
+
+  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    const isBot = useAudioStore.getState().chatPosition === 'bottom';
+    const currentSize = isBot ? useAudioStore.getState().chatSizeBottom : useAudioStore.getState().chatSizeRight;
+    resizeStart.current = { mouse: isBot ? e.clientY : e.clientX, size: currentSize };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = isBot ? 'row-resize' : 'col-resize';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      const isB = useAudioStore.getState().chatPosition === 'bottom';
+      const delta = resizeStart.current.mouse - (isB ? ev.clientY : ev.clientX);
+      const next = Math.round(resizeStart.current.size + delta);
+      if (isB) {
+        useAudioStore.getState().set({ chatSizeBottom: Math.max(200, Math.min(600, next)) });
+      } else {
+        useAudioStore.getState().set({ chatSizeRight: Math.max(320, Math.min(800, next)) });
+      }
+    };
+    const onUp = () => {
+      resizing.current = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -321,14 +358,15 @@ export function CallView() {
         )}
       </div>
 
-      {/* ── Chat panel (right or bottom) ── */}
+      {/* ── Chat panel (right or bottom) with resize handle ── */}
       <div style={{
+        position: 'relative',
         ...(isBottom
-          ? { height: chatOpen ? 320 : 0, width: '100%' }
-          : { width: chatOpen ? 572 : 0 }),
+          ? { height: chatOpen ? chatSizeBottom : 0, width: '100%' }
+          : { width: chatOpen ? chatSizeRight : 0 }),
         flexShrink: 0,
         overflow: 'hidden',
-        transition: isBottom
+        transition: resizing.current ? 'none' : isBottom
           ? 'height 0.28s cubic-bezier(0.4, 0, 0.2, 1)'
           : 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
         ...(chatOpen
@@ -338,6 +376,29 @@ export function CallView() {
           : {}),
         background: 'rgba(4, 10, 28, 0.95)',
       }}>
+        {/* Resize handle */}
+        {chatOpen && (
+          <div
+            onMouseDown={onResizeMouseDown}
+            style={{
+              position: 'absolute',
+              ...(isBottom
+                ? { top: 0, left: 0, right: 0, height: 6, cursor: 'row-resize' }
+                : { top: 0, left: 0, bottom: 0, width: 6, cursor: 'col-resize' }),
+              zIndex: 10,
+            }}
+          >
+            {/* Visible drag indicator */}
+            <div style={{
+              position: 'absolute',
+              ...(isBottom
+                ? { top: 1, left: '50%', transform: 'translateX(-50%)', width: 40, height: 3, borderRadius: 2 }
+                : { left: 1, top: '50%', transform: 'translateY(-50%)', width: 3, height: 40, borderRadius: 2 }),
+              background: 'rgba(0,200,255,0.25)',
+              transition: 'background 0.15s',
+            }} />
+          </div>
+        )}
         {contact && chatOpen && <ChatWindow contact={contact} />}
       </div>
 

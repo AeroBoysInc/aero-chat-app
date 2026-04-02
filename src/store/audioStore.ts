@@ -9,6 +9,8 @@ export interface AudioSettings {
   inputVolume:  number;     // 0–100
   outputVolume: number;     // 0–100
   chatPosition: 'right' | 'bottom'; // where chat panel appears during calls
+  chatSizeRight: number;  // width in px when position=right  (min 320, max 800)
+  chatSizeBottom: number; // height in px when position=bottom (min 200, max 600)
 }
 
 interface AudioStore extends AudioSettings {
@@ -23,7 +25,7 @@ function load(): AudioSettings {
 }
 
 function defaults(): AudioSettings {
-  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100, chatPosition: 'right' as const };
+  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100, chatPosition: 'right' as const, chatSizeRight: 572, chatSizeBottom: 320 };
 }
 
 function save(s: AudioSettings) {
