@@ -1,12 +1,59 @@
-export const ICE_SERVERS: RTCIceServer[] = [
+import { supabase } from './supabase';
+
+/** Fallback STUN-only config (used when TURN fetch fails) */
+const STUN_ONLY: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  // TODO: Add self-hosted TURN (coturn) before public launch
-  // { urls: 'turn:your-server.com:3478', username: '...', credential: '...' }
 ];
 
-export function createPeerConnection(): RTCPeerConnection {
-  return new RTCPeerConnection({ iceServers: ICE_SERVERS });
+/** Cached TURN credentials (refreshed every 12 hours) */
+let _cachedIceServers: RTCIceServer[] | null = null;
+let _cacheExpiry = 0;
+
+/**
+ * Fetch short-lived TURN credentials from Cloudflare via our Edge Function.
+ * Falls back to STUN-only if the fetch fails (e.g. no TURN configured yet).
+ */
+export async function getIceServers(): Promise<RTCIceServer[]> {
+  // Return cache if still valid (refresh every 12h, credentials last 24h)
+  if (_cachedIceServers && Date.now() < _cacheExpiry) {
+    return _cachedIceServers;
+  }
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return STUN_ONLY;
+
+    const res = await supabase.functions.invoke('turn-credentials');
+
+    if (res.error || !res.data?.iceServers) {
+      console.warn('TURN credential fetch failed, using STUN only:', res.error);
+      return STUN_ONLY;
+    }
+
+    const turnServers: RTCIceServer[] = res.data.iceServers;
+
+    // Combine STUN + TURN for best connectivity
+    _cachedIceServers = [
+      ...STUN_ONLY,
+      ...turnServers,
+    ];
+    _cacheExpiry = Date.now() + 12 * 60 * 60 * 1000; // 12 hours
+
+    console.log('TURN credentials fetched successfully');
+    return _cachedIceServers;
+  } catch (err) {
+    console.warn('TURN credential fetch error, using STUN only:', err);
+    return STUN_ONLY;
+  }
+}
+
+/** Synchronous STUN-only fallback for backward compat */
+export const ICE_SERVERS = STUN_ONLY;
+
+export async function createPeerConnection(): Promise<RTCPeerConnection> {
+  const iceServers = await getIceServers();
+  return new RTCPeerConnection({ iceServers });
 }
 
 /**

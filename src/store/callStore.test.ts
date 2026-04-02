@@ -8,8 +8,8 @@ describe('webrtc.ts', () => {
     expect(ICE_SERVERS[0].urls).toBe('stun:stun.l.google.com:19302');
   });
 
-  it('createPeerConnection returns RTCPeerConnection instance', () => {
-    const pc = createPeerConnection();
+  it('createPeerConnection returns RTCPeerConnection instance', async () => {
+    const pc = await createPeerConnection();
     expect(pc).toBeDefined();
   });
 });

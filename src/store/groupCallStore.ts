@@ -123,12 +123,12 @@ function getCardFields(userId: string): Pick<GroupParticipant, 'cardGradient' | 
 
 // ─── Helper: setup a peer connection for a remote user ─────────────────────
 
-function setupPeerConnection(
+async function setupPeerConnection(
   remoteUserId: string,
   callId: string,
   myUserId: string,
-): RTCPeerConnection {
-  const pc = createPeerConnection();
+): Promise<RTCPeerConnection> {
+  const pc = await createPeerConnection();
   _peerConnections.set(remoteUserId, pc);
 
   // Add local audio track from noise pipeline
@@ -241,7 +241,7 @@ async function subscribeToGroupChannel(
 
     let pc = _peerConnections.get(fromUserId);
     if (!pc) {
-      pc = setupPeerConnection(fromUserId, callId, myUserId);
+      pc = await setupPeerConnection(fromUserId, callId, myUserId);
     }
 
     await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
@@ -317,7 +317,7 @@ async function subscribeToGroupChannel(
     useGroupCallStore.setState({ participants: nextParticipants });
 
     // Set up peer connection
-    setupPeerConnection(payload.userId, callId, myUserId);
+    await setupPeerConnection(payload.userId, callId, myUserId);
 
     // Lower ID creates the offer (deterministic tie-breaking)
     if (myUserId < payload.userId) {

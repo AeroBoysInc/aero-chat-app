@@ -276,7 +276,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     const callId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const channelName = `call:${[myUserId, contact.id].sort().join(':')}`;
 
-    _peerConnection = createPeerConnection();
+    _peerConnection = await createPeerConnection();
     const remoteStream = new MediaStream();
 
     // ── Store raw stream and build audio pipeline ─────────────────────
@@ -521,7 +521,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     }
 
     const remoteStream = new MediaStream();
-    _peerConnection = createPeerConnection();
+    _peerConnection = await createPeerConnection();
 
     // ── Store raw stream and build audio pipeline ─────────────────────
     // Always create a pipeline so gain control works whether NC is on or off.
