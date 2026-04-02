@@ -5,6 +5,7 @@ import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
+import { useFriendStore } from './friendStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,9 @@ export interface GroupParticipant {
   isMuted: boolean;
   isSpeaking: boolean;
   audioLevel: number; // 0-1
+  cardGradient?: string | null;
+  cardImageUrl?: string | null;
+  cardImageParams?: { zoom: number; x: number; y: number } | null;
 }
 
 export interface GroupCallState {
@@ -105,6 +109,14 @@ const INITIAL_STATE = {
   callStartedAt: null,
   invitedUserIds: [],
 };
+
+// ─── Helper: look up card background from friends or auth store ──────────
+
+function getCardFields(userId: string): Pick<GroupParticipant, 'cardGradient' | 'cardImageUrl' | 'cardImageParams'> {
+  const friend = useFriendStore.getState().friends.find(f => f.id === userId);
+  if (friend) return { cardGradient: friend.card_gradient, cardImageUrl: friend.card_image_url, cardImageParams: friend.card_image_params };
+  return { cardGradient: null, cardImageUrl: null, cardImageParams: null };
+}
 
 // ─── Helper: setup a peer connection for a remote user ─────────────────────
 
@@ -297,6 +309,7 @@ async function subscribeToGroupChannel(
       isMuted: false,
       isSpeaking: false,
       audioLevel: 0,
+      ...getCardFields(payload.userId),
     });
     useGroupCallStore.setState({ participants: nextParticipants });
 
@@ -485,6 +498,9 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       isMuted: false,
       isSpeaking: false,
       audioLevel: 0,
+      cardGradient: user.card_gradient,
+      cardImageUrl: user.card_image_url,
+      cardImageParams: user.card_image_params,
     });
 
     // Set state to calling
@@ -597,10 +613,12 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     participants.set(myUserId, {
       userId: myUserId, username: user.username, avatarUrl: user.avatar_url ?? null,
       isMuted: false, isSpeaking: false, audioLevel: 0,
+      cardGradient: user.card_gradient, cardImageUrl: user.card_image_url, cardImageParams: user.card_image_params,
     });
     participants.set(refs.contact.id, {
       userId: refs.contact.id, username: refs.contact.username, avatarUrl: refs.contact.avatar_url ?? null,
       isMuted: false, isSpeaking: false, audioLevel: 0,
+      ...getCardFields(refs.contact.id),
     });
 
     set({
@@ -702,10 +720,10 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       return;
     }
 
-    // Build participants map from existing + self
+    // Build participants map from existing + self (enrich with card data)
     const participants = new Map<string, GroupParticipant>();
     for (const p of existingParticipants) {
-      participants.set(p.userId, p);
+      participants.set(p.userId, { ...p, ...getCardFields(p.userId) });
     }
     participants.set(myUserId, {
       userId: myUserId,
@@ -714,6 +732,9 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       isMuted: false,
       isSpeaking: false,
       audioLevel: 0,
+      cardGradient: user.card_gradient,
+      cardImageUrl: user.card_image_url,
+      cardImageParams: user.card_image_params,
     });
 
     set({

@@ -1,11 +1,13 @@
 // src/components/call/GroupCallView.tsx
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus } from 'lucide-react';
-import { useGroupCallStore, _getRemoteStream } from '../../store/groupCallStore';
+import { useGroupCallStore, _getRemoteStream, type GroupParticipant } from '../../store/groupCallStore';
 import { ParticipantCard } from './ParticipantCard';
 import { AddToCallModal } from './AddToCallModal';
 import { IncomingGroupCallModal } from './IncomingGroupCallModal';
 import { CameraFeed } from './CameraFeed';
+import { AvatarImage } from '../ui/AvatarImage';
+import { CARD_GRADIENTS } from '../../lib/cardGradients';
 
 const MAX_PARTICIPANTS = 4;
 
@@ -14,6 +16,22 @@ function formatDuration(startedAt: number): string {
   const m = Math.floor(elapsed / 60);
   const s = elapsed % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** Builds a CSS background for a participant's panel using their card settings */
+function panelBackground(p: GroupParticipant): React.CSSProperties {
+  if (p.cardImageUrl) {
+    return {
+      backgroundImage: `url(${p.cardImageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: `${p.cardImageParams?.x ?? 50}% ${p.cardImageParams?.y ?? 50}%`,
+    };
+  }
+  const preset = CARD_GRADIENTS.find(g => g.id === (p.cardGradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
+  // Use the preview hex to build a vivid full-panel gradient
+  return {
+    background: `linear-gradient(180deg, ${preset.preview}40 0%, ${preset.preview}18 40%, rgba(6,14,31,0.95) 100%)`,
+  };
 }
 
 export function GroupCallView() {
@@ -55,7 +73,6 @@ export function GroupCallView() {
   if (status === 'idle') return null;
 
   const participantList = Array.from(participants.values());
-  const emptySlots = MAX_PARTICIPANTS - participantList.length;
   const isScreenSharing = !!screenSharingUserId;
   const iAmSharing = screenSharingUserId === myUserId;
 
@@ -71,28 +88,14 @@ export function GroupCallView() {
   return (
     <div
       className="fixed inset-0 z-40 flex flex-col"
-      style={{ background: 'linear-gradient(135deg, #060e1f 0%, #0a1e3d 50%, #0d2847 100%)' }}
+      style={{ background: '#060e1f' }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 px-5 pt-4">
-        <div className="h-2 w-2 rounded-full" style={{ background: '#3dd87a', boxShadow: '0 0 6px rgba(61,216,122,0.50)' }} />
-        <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Group Call</span>
-        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>&middot;</span>
-        <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.40)' }}>{duration}</span>
-        {invitedUserIds.length > 0 && (
-          <span className="text-[10px] ml-2 px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
-            Ringing {invitedUserIds.length}...
-          </span>
-        )}
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      {/* ── Split panels ── */}
+      <div className="flex-1 flex" style={{ position: 'relative', overflow: 'hidden' }}>
         {isScreenSharing ? (
-          <div className="flex flex-col gap-3 w-full h-full max-w-5xl">
-            <div className="flex-1 rounded-2xl overflow-hidden relative"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.10)' }}>
+          /* ── Screen sharing layout ── */
+          <div className="flex flex-col w-full h-full">
+            <div className="flex-1 relative" style={{ background: 'rgba(255,255,255,0.03)' }}>
               {iAmSharing && localScreenStream && (
                 <CameraFeed stream={localScreenStream} muted style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               )}
@@ -104,7 +107,9 @@ export function GroupCallView() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2 justify-center flex-wrap">
+            {/* Compact participant strip below screen share */}
+            <div className="flex gap-2 justify-center flex-wrap py-3 px-4"
+              style={{ background: 'rgba(6,14,31,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               {participantList.map(p => (
                 <ParticipantCard
                   key={p.userId}
@@ -120,47 +125,169 @@ export function GroupCallView() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3" style={{ maxWidth: 440 }}>
-            {participantList.map(p => (
-              <ParticipantCard
-                key={p.userId}
-                username={p.username}
-                avatarUrl={p.avatarUrl}
-                isMuted={p.userId === myUserId ? isMuted : p.isMuted}
-                isSpeaking={p.isSpeaking}
-                audioLevel={p.audioLevel}
-                isMe={p.userId === myUserId}
-              />
-            ))}
-            {Array.from({ length: Math.min(emptySlots, MAX_PARTICIPANTS - participantList.length) }).map((_, i) => (
-              <div
-                key={`empty-${i}`}
-                className="flex flex-col items-center justify-center rounded-2xl p-5 cursor-pointer"
-                style={{
-                  background: 'rgba(255,255,255,0.015)',
-                  border: '1px dashed rgba(255,255,255,0.10)',
-                  minHeight: 160,
-                }}
-                onClick={() => setShowAddModal(true)}
-              >
-                <div className="flex items-center justify-center rounded-full"
-                  style={{ width: 52, height: 52, border: '2px dashed rgba(255,255,255,0.15)' }}>
-                  <UserPlus className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.20)' }} />
+          /* ── Vertical split panel layout ── */
+          <>
+            {participantList.map((p, i) => {
+              const isMe = p.userId === myUserId;
+              const muted = isMe ? isMuted : p.isMuted;
+              const statusLabel = muted ? 'Muted' : p.isSpeaking ? 'Speaking' : 'Listening';
+              const statusColor = muted ? 'rgba(239,68,68,0.60)' : p.isSpeaking ? '#00d4ff' : 'rgba(255,255,255,0.35)';
+
+              return (
+                <div key={p.userId} style={{ display: 'contents' }}>
+                  {/* Divider between panels */}
+                  {i > 0 && (
+                    <div style={{
+                      width: 1,
+                      background: 'rgba(255,255,255,0.08)',
+                      flexShrink: 0,
+                    }} />
+                  )}
+
+                  {/* Panel */}
+                  <div
+                    style={{
+                      flex: 1,
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'flex 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  >
+                    {/* Card background — fills the entire panel */}
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      ...panelBackground(p),
+                      opacity: 0.85,
+                    }} />
+
+                    {/* Dark overlay for readability */}
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'radial-gradient(ellipse at center 40%, rgba(6,14,31,0.3) 0%, rgba(6,14,31,0.75) 100%)',
+                    }} />
+
+                    {/* Speaking edge glow */}
+                    {p.isSpeaking && (
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        boxShadow: 'inset 0 0 60px rgba(0,212,255,0.08)',
+                        pointerEvents: 'none',
+                      }} />
+                    )}
+
+                    {/* Content */}
+                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                      {/* Avatar with speaking ring */}
+                      <div style={{ position: 'relative' }}>
+                        {p.isSpeaking && (
+                          <div style={{
+                            position: 'absolute', inset: -6, borderRadius: '50%',
+                            border: '2.5px solid rgba(0,212,255,0.55)',
+                            boxShadow: '0 0 18px rgba(0,212,255,0.40), 0 0 36px rgba(0,212,255,0.15)',
+                            animation: 'aura-pulse 2.5s ease-in-out infinite',
+                            pointerEvents: 'none',
+                          }} />
+                        )}
+                        <div style={{ width: 80, height: 80 }}>
+                          <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="xl" />
+                        </div>
+                        {muted && (
+                          <div style={{
+                            position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%',
+                            background: 'rgba(239,68,68,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: '2px solid rgba(6,14,31,0.8)',
+                          }}>
+                            <MicOff className="h-3 w-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Name + You badge */}
+                      <div className="text-center">
+                        <span className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.90)' }}>
+                          {p.username}
+                        </span>
+                        {isMe && (
+                          <span className="ml-2 text-[10px] font-semibold rounded px-1.5 py-0.5"
+                            style={{ background: 'rgba(0,212,255,0.12)', color: 'rgba(0,212,255,0.75)' }}>You</span>
+                        )}
+                      </div>
+
+                      {/* Status */}
+                      <span className="text-[11px] font-medium" style={{ color: statusColor }}>{statusLabel}</span>
+
+                      {/* Audio bars */}
+                      <AudioBars level={muted ? 0 : p.audioLevel} active={p.isSpeaking} />
+                    </div>
+                  </div>
                 </div>
-                <span className="mt-2 text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.25)' }}>Add friend</span>
-              </div>
-            ))}
-          </div>
+              );
+            })}
+
+            {/* Empty slot panel — invite prompt */}
+            {participantList.length < MAX_PARTICIPANTS && (
+              <>
+                <div style={{ width: 1, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+                <div
+                  onClick={() => setShowAddModal(true)}
+                  style={{
+                    flex: 0.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    background: 'rgba(255,255,255,0.015)',
+                    transition: 'flex 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.03)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; }}
+                >
+                  <div className="flex items-center justify-center rounded-full"
+                    style={{ width: 56, height: 56, border: '2px dashed rgba(255,255,255,0.15)' }}>
+                    <UserPlus className="h-6 w-6" style={{ color: 'rgba(255,255,255,0.20)' }} />
+                  </div>
+                  <span className="mt-3 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.25)' }}>Add friend</span>
+                </div>
+              </>
+            )}
+          </>
         )}
+
+        {/* Floating header overlay */}
+        <div className="absolute top-0 left-0 right-0 flex items-center gap-2 px-5 pt-4" style={{ zIndex: 10 }}>
+          <div className="h-2 w-2 rounded-full" style={{ background: '#3dd87a', boxShadow: '0 0 6px rgba(61,216,122,0.50)' }} />
+          <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Group Call</span>
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>&middot;</span>
+          <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.40)' }}>{duration}</span>
+          {invitedUserIds.length > 0 && (
+            <span className="text-[10px] ml-2 px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
+              Ringing {invitedUserIds.length}...
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Controls */}
+      {/* ── Controls ── */}
       <div
         className="flex justify-center pb-6 pt-2"
-        style={{ opacity: showControls ? 1 : 0, transition: 'opacity 0.3s' }}
+        style={{
+          opacity: showControls ? 1 : 0,
+          transition: 'opacity 0.3s',
+          position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,
+        }}
       >
         <div className="flex items-center gap-2.5 rounded-2xl px-5 py-3"
-          style={{ background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          style={{ background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <button
             onClick={toggleMute}
             style={{
@@ -220,6 +347,35 @@ export function GroupCallView() {
     </div>
   );
 }
+
+/* ── Audio Bars ──────────────────────────────────────────────────────────── */
+
+function AudioBars({ level, active }: { level: number; active: boolean }) {
+  return (
+    <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
+      {Array.from({ length: 7 }).map((_, i) => {
+        const variance = 0.6 + 0.4 * Math.sin(i * 2.1 + level * 20);
+        const barHeight = active ? Math.max(4, 24 * level * variance) : 4;
+        return (
+          <div
+            key={i}
+            style={{
+              width: 3,
+              height: barHeight,
+              borderRadius: 2,
+              background: active
+                ? `rgba(0,212,255,${0.4 + level * 0.3})`
+                : 'rgba(255,255,255,0.08)',
+              transition: 'height 0.1s ease-out',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Hidden audio playback per remote peer ────────────────────────────── */
 
 function RemoteAudio({ userId }: { userId: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
