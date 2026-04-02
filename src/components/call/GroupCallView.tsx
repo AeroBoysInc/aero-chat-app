@@ -1,6 +1,6 @@
 // src/components/call/GroupCallView.tsx
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus } from 'lucide-react';
+import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus, Headphones, HeadphoneOff } from 'lucide-react';
 import { useGroupCallStore, _getRemoteStream, type GroupParticipant } from '../../store/groupCallStore';
 import { ParticipantCard } from './ParticipantCard';
 import { AddToCallModal } from './AddToCallModal';
@@ -37,9 +37,9 @@ function panelBackground(p: GroupParticipant): React.CSSProperties {
 export function GroupCallView() {
   const {
     status, participants, myUserId,
-    isMuted, screenSharingUserId, localScreenStream,
+    isMuted, isDeafened, screenSharingUserId, localScreenStream,
     callStartedAt, invitedUserIds,
-    leaveCall, toggleMute, startScreenShare, stopScreenShare,
+    leaveCall, toggleMute, toggleDeafen, startScreenShare, stopScreenShare,
   } = useGroupCallStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -299,6 +299,17 @@ export function GroupCallView() {
             title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+
+          <button
+            onClick={toggleDeafen}
+            style={{
+              ...btnBase,
+              ...(isDeafened ? { background: 'rgba(239,68,68,0.25)', borderColor: 'rgba(239,68,68,0.50)', color: '#ef4444' } : {}),
+            }}
+            title={isDeafened ? 'Undeafen' : 'Deafen'}
+          >
+            {isDeafened ? <HeadphoneOff className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
           </button>
 
           <button

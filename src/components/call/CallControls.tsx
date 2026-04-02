@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Mic, MicOff, Video, VideoOff, Monitor, MessageSquare, PhoneOff, UserPlus } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Monitor, MessageSquare, PhoneOff, UserPlus, Headphones, HeadphoneOff } from 'lucide-react';
 import { useCallStore } from '../../store/callStore';
 
 interface CallControlsProps {
@@ -9,7 +9,7 @@ interface CallControlsProps {
 }
 
 export function CallControls({ onToggleChat, chatOpen, onAddPerson }: CallControlsProps) {
-  const { isMuted, isCameraOn, isScreenSharing, callType, toggleMute, toggleCamera, startScreenShare, stopScreenShare, hangUp } = useCallStore();
+  const { isMuted, isDeafened, isCameraOn, isScreenSharing, callType, toggleMute, toggleDeafen, toggleCamera, startScreenShare, stopScreenShare, hangUp } = useCallStore();
   const [visible, setVisible] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -79,6 +79,19 @@ export function CallControls({ onToggleChat, chatOpen, onAddPerson }: CallContro
           }}
         >
           {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </button>
+
+        {/* Deafen */}
+        <button
+          onClick={toggleDeafen}
+          title={isDeafened ? 'Undeafen' : 'Deafen'}
+          style={{
+            ...btnBase,
+            background: isDeafened ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)',
+            border: isDeafened ? '1px solid rgba(239,68,68,0.6)' : '1px solid rgba(255,255,255,0.15)',
+          }}
+        >
+          {isDeafened ? <HeadphoneOff className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
         </button>
 
         {/* Camera — only shown for video calls */}

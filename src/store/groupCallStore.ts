@@ -31,6 +31,7 @@ export interface GroupCallState {
   localScreenStream: MediaStream | null;
 
   isMuted: boolean;
+  isDeafened: boolean;
   callStartedAt: number | null;
   invitedUserIds: string[];
 
@@ -41,6 +42,7 @@ export interface GroupCallState {
   leaveCall: () => void;
   addParticipant: (friend: Profile) => Promise<void>;
   toggleMute: () => void;
+  toggleDeafen: () => void;
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
   handleIncomingGroupInvite: (callId: string, participants: GroupParticipant[], inviter: Profile) => void;
@@ -106,6 +108,7 @@ const INITIAL_STATE = {
   screenSharingUserId: null,
   localScreenStream: null,
   isMuted: false,
+  isDeafened: false,
   callStartedAt: null,
   invitedUserIds: [],
 };
@@ -813,6 +816,26 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     _localStream?.getAudioTracks().forEach(t => { t.enabled = !next; });
     _groupChannel?.send({ type: 'broadcast', event: 'group:mute', payload: { callId, userId: myUserId, muted: next } });
     set({ isMuted: next });
+  },
+  toggleDeafen: () => {
+    const { isDeafened, callId, myUserId } = get();
+    const next = !isDeafened;
+    // Mute/unmute all remote audio tracks
+    for (const stream of _remoteStreams.values()) {
+      stream.getAudioTracks().forEach(t => { t.enabled = !next; });
+    }
+    // Deafening also mutes you; undeafening unmutes you
+    if (next && !get().isMuted) {
+      _localStream?.getAudioTracks().forEach(t => { t.enabled = false; });
+      _groupChannel?.send({ type: 'broadcast', event: 'group:mute', payload: { callId, userId: myUserId, muted: true } });
+      set({ isDeafened: next, isMuted: true });
+    } else if (!next && get().isMuted) {
+      _localStream?.getAudioTracks().forEach(t => { t.enabled = true; });
+      _groupChannel?.send({ type: 'broadcast', event: 'group:mute', payload: { callId, userId: myUserId, muted: false } });
+      set({ isDeafened: next, isMuted: false });
+    } else {
+      set({ isDeafened: next });
+    }
   },
   startScreenShare: async () => {
     const { callId, myUserId, screenSharingUserId } = get();

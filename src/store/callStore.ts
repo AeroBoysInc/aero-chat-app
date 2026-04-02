@@ -38,6 +38,7 @@ export interface CallState {
   screenStream: MediaStream | null;
 
   isMuted: boolean;
+  isDeafened: boolean;
   isCameraOn: boolean;
   isScreenSharing: boolean;
 
@@ -62,6 +63,7 @@ export interface CallState {
   hangUp(): void;
   rejectCall(): void;
   toggleMute(): void;
+  toggleDeafen(): void;
   toggleCamera(): void;
   startScreenShare(): Promise<void>;
   stopScreenShare(): void;
@@ -81,6 +83,7 @@ export const INITIAL_CALL_STATE = {
   remoteStream: null,
   screenStream: null,
   isMuted: false,
+  isDeafened: false,
   isCameraOn: false,
   isScreenSharing: false,
   callStartedAt: null,
@@ -703,6 +706,25 @@ export const useCallStore = create<CallState>((set, get) => ({
     const next = !isMuted;
     localStream.getAudioTracks().forEach(t => { t.enabled = !next; });
     set({ isMuted: next });
+  },
+  toggleDeafen: () => {
+    const { remoteStream, isDeafened } = get();
+    if (!remoteStream) return;
+    const next = !isDeafened;
+    remoteStream.getAudioTracks().forEach(t => { t.enabled = !next; });
+    // Deafening also mutes you (standard Discord/voice chat behavior)
+    if (next && !get().isMuted) {
+      const { localStream } = get();
+      localStream?.getAudioTracks().forEach(t => { t.enabled = false; });
+      set({ isDeafened: next, isMuted: true });
+    } else if (!next && get().isMuted) {
+      // Undeafening unmutes you too
+      const { localStream } = get();
+      localStream?.getAudioTracks().forEach(t => { t.enabled = true; });
+      set({ isDeafened: next, isMuted: false });
+    } else {
+      set({ isDeafened: next });
+    }
   },
 
   toggleCamera: () => {
