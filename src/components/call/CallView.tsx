@@ -365,8 +365,8 @@ function SplitPanel({
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       transition: 'flex 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     }}>
-      {/* Card background */}
-      <div style={{ position: 'absolute', inset: 0, ...panelBackground(profile), opacity: 0.85 }} />
+      {/* Card background — blurred to mask low-res data-URL source and create atmosphere */}
+      <div style={{ position: 'absolute', inset: -20, ...panelBackground(profile), opacity: 0.85, filter: 'blur(12px)', transform: 'scale(1.05)' }} />
 
       {/* Dark overlay */}
       <div style={{

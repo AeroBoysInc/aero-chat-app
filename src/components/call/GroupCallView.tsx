@@ -157,12 +157,14 @@ export function GroupCallView() {
                       transition: 'flex 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
-                    {/* Card background — fills the entire panel */}
+                    {/* Card background — blurred to mask low-res data-URL source and create atmosphere */}
                     <div style={{
                       position: 'absolute',
-                      inset: 0,
+                      inset: -20,
                       ...panelBackground(p),
                       opacity: 0.85,
+                      filter: 'blur(12px)',
+                      transform: 'scale(1.05)',
                     }} />
 
                     {/* Dark overlay for readability */}
