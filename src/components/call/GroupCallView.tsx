@@ -130,9 +130,6 @@ export function GroupCallView() {
             {participantList.map((p, i) => {
               const isMe = p.userId === myUserId;
               const muted = isMe ? isMuted : p.isMuted;
-              const statusLabel = muted ? 'Muted' : p.isSpeaking ? 'Speaking' : 'Listening';
-              const statusColor = muted ? 'rgba(239,68,68,0.60)' : p.isSpeaking ? '#00d4ff' : 'rgba(255,255,255,0.35)';
-
               return (
                 <div key={p.userId} style={{ display: 'contents' }}>
                   {/* Divider between panels */}
@@ -174,29 +171,10 @@ export function GroupCallView() {
                       background: 'radial-gradient(ellipse at center 40%, rgba(6,14,31,0.3) 0%, rgba(6,14,31,0.75) 100%)',
                     }} />
 
-                    {/* Speaking edge glow */}
-                    {p.isSpeaking && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        boxShadow: 'inset 0 0 60px rgba(0,212,255,0.08)',
-                        pointerEvents: 'none',
-                      }} />
-                    )}
-
                     {/* Content */}
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                      {/* Avatar with speaking ring */}
+                      {/* Avatar */}
                       <div style={{ position: 'relative' }}>
-                        {p.isSpeaking && (
-                          <div style={{
-                            position: 'absolute', inset: -6, borderRadius: '50%',
-                            border: '2.5px solid rgba(0,212,255,0.55)',
-                            boxShadow: '0 0 18px rgba(0,212,255,0.40), 0 0 36px rgba(0,212,255,0.15)',
-                            animation: 'aura-pulse 2.5s ease-in-out infinite',
-                            pointerEvents: 'none',
-                          }} />
-                        )}
                         <div style={{ width: 80, height: 80 }}>
                           <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="xl" />
                         </div>
@@ -221,9 +199,6 @@ export function GroupCallView() {
                             style={{ background: 'rgba(0,212,255,0.12)', color: 'rgba(0,212,255,0.75)' }}>You</span>
                         )}
                       </div>
-
-                      {/* Status */}
-                      <span className="text-[11px] font-medium" style={{ color: statusColor }}>{statusLabel}</span>
 
                       {/* Audio bars */}
                       <AudioBars level={muted ? 0 : p.audioLevel} active={p.isSpeaking} />

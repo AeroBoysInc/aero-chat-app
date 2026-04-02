@@ -356,9 +356,6 @@ function SplitPanel({
   isMuted: boolean;
   isMe: boolean;
 }) {
-  const statusLabel = isMuted ? 'Muted' : isSpeaking ? 'Speaking' : 'Listening';
-  const statusColor = isMuted ? 'rgba(239,68,68,0.60)' : isSpeaking ? '#00d4ff' : 'rgba(255,255,255,0.35)';
-
   return (
     <div style={{
       flex: 1, position: 'relative', overflow: 'hidden',
@@ -374,24 +371,10 @@ function SplitPanel({
         background: 'radial-gradient(ellipse at center 40%, rgba(6,14,31,0.3) 0%, rgba(6,14,31,0.75) 100%)',
       }} />
 
-      {/* Speaking glow */}
-      {isSpeaking && (
-        <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 60px rgba(0,212,255,0.08)', pointerEvents: 'none' }} />
-      )}
-
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        {/* Avatar with speaking ring */}
+        {/* Avatar */}
         <div style={{ position: 'relative' }}>
-          {isSpeaking && (
-            <div style={{
-              position: 'absolute', inset: -6, borderRadius: '50%',
-              border: '2.5px solid rgba(0,212,255,0.55)',
-              boxShadow: '0 0 18px rgba(0,212,255,0.40), 0 0 36px rgba(0,212,255,0.15)',
-              animation: 'aura-pulse 2.5s ease-in-out infinite',
-              pointerEvents: 'none',
-            }} />
-          )}
           <div style={{ width: 80, height: 80 }}>
             <AvatarImage username={username} avatarUrl={avatarUrl} size="xl" />
           </div>
@@ -414,9 +397,6 @@ function SplitPanel({
               style={{ background: 'rgba(0,212,255,0.12)', color: 'rgba(0,212,255,0.75)' }}>You</span>
           )}
         </div>
-
-        {/* Status */}
-        <span className="text-[11px] font-medium" style={{ color: statusColor }}>{statusLabel}</span>
 
         {/* Audio bars */}
         <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
