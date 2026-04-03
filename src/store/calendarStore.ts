@@ -83,7 +83,7 @@ interface CalendarState {
   goToCurrentWeek: () => void;
   goToWeekContaining: (date: Date) => void;
   openCreateModal: (prefillDate?: Date) => void;
-  openEditModal: (event: CalendarEvent) => void;
+  openEditModal: (event: CalendarEvent) => Promise<void>;
   closeModal: () => void;
   subscribeRealtime: (userId: string) => () => void;
 }
@@ -112,33 +112,16 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
+    // Plain select — no nested join to avoid PostgREST 500 with RLS subquery policies
     const { data, error } = await supabase
       .from('calendar_events')
-      .select(`
-        *,
-        calendar_event_invites (
-          invitee_id,
-          status,
-          profiles:invitee_id ( username )
-        )
-      `)
+      .select('*')
       .gte('start_at', weekStart.toISOString())
       .lt('start_at', weekEnd.toISOString())
       .order('start_at', { ascending: true });
 
     if (error) { set({ loading: false }); return; }
-
-    const mapped: CalendarEvent[] = (data ?? []).map((row: any) => ({
-      ...row,
-      invites: (row.calendar_event_invites ?? []).map((inv: any) => ({
-        invitee_id: inv.invitee_id,
-        invitee_username: inv.profiles?.username ?? 'Unknown',
-        status: inv.status,
-      })),
-      calendar_event_invites: undefined,
-    }));
-
-    set({ events: mapped, loading: false });
+    set({ events: data ?? [], loading: false });
   },
 
   fetchTodayTasks: async (userId) => {
@@ -251,7 +234,22 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
   },
 
   openCreateModal: (prefillDate) => set({ activeModal: 'create', editingEvent: null, modalPrefillDate: prefillDate ?? null }),
-  openEditModal: (event) => set({ activeModal: 'edit', editingEvent: event, modalPrefillDate: null }),
+  openEditModal: async (event) => {
+    // Open modal immediately, then load invites in the background
+    set({ activeModal: 'edit', editingEvent: event, modalPrefillDate: null });
+    const { data } = await supabase
+      .from('calendar_event_invites')
+      .select('invitee_id, status')
+      .eq('event_id', event.id);
+    if (data) {
+      const invites: CalendarEventInvite[] = data.map((inv: any) => ({
+        invitee_id: inv.invitee_id,
+        invitee_username: '',
+        status: inv.status as CalendarEventInvite['status'],
+      }));
+      set(s => ({ editingEvent: s.editingEvent ? { ...s.editingEvent, invites } : s.editingEvent }));
+    }
+  },
   closeModal: () => set({ activeModal: null, editingEvent: null, modalPrefillDate: null }),
 
   subscribeRealtime: (userId) => {
