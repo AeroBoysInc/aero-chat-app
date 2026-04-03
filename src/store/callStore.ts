@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { createPeerConnection, createBlackVideoTrack, serializeSdp } from '../lib/webrtc';
+import { encryptMessage, loadPrivateKey } from '../lib/crypto';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
@@ -92,13 +93,18 @@ export const INITIAL_CALL_STATE = {
 
 // ICE restart helper — called on 'disconnected' state
 let _iceRestartTimer: ReturnType<typeof setTimeout> | null = null;
+// Failsafe: if still disconnected after ICE restart attempt, hang up
+let _disconnectFailsafe: ReturnType<typeof setTimeout> | null = null;
 
 function handleIceRestart(callId: string) {
   if (_iceRestartTimer) return; // already pending
+
+  // Attempt ICE restart after 4s of disconnection
   _iceRestartTimer = setTimeout(async () => {
     _iceRestartTimer = null;
     if (!_peerConnection) return;
-    if (_peerConnection.iceConnectionState === 'failed') {
+    const state = _peerConnection.iceConnectionState;
+    if (state === 'failed' || state === 'closed') {
       useCallStore.getState().hangUp();
       return;
     }
@@ -112,8 +118,63 @@ function handleIceRestart(callId: string) {
       });
     } catch {
       useCallStore.getState().hangUp();
+      return;
     }
-  }, 8_000);
+
+    // If still not recovered after another 8s, the peer is gone — hang up
+    _disconnectFailsafe = setTimeout(() => {
+      _disconnectFailsafe = null;
+      if (!_peerConnection) return;
+      const s = _peerConnection.iceConnectionState;
+      if (s !== 'connected' && s !== 'completed') {
+        useCallStore.getState().hangUp();
+      }
+    }, 8_000);
+  }, 4_000);
+}
+
+function clearDisconnectTimers() {
+  if (_iceRestartTimer) { clearTimeout(_iceRestartTimer); _iceRestartTimer = null; }
+  if (_disconnectFailsafe) { clearTimeout(_disconnectFailsafe); _disconnectFailsafe = null; }
+}
+
+/**
+ * Insert a call event message (call ended / missed call) into the messages table.
+ * Content is JSON-stringified with a `_call` flag so ChatWindow can render it specially.
+ * Encrypted so it's consistent with all other messages.
+ */
+async function insertCallMessage(
+  senderId: string,
+  recipientId: string,
+  event: 'ended' | 'missed',
+  durationSeconds?: number,
+  callType?: 'audio' | 'video',
+) {
+  try {
+    const privateKey = loadPrivateKey(senderId);
+    if (!privateKey) return;
+
+    // Fetch recipient's public key
+    const { data: profile } = await supabase
+      .from('profiles').select('public_key').eq('id', recipientId).single();
+    if (!profile?.public_key) return;
+
+    const content = JSON.stringify({
+      _call: true,
+      event,
+      callType: callType ?? 'audio',
+      ...(durationSeconds != null ? { duration: durationSeconds } : {}),
+    });
+
+    const ciphertext = encryptMessage(content, profile.public_key, privateKey);
+    await supabase.from('messages').insert({
+      sender_id: senderId,
+      recipient_id: recipientId,
+      content: ciphertext,
+    });
+  } catch {
+    // Best-effort — don't break the hangup flow
+  }
 }
 
 export const useCallStore = create<CallState>((set, get) => ({
@@ -403,6 +464,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     _peerConnection.oniceconnectionstatechange = () => {
       const state = _peerConnection?.iceConnectionState;
       if (state === 'connected' || state === 'completed') {
+        clearDisconnectTimers(); // recovered — cancel any pending hangup
         useCallStore.setState({ status: 'connected', callStartedAt: Date.now() });
       }
       if (state === 'disconnected') {
@@ -476,15 +538,29 @@ export const useCallStore = create<CallState>((set, get) => ({
       }
     }, 30_000);
 
-    // ── beforeunload: best-effort hangup signal ───────────────────────────
-    const beforeUnloadHangup = () => {
+    // ── Page close: best-effort hangup signal ──────────────────────────────
+    // Use sendBeacon (reliable during unload) + channel send (immediate)
+    const supabaseUrlForBeacon = import.meta.env.VITE_SUPABASE_URL as string;
+    const onPageClose = () => {
+      // Channel send (works if page isn't fully torn down yet)
       _signalingChannel?.send({
         type: 'broadcast',
         event: 'call:hangup',
         payload: { callId },
       });
+      // sendBeacon (works even during page teardown)
+      try {
+        const channelName = `call:${[myUserId, contact.id].sort().join(':')}`;
+        navigator.sendBeacon(
+          `${supabaseUrlForBeacon}/realtime/v1/api/broadcast`,
+          new Blob([JSON.stringify({
+            messages: [{ topic: channelName, event: 'call:hangup', payload: { callId } }],
+          })], { type: 'application/json' }),
+        );
+      } catch { /* best-effort */ }
     };
-    window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
+    window.addEventListener('beforeunload', onPageClose, { once: true });
+    window.addEventListener('pagehide', onPageClose, { once: true });
   },
   answerCall: async () => {
     const { callId, contact, callType } = get();
@@ -567,6 +643,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     _peerConnection.oniceconnectionstatechange = () => {
       const state = _peerConnection?.iceConnectionState;
       if (state === 'connected' || state === 'completed') {
+        clearDisconnectTimers();
         useCallStore.setState({ status: 'connected', callStartedAt: Date.now() });
       }
       if (state === 'disconnected') {
@@ -615,18 +692,31 @@ export const useCallStore = create<CallState>((set, get) => ({
       isMuted: false,
     });
 
-    // ── beforeunload: best-effort hangup from callee side ─────────────────
-    const beforeUnloadHangup = () => {
+    // ── Page close: best-effort hangup from callee side ────────────────────
+    const supabaseUrlForBeacon = import.meta.env.VITE_SUPABASE_URL as string;
+    const authData2 = await supabase.auth.getUser();
+    const calleeId = authData2.data.user?.id;
+    const onPageClose = () => {
       _signalingChannel?.send({
         type: 'broadcast',
         event: 'call:hangup',
         payload: { callId },
       });
+      try {
+        const channelName = `call:${[calleeId ?? '', contact!.id].sort().join(':')}`;
+        navigator.sendBeacon(
+          `${supabaseUrlForBeacon}/realtime/v1/api/broadcast`,
+          new Blob([JSON.stringify({
+            messages: [{ topic: channelName, event: 'call:hangup', payload: { callId } }],
+          })], { type: 'application/json' }),
+        );
+      } catch { /* best-effort */ }
     };
-    window.addEventListener('beforeunload', beforeUnloadHangup, { once: true });
+    window.addEventListener('beforeunload', onPageClose, { once: true });
+    window.addEventListener('pagehide', onPageClose, { once: true });
   },
   hangUp: () => {
-    const { callId } = get();
+    const { callId, contact, status, callStartedAt, callType, isCaller } = get();
 
     // 1. Send hangup signal (best-effort — channel may already be gone)
     if (callId) {
@@ -637,25 +727,38 @@ export const useCallStore = create<CallState>((set, get) => ({
       });
     }
 
-    // 2. Stop all media tracks
+    // 2. Insert call event message (fire-and-forget)
+    if (contact) {
+      supabase.auth.getUser().then(({ data }) => {
+        const myId = data.user?.id;
+        if (!myId) return;
+        if (status === 'connected' && callStartedAt) {
+          // Call ended — insert duration message
+          const dur = Math.floor((Date.now() - callStartedAt) / 1000);
+          insertCallMessage(myId, contact.id, 'ended', dur, callType);
+        } else if (status === 'calling' && isCaller) {
+          // Caller hung up before answer — missed call for recipient
+          insertCallMessage(myId, contact.id, 'missed', undefined, callType);
+        }
+      });
+    }
+
+    // 3. Stop all media tracks
     get().localStream?.getTracks().forEach(t => t.stop());
     _screenStream?.getTracks().forEach(t => t.stop());
 
-    // 3. Close PeerConnection
+    // 4. Close PeerConnection
     _peerConnection?.close();
 
-    // 4. Remove signaling channel from Supabase
+    // 5. Remove signaling channel from Supabase
     if (_signalingChannel) {
       supabase.removeChannel(_signalingChannel);
     }
 
-    // 5. Clear ICE restart timer
-    if (_iceRestartTimer) {
-      clearTimeout(_iceRestartTimer);
-      _iceRestartTimer = null;
-    }
+    // 6. Clear ICE restart / disconnect failsafe timers
+    clearDisconnectTimers();
 
-    // 6. Null all module-level refs
+    // 7. Null all module-level refs
     _peerConnection = null;
     _signalingChannel = null;
     _channelSubscribed = false;
@@ -667,12 +770,12 @@ export const useCallStore = create<CallState>((set, get) => ({
     _rawAudioStream = null;
     _ncSeq++;
 
-    // 7. Reset Zustand state
+    // 8. Reset Zustand state
     useCallStore.setState(INITIAL_CALL_STATE);
   },
 
   rejectCall: () => {
-    const { callId } = get();
+    const { callId, contact, callType } = get();
 
     // Send reject signal before cleaning up
     if (callId) {
@@ -680,6 +783,16 @@ export const useCallStore = create<CallState>((set, get) => ({
         type: 'broadcast',
         event: 'call:reject',
         payload: { callId },
+      });
+    }
+
+    // Insert missed call message (the caller will see it)
+    if (contact) {
+      supabase.auth.getUser().then(({ data }) => {
+        const myId = data.user?.id;
+        if (!myId) return;
+        // The caller sent it, so insert as if caller sent a missed call
+        insertCallMessage(contact.id, myId, 'missed', undefined, callType);
       });
     }
 
@@ -693,7 +806,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     _screenStream = null;
     _cameraTrack = null;
     _pendingOffer = null;
-    if (_iceRestartTimer) { clearTimeout(_iceRestartTimer); _iceRestartTimer = null; }
+    clearDisconnectTimers();
     _noisePipeline?.dispose();
     _noisePipeline = null;
     _rawAudioStream = null;

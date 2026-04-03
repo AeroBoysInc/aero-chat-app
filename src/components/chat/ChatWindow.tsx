@@ -51,6 +51,25 @@ function isFileMessage(content: string): boolean {
   try { return JSON.parse(content)._file === true; } catch { return false; }
 }
 
+function isCallMessage(content: string): boolean {
+  try { return JSON.parse(content)._call === true; } catch { return false; }
+}
+
+function parseCallMessage(content: string): { event: 'ended' | 'missed'; duration?: number; callType?: string } | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._call) return { event: p.event, duration: p.duration, callType: p.callType };
+    return null;
+  } catch { return null; }
+}
+
+function formatCallDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
+}
+
 function fmtBytes(b: number): string {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
@@ -118,6 +137,39 @@ const MessageItem = memo(function MessageItem({
           <div className="flex-1 h-px" style={{ background: 'var(--date-sep-line)' }} />
         </div>
       )}
+      {/* ── Call event message — centered system-style ── */}
+      {isCallMessage(msg.content) ? (() => {
+        const call = parseCallMessage(msg.content);
+        if (!call) return null;
+        const isEnded = call.event === 'ended';
+        const icon = isEnded ? '📞' : '📵';
+        const label = isEnded
+          ? `Call ended · ${call.duration != null ? formatCallDuration(call.duration) : ''}`
+          : isMine ? 'Outgoing call · No answer' : 'Missed call';
+        return (
+          <div
+            data-msg-id={msg.id}
+            className="flex justify-center"
+            style={{ position: 'relative', zIndex: 1, padding: '4px 0' }}
+          >
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 14px', borderRadius: 20,
+              background: 'var(--date-sep-line)',
+              border: '1px solid var(--panel-divider)',
+              fontSize: 11, fontWeight: 500,
+              color: isEnded ? 'var(--text-muted)' : 'rgba(239,68,68,0.85)',
+              fontFamily: 'Inter, system-ui, sans-serif',
+            }}>
+              <span>{icon}</span>
+              <span>{label}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 10, opacity: 0.7 }}>
+                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </div>
+        );
+      })() : (
       <div
         data-msg-id={msg.id}
         className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'} ${isLastMessage && historyLoaded ? 'animate-slide-up' : ''}`}
@@ -245,6 +297,7 @@ const MessageItem = memo(function MessageItem({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 });
