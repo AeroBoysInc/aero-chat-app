@@ -18,15 +18,6 @@ ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "events_owner_select" ON public.calendar_events FOR SELECT
   USING (creator_id = auth.uid());
 
-CREATE POLICY "events_invitee_select" ON public.calendar_events FOR SELECT
-  USING (
-    visibility = 'invited' AND
-    EXISTS (
-      SELECT 1 FROM public.calendar_event_invites
-      WHERE event_id = id AND invitee_id = auth.uid()
-    )
-  );
-
 CREATE POLICY "events_owner_insert" ON public.calendar_events FOR INSERT
   WITH CHECK (creator_id = auth.uid());
 
@@ -46,6 +37,16 @@ CREATE TABLE IF NOT EXISTS public.calendar_event_invites (
 );
 
 ALTER TABLE public.calendar_event_invites ENABLE ROW LEVEL SECURITY;
+
+-- This policy references calendar_event_invites, so it must be created after that table
+CREATE POLICY "events_invitee_select" ON public.calendar_events FOR SELECT
+  USING (
+    visibility = 'invited' AND
+    EXISTS (
+      SELECT 1 FROM public.calendar_event_invites
+      WHERE event_id = id AND invitee_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "invites_select" ON public.calendar_event_invites FOR SELECT
   USING (
