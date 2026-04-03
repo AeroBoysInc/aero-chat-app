@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, UserMinus, Gamepad2, PenTool, Palette, Camera } from 'lucide-react';
+import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool, Palette, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -66,6 +66,25 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const myPlayingGame     = usePresenceStore(s => s.playingGames.get(user?.id ?? '') ?? null);
   const { openGameHub, openWriterHub } = useCornerStore();
   const callStatus = useCallStore(s => s.status);
+  const onlineIds = usePresenceStore(s => s.onlineIds);
+  const presenceReady = usePresenceStore(s => s.presenceReady);
+
+  // Group friends by effective status
+  const STATUS_ORDER: Status[] = ['online', 'busy', 'away', 'offline'];
+  const groupedFriends = useMemo(() => {
+    const groups: Record<Status, Profile[]> = { online: [], busy: [], away: [], offline: [] };
+    for (const f of friends) {
+      const storedStatus = (f.status as Status | undefined) ?? 'online';
+      const effective: Status = presenceReady && !onlineIds.has(f.id) ? 'offline' : storedStatus;
+      groups[effective].push(f);
+    }
+    return groups;
+  }, [friends, onlineIds, presenceReady]);
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = useCallback((status: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [status]: !prev[status] }));
+  }, []);
 
   const [query,           setQuery]           = useState('');
   const [results,         setResults]         = useState<Profile[]>([]);
@@ -603,15 +622,48 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               </div>
             )}
 
-            {friends.map(f => (
-              <FriendItem
-                key={f.id}
-                friend={f}
-                isSelected={selectedUser?.id === f.id}
-                onSelect={handleFriendSelect}
-                currentUserId={user!.id}
-              />
-            ))}
+            {STATUS_ORDER.map(status => {
+              const group = groupedFriends[status];
+              if (group.length === 0) return null;
+              const collapsed = collapsedGroups[status] ?? false;
+              return (
+                <div key={status}>
+                  <button
+                    onClick={() => toggleGroup(status)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors duration-100"
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover-bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  >
+                    {collapsed
+                      ? <ChevronDown className="h-3 w-3" style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+                      : <ChevronUp className="h-3 w-3" style={{ color: 'var(--text-muted)', opacity: 0.6 }} />}
+                    <span
+                      className="inline-block rounded-full shrink-0"
+                      style={{ width: 7, height: 7, background: statusColor[status], boxShadow: `0 0 4px ${statusColor[status]}88` }}
+                    />
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+                      color: 'var(--text-muted)', fontFamily: 'Inter, system-ui, sans-serif',
+                    }}>
+                      {statusLabel[status]}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.6 }}>
+                      — {group.length}
+                    </span>
+                  </button>
+                  {!collapsed && group.map(f => (
+                    <FriendItem
+                      key={f.id}
+                      friend={f}
+                      isSelected={selectedUser?.id === f.id}
+                      onSelect={handleFriendSelect}
+                      currentUserId={user!.id}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </>
         )}
       </nav>
