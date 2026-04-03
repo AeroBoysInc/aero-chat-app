@@ -22,9 +22,10 @@ export const StoryCard = memo(function StoryCard({ story, liked, onOpen, onLike 
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden cursor-pointer transition-all"
+      className="relative rounded-2xl cursor-pointer transition-all"
       style={{
         height: 140,
+        overflow: 'visible',
         border: `1px solid rgba(${hexToRgb(cat.color)}, ${hovered ? 0.40 : 0.18})`,
         boxShadow: hovered
           ? `0 8px 32px rgba(${hexToRgb(cat.color)}, 0.20)`
@@ -36,36 +37,37 @@ export const StoryCard = memo(function StoryCard({ story, liked, onOpen, onLike 
       onMouseLeave={() => setHovered(false)}
       onClick={onOpen}
     >
-      {/* Background — blurred cover image or gradient fallback */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: story.cover_image_url
-            ? `url(${story.cover_image_url}) center/cover`
-            : `linear-gradient(135deg, rgba(${hexToRgb(cat.color)}, 0.15), rgba(${hexToRgb(cat.color)}, 0.05))`,
-        }}
-      />
-      {/* Blur + darken overlay */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backdropFilter: story.cover_image_url ? 'blur(8px) brightness(0.5)' : 'none',
-          background: story.cover_image_url
-            ? 'rgba(0,0,0,0.3)'
-            : 'var(--sidebar-bg)',
-        }}
-      />
+      {/* Clipped background layers */}
+      <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: 16 }}>
+        <div
+          className="absolute inset-0"
+          style={{
+            background: story.cover_image_url
+              ? `url(${story.cover_image_url}) center/cover`
+              : `linear-gradient(135deg, rgba(${hexToRgb(cat.color)}, 0.15), rgba(${hexToRgb(cat.color)}, 0.05))`,
+          }}
+        />
+        {/* Blur + darken overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backdropFilter: story.cover_image_url ? 'blur(8px) brightness(0.5)' : 'none',
+            background: story.cover_image_url
+              ? 'rgba(0,0,0,0.3)'
+              : 'var(--sidebar-bg)',
+          }}
+        />
+        {/* Glass surface */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `rgba(${hexToRgb(cat.color)}, 0.04)`,
+            backdropFilter: 'blur(20px)',
+          }}
+        />
+      </div>
 
-      {/* Glass surface */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `rgba(${hexToRgb(cat.color)}, 0.04)`,
-          backdropFilter: 'blur(20px)',
-        }}
-      />
-
-      {/* ── Category tag — floats half-in, half-out at the top ── */}
+      {/* ── Category tag — protrudes above card for 3D effect ── */}
       <div
         className="absolute left-4 flex items-center gap-1.5 rounded-full px-3 py-1"
         style={{

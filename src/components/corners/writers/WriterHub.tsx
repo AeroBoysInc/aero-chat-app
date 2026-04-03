@@ -202,7 +202,7 @@ export function WriterHub() {
 
       {/* Story feed */}
       <div className="flex-1 overflow-y-auto scrollbar-aero p-5">
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5" style={{ paddingTop: 14 }}>
           {activeTab === 'browse' ? (
             filteredStories.length === 0 ? (
               <EmptyFeed loading={loading} />
