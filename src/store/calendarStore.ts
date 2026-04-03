@@ -107,7 +107,8 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
   },
 
   fetchWeek: async (weekStart) => {
-    set({ loading: true });
+    // Update currentWeekStart immediately so navigation is responsive even if fetch is slow/fails
+    set({ loading: true, currentWeekStart: weekStart });
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
@@ -137,7 +138,7 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
       calendar_event_invites: undefined,
     }));
 
-    set({ events: mapped, loading: false, currentWeekStart: weekStart });
+    set({ events: mapped, loading: false });
   },
 
   fetchTodayTasks: async (userId) => {
