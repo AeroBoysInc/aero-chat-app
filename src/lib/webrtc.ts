@@ -60,12 +60,39 @@ export async function createPeerConnection(): Promise<RTCPeerConnection> {
  * Creates a tiny black 2×2 canvas video track.
  * Always added as the video sender at call setup so replaceTrack()
  * is safe in both audio-only and video calls.
+ *
+ * Falls back to a silent MediaStreamTrack if captureStream is unavailable
+ * (e.g. Firefox in some contexts).
  */
 export function createBlackVideoTrack(): MediaStreamTrack {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2;
-  canvas.height = 2;
-  canvas.getContext('2d')?.fillRect(0, 0, 2, 2);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (canvas as any).captureStream(1).getVideoTracks()[0];
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 2;
+    canvas.getContext('2d')?.fillRect(0, 0, 2, 2);
+    // captureStream exists on HTMLCanvasElement but isn't in all TS typings
+    const stream = (canvas as any).captureStream(0) as MediaStream;
+    const track = stream.getVideoTracks()[0];
+    if (track) return track;
+  } catch {
+    // captureStream not available — fall through to MediaStream constructor
+  }
+  // Fallback: create a track via a temporary peer connection's transceiver
+  // This works cross-browser where captureStream doesn't
+  const pc = new RTCPeerConnection();
+  const transceiver = pc.addTransceiver('video', { direction: 'sendonly' });
+  const track = transceiver.sender.track!;
+  // Don't close pc — it owns the track. It'll be GC'd when track stops.
+  return track;
+}
+
+/**
+ * Normalize an SDP descriptor to a plain { type, sdp } object.
+ * Ensures cross-browser compatibility when passing SDP through JSON
+ * serialization (e.g. Supabase broadcast). RTCSessionDescription objects
+ * from Firefox may carry extra properties that confuse Chrome's
+ * setRemoteDescription, and vice versa.
+ */
+export function serializeSdp(desc: RTCSessionDescriptionInit): RTCSessionDescriptionInit {
+  return { type: desc.type, sdp: desc.sdp };
 }

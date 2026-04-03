@@ -1,7 +1,7 @@
 // src/store/groupCallStore.ts
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
+import { createPeerConnection, createBlackVideoTrack, serializeSdp } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
@@ -218,7 +218,7 @@ async function createOfferForPeer(
     type: 'broadcast',
     event: 'group:offer',
     payload: {
-      sdp: pc.localDescription,
+      sdp: pc.localDescription ? serializeSdp(pc.localDescription) : null,
       callId,
       fromUserId: myUserId,
       toUserId: remoteUserId,
@@ -260,7 +260,7 @@ async function subscribeToGroupChannel(
       type: 'broadcast',
       event: 'group:answer',
       payload: {
-        sdp: pc.localDescription,
+        sdp: pc.localDescription ? serializeSdp(pc.localDescription) : null,
         callId,
         fromUserId: myUserId,
         toUserId: fromUserId,

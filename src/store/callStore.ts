@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { createPeerConnection, createBlackVideoTrack } from '../lib/webrtc';
+import { createPeerConnection, createBlackVideoTrack, serializeSdp } from '../lib/webrtc';
 import type { Profile } from './authStore';
 import { useAudioStore } from './audioStore';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../lib/noiseSuppression';
@@ -108,7 +108,7 @@ function handleIceRestart(callId: string) {
       _signalingChannel?.send({
         type: 'broadcast',
         event: 'call:offer',
-        payload: { sdp: offer, callId },
+        payload: { sdp: serializeSdp(offer), callId },
       });
     } catch {
       useCallStore.getState().hangUp();
@@ -180,7 +180,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:ice' }, async ({ payload }) => {
         if (payload.callId !== callId) return;
         if (_peerConnection?.remoteDescription) {
-          await _peerConnection.addIceCandidate(payload.candidate).catch(() => {});
+          await _peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {});
         } else {
           useCallStore.setState(s => ({
             pendingCandidates: [...s.pendingCandidates, payload.candidate],
@@ -203,13 +203,13 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:offer' }, async ({ payload }) => {
         if (payload.callId !== callId || !_peerConnection) return;
         // Treat as an ICE-restart offer from the caller
-        await _peerConnection.setRemoteDescription(payload.sdp);
+        await _peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         const restartAnswer = await _peerConnection.createAnswer();
         await _peerConnection.setLocalDescription(restartAnswer);
         _signalingChannel?.send({
           type: 'broadcast',
           event: 'call:answer',
-          payload: { sdp: restartAnswer, callId },
+          payload: { sdp: serializeSdp(restartAnswer), callId },
         });
       })
       .subscribe((status) => {
@@ -319,18 +319,18 @@ export const useCallStore = create<CallState>((set, get) => ({
       })
       .on('broadcast', { event: 'call:answer' }, async ({ payload }) => {
         if (payload.callId !== callId) return;
-        await _peerConnection!.setRemoteDescription(payload.sdp);
+        await _peerConnection!.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         // Drain queued ICE candidates
         const { pendingCandidates } = get();
         for (const c of pendingCandidates) {
-          await _peerConnection!.addIceCandidate(c).catch(() => {});
+          await _peerConnection!.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
         set({ pendingCandidates: [] });
       })
       .on('broadcast', { event: 'call:ice' }, async ({ payload }) => {
         if (payload.callId !== callId) return;
         if (_peerConnection?.remoteDescription) {
-          await _peerConnection.addIceCandidate(payload.candidate).catch(() => {});
+          await _peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {});
         } else {
           set(s => ({ pendingCandidates: [...s.pendingCandidates, payload.candidate] }));
         }
@@ -440,7 +440,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       messages: [{
         topic: `call:ring:${contact.id}`,
         event: 'call:offer',
-        payload: { sdp: offer, callId, callType, callerId: myUserId },
+        payload: { sdp: serializeSdp(offer), callId, callType, callerId: myUserId },
       }],
     });
     const ringHeaders = {
@@ -588,12 +588,12 @@ export const useCallStore = create<CallState>((set, get) => ({
     }
 
     // ── SDP exchange ─────────────────────────────────────────────────────
-    await _peerConnection.setRemoteDescription(_pendingOffer);
+    await _peerConnection.setRemoteDescription(new RTCSessionDescription(_pendingOffer));
 
     // Drain any ICE candidates that arrived before PeerConnection was created
     const { pendingCandidates } = get();
     for (const c of pendingCandidates) {
-      await _peerConnection.addIceCandidate(c).catch(() => {});
+      await _peerConnection.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
     }
 
     const answer = await _peerConnection.createAnswer();
@@ -602,7 +602,7 @@ export const useCallStore = create<CallState>((set, get) => ({
     _signalingChannel.send({
       type: 'broadcast',
       event: 'call:answer',
-      payload: { sdp: answer, callId },
+      payload: { sdp: serializeSdp(answer), callId },
     });
 
     _pendingOffer = null;
