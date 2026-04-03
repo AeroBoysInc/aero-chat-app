@@ -1,5 +1,6 @@
+// src/components/corners/CornerRail.tsx
 import { useState } from 'react';
-import { Gamepad2, Terminal, PenTool } from 'lucide-react';
+import { Gamepad2, Terminal, PenTool, CalendarDays } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 
 interface RailBtnProps {
@@ -18,7 +19,6 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Active left-edge indicator */}
       {isActive && (
         <div
           className="absolute top-1/2 -translate-y-1/2 rounded-r-full"
@@ -45,7 +45,6 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
         <Icon style={{ width: 16, height: 16 }} />
       </button>
 
-      {/* Tooltip */}
       {hovered && (
         <div
           className="absolute left-11 top-1/2 -translate-y-1/2 z-50 animate-fade-in"
@@ -79,7 +78,12 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
 }
 
 export function CornerRail() {
-  const { gameViewActive, openGameHub, closeGameView, devViewActive, openDevView, closeDevView, writerViewActive, openWriterHub, closeWriterView } = useCornerStore();
+  const {
+    gameViewActive, openGameHub, closeGameView,
+    devViewActive, openDevView, closeDevView,
+    writerViewActive, openWriterHub, closeWriterView,
+    calendarViewActive, openCalendarView, closeCalendarView,
+  } = useCornerStore();
 
   return (
     <div
@@ -93,7 +97,6 @@ export function CornerRail() {
         zIndex: 10,
       }}
     >
-      {/* Top section */}
       <div className="flex flex-col items-center gap-3">
         <RailBtn
           icon={Gamepad2}
@@ -109,9 +112,15 @@ export function CornerRail() {
           tooltip={writerViewActive ? 'Back to Chat' : 'Writers Corner'}
           onClick={() => writerViewActive ? closeWriterView() : openWriterHub()}
         />
+        <RailBtn
+          icon={CalendarDays}
+          isActive={calendarViewActive}
+          color="#3dd87a"
+          tooltip={calendarViewActive ? 'Back to Chat' : 'Calendar & Tasks'}
+          onClick={() => calendarViewActive ? closeCalendarView() : openCalendarView()}
+        />
       </div>
 
-      {/* DEV button pinned to bottom — only in dev builds */}
       {import.meta.env.DEV && (
         <div className="mt-auto">
           <RailBtn

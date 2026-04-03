@@ -9,6 +9,7 @@ import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
 const WritersCorner = lazy(() => import('../corners/WritersCorner').then(m => ({ default: m.WritersCorner })));
+const CalendarCorner = lazy(() => import('../corners/CalendarCorner').then(m => ({ default: m.CalendarCorner })));
 import { CallView } from '../call/CallView';
 import { GroupCallView } from '../call/GroupCallView';
 import { MiniCallWidget } from '../call/MiniCallWidget';
@@ -34,8 +35,8 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive, devViewActive, writerViewActive } = useCornerStore();
-  const anyViewActive = gameViewActive || devViewActive || writerViewActive;
+  const { gameViewActive, devViewActive, writerViewActive, calendarViewActive } = useCornerStore();
+  const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive;
   const callStatus = useCallStore(s => s.status);
   const callActive = callStatus !== 'idle';
   const groupCallStatus = useGroupCallStore(s => s.status);
@@ -321,6 +322,25 @@ export function ChatLayout() {
             </div>
           }>
             <WritersCorner />
+          </Suspense>
+        </div>
+
+        {/* ── CALENDAR LAYER ──────────────────────────────────── */}
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            transform: calendarViewActive ? 'translateX(0)' : 'translateX(102%)',
+            opacity: calendarViewActive ? 1 : 0,
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
+            pointerEvents: calendarViewActive ? 'auto' : 'none',
+          }}
+        >
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center" style={{ color: 'rgba(61,216,122,0.7)', fontSize: 13 }}>
+              Loading Calendar...
+            </div>
+          }>
+            <CalendarCorner />
           </Suspense>
         </div>
 
