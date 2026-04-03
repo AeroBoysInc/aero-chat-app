@@ -154,9 +154,12 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
 
   createEvent: async (userId, payload) => {
     const visibility = payload.invitee_ids.length > 0 ? 'invited' : 'private';
-    const { data, error } = await supabase
+    // Pre-generate ID client-side to avoid INSERT+RETURNING with RLS subquery (causes 500)
+    const newId = crypto.randomUUID();
+    const { error } = await supabase
       .from('calendar_events')
       .insert({
+        id: newId,
         creator_id: userId,
         title: payload.title,
         description: payload.description,
@@ -164,15 +167,13 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
         end_at: payload.end_at,
         color: payload.color,
         visibility,
-      })
-      .select('id')
-      .single();
+      });
 
-    if (error || !data) return;
+    if (error) return;
 
     if (payload.invitee_ids.length > 0) {
       await supabase.from('calendar_event_invites').insert(
-        payload.invitee_ids.map(id => ({ event_id: data.id, invitee_id: id }))
+        payload.invitee_ids.map(inviteeId => ({ event_id: newId, invitee_id: inviteeId }))
       );
     }
 
@@ -213,12 +214,10 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
 
   addTask: async (userId, title) => {
     const today = toDateString(new Date());
-    const { data } = await supabase
+    const { error } = await supabase
       .from('tasks')
-      .insert({ user_id: userId, title, date: today })
-      .select('*')
-      .single();
-    if (data) set(s => ({ tasks: [...s.tasks, data] }));
+      .insert({ user_id: userId, title, date: today });
+    if (!error) await get().fetchTodayTasks(userId);
   },
 
   toggleTask: async (id, done) => {
