@@ -37,8 +37,8 @@ export function ProfileTooltip({ data, children }: { data: ProfileTooltipData; c
     timerRef.current = setTimeout(() => {
       if (!wrapRef.current) return;
       const rect = wrapRef.current.getBoundingClientRect();
-      // Position above the avatar, centered
-      setPos({ x: rect.left + rect.width / 2, y: rect.top });
+      // Position to the right of the avatar, vertically centered
+      setPos({ x: rect.right, y: rect.top + rect.height / 2 });
       setVisible(true);
     }, 350);
   }, []);
@@ -76,7 +76,7 @@ export function ProfileTooltip({ data, children }: { data: ProfileTooltipData; c
             position: 'fixed',
             left: pos.x,
             top: pos.y,
-            transform: 'translate(-50%, -100%) translateY(-8px)',
+            transform: 'translate(8px, -50%)',
             zIndex: 99990,
             pointerEvents: 'none',
           }}
