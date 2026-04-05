@@ -1,16 +1,19 @@
 // src/components/servers/ServerView.tsx
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { ArrowLeft, Settings } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { BubbleHub } from './BubbleHub';
 import { BubbleChat } from './BubbleChat';
+import { ServerSettings } from './ServerSettings';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
   const { selectedServerId, selectedBubbleId, servers, members, loadServerData } = useServerStore();
   const { loadRoles } = useServerRoleStore();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const server = servers.find(s => s.id === selectedServerId);
 
@@ -60,6 +63,7 @@ export const ServerView = memo(function ServerView() {
             {members.length} member{members.length !== 1 ? 's' : ''}
           </span>
           <button
+            onClick={() => setSettingsOpen(true)}
             className="transition-opacity hover:opacity-70"
             style={{ color: 'var(--text-muted)' }}
           >
@@ -76,6 +80,7 @@ export const ServerView = memo(function ServerView() {
           <BubbleHub />
         )}
       </div>
+      {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 });
