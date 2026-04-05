@@ -1,19 +1,15 @@
-import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Gamepad2, ArrowLeft } from 'lucide-react';
 import { useCornerStore, type SelectedGame } from '../../store/cornerStore';
 import { useChessStore } from '../../store/chessStore';
 import { useAuthStore } from '../../store/authStore';
 import { getInstalledGames, installGame, uninstallGame } from '../../lib/gameInstalls';
+import { downloadGame, loadGame, removeGame } from '../../lib/gameLoader';
 
-// Lazy-load chess: Three.js + drei + postprocessing are ~900KB — don't parse at app startup
+// Chess stays bundled — multiplayer + Three.js dependency tree
 const AeroChess = lazy(() =>
   import('../chess/AeroChess').then(m => ({ default: m.AeroChess }))
 );
-const BubblePop        = lazy(() => import('./games/BubblePop').then(m => ({ default: m.BubblePop })))
-const Tropico          = lazy(() => import('./games/Tropico').then(m => ({ default: m.Tropico })))
-const TwentyFortyEight = lazy(() => import('./games/TwentyFortyEight').then(m => ({ default: m.TwentyFortyEight })))
-const TypingTest       = lazy(() => import('./games/TypingTest').then(m => ({ default: m.TypingTest })))
-const Wordle           = lazy(() => import('./games/Wordle').then(m => ({ default: m.Wordle })))
 
 interface GameEntry {
   id: SelectedGame;
@@ -34,7 +30,7 @@ const GAMES: GameEntry[] = [
     desc: 'Pop bubbles before they escape!',
     available: true,
     color: '#00d4ff',
-    size: '~80 KB',
+    size: '~27 KB',
     tags: ['Casual', 'Single-player'],
   },
   {
@@ -44,7 +40,7 @@ const GAMES: GameEntry[] = [
     desc: 'Jump through 10 tropical levels!',
     available: true,
     color: '#34d399',
-    size: '~200 KB',
+    size: '~36 KB',
     tags: ['Action', 'Single-player'],
   },
   {
@@ -54,7 +50,7 @@ const GAMES: GameEntry[] = [
     desc: 'Race the clock — WPM test!',
     available: true,
     color: '#00d4ff',
-    size: '~60 KB',
+    size: '~18 KB',
     tags: ['Typing', 'Speed'],
   },
   {
@@ -64,7 +60,7 @@ const GAMES: GameEntry[] = [
     desc: 'Slide tiles to reach 2048!',
     available: true,
     color: '#fb923c',
-    size: '~50 KB',
+    size: '~18 KB',
     tags: ['Puzzle', 'Single-player'],
   },
   {
@@ -74,7 +70,7 @@ const GAMES: GameEntry[] = [
     desc: 'Guess the word in 6 tries!',
     available: true,
     color: '#a855f7',
-    size: '~60 KB',
+    size: '~32 KB',
     tags: ['Word', 'Daily'],
   },
   {
@@ -300,9 +296,6 @@ function GameHub({
   const [activeTab, setActiveTab] = useState<'library' | 'store'>('library')
   const [installing, setInstalling] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
-  const rafRef = useRef<number | null>(null)
-
-  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }, [])
 
   function handlePlay(gameId: SelectedGame) {
     if (!gameId) return
@@ -310,32 +303,28 @@ function GameHub({
     selectGame(gameId)
   }
 
-  function handleUninstall(gameId: string) {
-    if (!user) return
-    uninstallGame(user.id, gameId)
-    onUninstalled(gameId)
+  async function handleUninstall(gameId: string) {
+    if (!user) return;
+    await removeGame(gameId);
+    uninstallGame(user.id, gameId);
+    onUninstalled(gameId);
   }
 
-  function handleInstall(gameId: string) {
-    if (installing || !user) return
-    setInstalling(gameId)
-    setProgress(0)
-    const start = Date.now()
-    const DURATION = 1500
-    const tick = () => {
-      const p = Math.min(100, ((Date.now() - start) / DURATION) * 100)
-      setProgress(p)
-      if (p < 100) {
-        rafRef.current = requestAnimationFrame(tick)
-      } else {
-        installGame(user.id, gameId)
-        onInstalled(gameId)
-        setInstalling(null)
-        setProgress(0)
-        setActiveTab('library')
-      }
+  async function handleInstall(gameId: string) {
+    if (installing || !user) return;
+    setInstalling(gameId);
+    setProgress(0);
+    try {
+      await downloadGame(gameId, (pct) => setProgress(pct));
+      installGame(user.id, gameId);
+      onInstalled(gameId);
+      setActiveTab('library');
+    } catch (err) {
+      console.error('[GameInstall] Download failed:', err);
+    } finally {
+      setInstalling(null);
+      setProgress(0);
     }
-    rafRef.current = requestAnimationFrame(tick)
   }
 
   const libraryGames = GAMES.filter(g => g.id && installedGames.includes(g.id as string))
@@ -490,6 +479,68 @@ function GamesStrip({ installedGames }: { installedGames: string[] }) {
   );
 }
 
+// ── Download prompt (play uninstalled game) ──────────────────────────────────
+
+function DownloadPrompt({
+  game,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  game: GameEntry;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center text-center gap-4 p-8">
+      <div
+        className="flex h-16 w-16 items-center justify-center rounded-2xl text-3xl"
+        style={{
+          background: `rgba(${hexToRgb(game.color)}, 0.12)`,
+          border: `1px solid rgba(${hexToRgb(game.color)}, 0.30)`,
+        }}
+      >
+        {typeof game.icon === 'string' ? game.icon : '🎮'}
+      </div>
+      <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+        {game.label} isn't installed yet
+      </p>
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        Download {game.size} to play?
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="rounded-xl px-5 py-2 text-xs font-bold transition-all"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'var(--text-muted)',
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={loading}
+          className="rounded-xl px-5 py-2 text-xs font-bold transition-all"
+          style={{
+            background: `rgba(${hexToRgb(game.color)}, 0.18)`,
+            border: `1px solid rgba(${hexToRgb(game.color)}, 0.40)`,
+            color: game.color,
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          {loading ? 'Downloading…' : '⬇ Download & Play'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Root component ────────────────────────────────────────────────────────────
 
 export function GamesCorner() {
@@ -498,10 +549,49 @@ export function GamesCorner() {
   const [installedGames, setInstalledGames] = useState<string[]>(() =>
     user ? getInstalledGames(user.id) : ['bubblepop']
   );
+  const [LoadedGame, setLoadedGame] = useState<React.ComponentType | null>(null);
+  const [gameLoading, setGameLoading] = useState(false);
+  const [downloadPrompt, setDownloadPrompt] = useState<SelectedGame | null>(null);
 
   useEffect(() => {
     if (user) setInstalledGames(getInstalledGames(user.id));
   }, [user?.id]);
+
+  // When selectedGame changes, load the game dynamically (except chess)
+  useEffect(() => {
+    if (!selectedGame || selectedGame === 'chess') {
+      setLoadedGame(null);
+      return;
+    }
+    // Check if installed
+    if (!installedGames.includes(selectedGame as string)) {
+      setDownloadPrompt(selectedGame);
+      return;
+    }
+    setGameLoading(true);
+    loadGame(selectedGame as string)
+      .then(Component => setLoadedGame(() => Component))
+      .catch(err => console.error('[GameLoader] Failed to load:', err))
+      .finally(() => setGameLoading(false));
+  }, [selectedGame]);
+
+  async function handlePromptConfirm() {
+    if (!downloadPrompt || !user) return;
+    const gameId = downloadPrompt as string;
+    setDownloadPrompt(null);
+    setGameLoading(true);
+    try {
+      await downloadGame(gameId, () => {});
+      installGame(user.id, gameId);
+      setInstalledGames(prev => [...prev, gameId]);
+      const Component = await loadGame(gameId);
+      setLoadedGame(() => Component);
+    } catch (err) {
+      console.error('[GameLoader] Download+load failed:', err);
+    } finally {
+      setGameLoading(false);
+    }
+  }
 
   return (
     <div
@@ -514,21 +604,6 @@ export function GamesCorner() {
       {selectedGame ? (
         <>
           <div className="flex-1 min-h-0">
-            {selectedGame === 'bubblepop' && (
-              <Suspense fallback={<GameLoadingSpinner />}><BubblePop /></Suspense>
-            )}
-            {selectedGame === 'tropico' && (
-              <Suspense fallback={<GameLoadingSpinner />}><Tropico /></Suspense>
-            )}
-            {selectedGame === 'twentyfortyeight' && (
-              <Suspense fallback={<GameLoadingSpinner />}><TwentyFortyEight /></Suspense>
-            )}
-            {selectedGame === 'typingtest' && (
-              <Suspense fallback={<GameLoadingSpinner />}><TypingTest /></Suspense>
-            )}
-            {selectedGame === 'wordle' && (
-              <Suspense fallback={<GameLoadingSpinner />}><Wordle /></Suspense>
-            )}
             {selectedGame === 'chess' && (
               <Suspense fallback={
                 <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
@@ -538,9 +613,26 @@ export function GamesCorner() {
                 <AeroChess />
               </Suspense>
             )}
+            {selectedGame !== 'chess' && gameLoading && <GameLoadingSpinner />}
+            {selectedGame !== 'chess' && !gameLoading && LoadedGame && <LoadedGame />}
+            {selectedGame !== 'chess' && !gameLoading && !LoadedGame && (
+              <div className="flex h-full items-center justify-center text-center">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>Failed to load game</p>
+                  <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Try reinstalling from the Store</p>
+                </div>
+              </div>
+            )}
           </div>
           {selectedGame !== 'chess' && <GamesStrip installedGames={installedGames} />}
         </>
+      ) : downloadPrompt ? (
+        <DownloadPrompt
+          game={GAMES.find(g => g.id === downloadPrompt)!}
+          onConfirm={handlePromptConfirm}
+          onCancel={() => { setDownloadPrompt(null); }}
+          loading={gameLoading}
+        />
       ) : (
         <GameHub
           installedGames={installedGames}
