@@ -10,7 +10,7 @@ import { BubbleHub } from './BubbleHub';
 import { BubbleChat } from './BubbleChat';
 import { ServerSettings } from './ServerSettings';
 
-const DISSOLVE_MS = 450;
+const DISSOLVE_MS = 500;
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub, enterBubble } = useCornerStore();
@@ -58,12 +58,15 @@ export const ServerView = memo(function ServerView() {
   if (!server) return null;
 
   const initial = server.name.charAt(0).toUpperCase();
+  const activeBubble = useServerStore(s => s.bubbles.find(b => b.id === s.selectedBubbleId));
+  const inBubble = serverView === 'bubble' && activeBubble;
 
   return (
     <div className="flex h-full flex-col overflow-hidden" style={{ background: 'var(--chat-bg)' }}>
-      {/* Header with blurry banner background */}
+      {/* Header wrapper — allows the bubble badge to overflow downward */}
+      <div className="flex-shrink-0" style={{ position: 'relative', zIndex: 3 }}>
       <div
-        className="flex items-center px-4 py-3 flex-shrink-0"
+        className="flex items-center px-4 py-3"
         style={{
           position: 'relative', overflow: 'hidden',
           borderBottom: '1px solid var(--panel-divider)',
@@ -128,6 +131,28 @@ export const ServerView = memo(function ServerView() {
         </div>
       </div>
 
+      {/* Floating bubble name — half in header, half out */}
+      {inBubble && activeBubble && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'absolute', bottom: -14, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 14px', borderRadius: 20,
+            background: 'var(--sidebar-bg)',
+            border: `1.5px solid ${activeBubble.color}40`,
+            boxShadow: `0 4px 16px rgba(0,0,0,0.3), 0 0 12px ${activeBubble.color}20`,
+            zIndex: 2, whiteSpace: 'nowrap',
+          }}
+        >
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: activeBubble.color, boxShadow: `0 0 6px ${activeBubble.color}60` }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: activeBubble.color }}>
+            #{activeBubble.name}
+          </span>
+        </div>
+      )}
+      </div>{/* end header wrapper */}
+
       {/* Content — layered for circular dissolve transition */}
       <div ref={contentRef} className="relative flex-1 min-h-0 overflow-hidden">
         {/* BubbleChat sits behind, always rendered when a bubble is selected or dissolving */}
@@ -153,6 +178,23 @@ export const ServerView = memo(function ServerView() {
           >
             <BubbleHub onBubbleTransition={handleBubbleTransition} />
           </div>
+        )}
+
+        {/* Visible ring at the dissolve boundary */}
+        {dissolve && (
+          <div
+            className="pointer-events-none absolute"
+            style={{
+              zIndex: 2,
+              left: dissolve.originX, top: dissolve.originY,
+              width: dissolve.radius * 2, height: dissolve.radius * 2,
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '50%',
+              border: '2px solid rgba(0,212,255,0.6)',
+              boxShadow: '0 0 20px rgba(0,212,255,0.4), inset 0 0 20px rgba(0,212,255,0.15)',
+              transition: `width ${DISSOLVE_MS}ms cubic-bezier(0.4, 0, 0.2, 1), height ${DISSOLVE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+            }}
+          />
         )}
       </div>
       {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}
