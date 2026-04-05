@@ -491,7 +491,7 @@ export const BubbleChat = memo(function BubbleChat() {
     setIsUploading(true);
     setSendError('');
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-    const path = `bubbles/${selectedBubbleId}/${crypto.randomUUID()}.${ext}`;
+    const path = `${user.id}/bubbles/${selectedBubbleId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('chat-files').upload(path, file, { contentType: file.type });
     if (uploadError) { setSendError('Upload failed.'); setIsUploading(false); return; }
     const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(path);
