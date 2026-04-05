@@ -12,7 +12,7 @@ function getBundleUrl(gameId: string): string {
 }
 
 function getCacheKey(gameId: string): string {
-  return `aero-game:${gameId}`;
+  return `https://aero-game.local/${gameId}`;
 }
 
 /** Ensure React globals are set so externalized game bundles can resolve imports. */
