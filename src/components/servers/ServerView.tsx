@@ -55,10 +55,11 @@ export const ServerView = memo(function ServerView() {
     }
   }, [selectedServerId]);
 
+  const activeBubble = useServerStore(s => s.bubbles.find(b => b.id === s.selectedBubbleId));
+
   if (!server) return null;
 
   const initial = server.name.charAt(0).toUpperCase();
-  const activeBubble = useServerStore(s => s.bubbles.find(b => b.id === s.selectedBubbleId));
   const inBubble = serverView === 'bubble' && activeBubble;
 
   return (
