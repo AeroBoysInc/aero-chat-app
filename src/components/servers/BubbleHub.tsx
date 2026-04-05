@@ -34,7 +34,7 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
   bubble: Bubble;
   x: number; y: number;
   index: number;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const size = 80;
@@ -95,7 +95,9 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
   );
 }
 
-export const BubbleHub = memo(function BubbleHub() {
+export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
+  onBubbleTransition?: (bubbleId: string, originX: number, originY: number) => void;
+}) {
   const { selectBubble, selectedServerId, loadServerData } = useServerStore();
   const { enterBubble } = useCornerStore();
   const bubbles = useServerStore(s => s.bubbles);
@@ -108,15 +110,13 @@ export const BubbleHub = memo(function BubbleHub() {
     ? hasPermission(server.id, user.id, members, 'manage_bubbles')
     : false;
 
-  // Zoom transition state
-  const [zoomBubble, setZoomBubble] = useState<{ color: string; x: number; y: number } | null>(null);
-
   // Inline create-bubble state
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#00d4ff');
   const [creating, setCreating] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
 
   const handleCreateBubble = useCallback(async () => {
     if (!selectedServerId || !newName.trim() || creating) return;
@@ -131,19 +131,19 @@ export const BubbleHub = memo(function BubbleHub() {
     setCreating(false);
   }, [selectedServerId, newName, newColor, creating]);
 
-  const handleBubbleClick = useCallback((bubble: Bubble, index: number) => {
-    // Get approximate position of the bubble within the container for the zoom origin
-    const pos = getBubblePositions(bubbles.length, W, H);
-    const bx = pos[index]?.x ?? W / 2;
-    const by = pos[index]?.y ?? H / 2;
-    setZoomBubble({ color: bubble.color, x: bx, y: by });
-    // Delay navigation to let the zoom animation play
-    setTimeout(() => {
+  const handleBubbleClick = useCallback((bubble: Bubble, e: React.MouseEvent) => {
+    if (onBubbleTransition && hubRef.current) {
+      // Get click position relative to the hub container
+      const rect = hubRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      selectBubble(bubble.id);
+      onBubbleTransition(bubble.id, x, y);
+    } else {
       selectBubble(bubble.id);
       enterBubble();
-      setZoomBubble(null);
-    }, 350);
-  }, [bubbles.length]);
+    }
+  }, [onBubbleTransition]);
 
   // Use a fixed 800x500 virtual space for positioning
   const W = 800, H = 500;
@@ -152,7 +152,7 @@ export const BubbleHub = memo(function BubbleHub() {
   const initial = server?.name.charAt(0).toUpperCase() ?? '?';
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div ref={hubRef} className="relative h-full w-full overflow-hidden">
       {/* Background orbs */}
       <div className="pointer-events-none absolute inset-0">
         <div className="orb" style={{ width: 200, height: 200, left: '5%', top: '5%', background: 'radial-gradient(circle, rgba(0,180,255,0.08) 0%, transparent 70%)', animation: 'orb-drift 8s ease-in-out infinite' }} />
@@ -189,7 +189,7 @@ export const BubbleHub = memo(function BubbleHub() {
               x={positions[i]?.x ?? 0}
               y={positions[i]?.y ?? 0}
               index={i}
-              onClick={() => handleBubbleClick(bubble, i)}
+              onClick={(e) => handleBubbleClick(bubble, e)}
             />
           ))}
 
@@ -212,26 +212,6 @@ export const BubbleHub = memo(function BubbleHub() {
           )}
         </div>
       </div>
-
-      {/* Bubble zoom-in transition */}
-      {zoomBubble && (
-        <>
-          <style>{`@keyframes bubble-zoom {
-            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.8; }
-            100% { transform: translate(-50%, -50%) scale(20); opacity: 0; }
-          }`}</style>
-          <div
-            className="pointer-events-none"
-            style={{
-              position: 'absolute', zIndex: 15,
-              left: '50%', top: '50%',
-              width: 80, height: 80, borderRadius: '50%',
-              background: `radial-gradient(circle, ${zoomBubble.color}60 0%, ${zoomBubble.color}20 50%, transparent 70%)`,
-              animation: 'bubble-zoom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-            }}
-          />
-        </>
-      )}
 
       {/* Create bubble modal */}
       {showCreate && (
