@@ -64,12 +64,12 @@ export const ServerView = memo(function ServerView() {
         )}
 
         <button
-          onClick={serverView === 'bubble' ? exitToHub : exitToDMs}
+          onClick={() => serverView === 'bubble' ? exitToHub() : exitToDMs()}
           className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
           style={{ color: 'var(--text-muted)', position: 'relative', zIndex: 1 }}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {serverView === 'bubble' ? 'Hub' : 'Back to DMs'}
+          Back
         </button>
 
         <div className="flex-1 flex items-center justify-center gap-2" style={{ position: 'relative', zIndex: 1 }}>
