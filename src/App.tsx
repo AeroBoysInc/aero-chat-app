@@ -9,6 +9,7 @@ import { useStatusStore } from './store/statusStore';
 import { usePresenceStore } from './store/presenceStore';
 import { useCallStore } from './store/callStore';
 import { useGroupCallStore } from './store/groupCallStore';
+import { useServerStore } from './store/serverStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
@@ -20,6 +21,7 @@ import { GameNotification } from './components/ui/GameNotification';
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
   const { loadFriends, subscribeToRequests } = useFriendStore();
+  const { loadServers } = useServerStore();
   const { increment, seed } = useUnreadStore();
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingPresenceSync = useRef(false);
@@ -165,6 +167,12 @@ export default function App() {
     const unsub = subscribeToRequests(user.id);
     loadFriends(user.id);
     return unsub;
+  }, [user?.id]);
+
+  // Load user's servers on login
+  useEffect(() => {
+    if (!user) return;
+    loadServers();
   }, [user?.id]);
 
   // Seed unread counts from DB on login (covers messages received while offline)
