@@ -262,7 +262,7 @@
     min-height: 100vh;
     user-select: none;
   }
-  input, textarea { user-select: text; }
+  input, textarea, .selectable { user-select: text; }
 }
 
 /* ═══════════════════════════════════════════════

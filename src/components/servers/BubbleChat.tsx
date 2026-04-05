@@ -752,7 +752,7 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
         </div>
 
         {/* Content */}
-        <div style={{ marginTop: 2 }}>
+        <div className="selectable" style={{ marginTop: 2 }}>
           {isVoice ? (
             <VoicePlayer content={msg.content} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
           ) : isFile ? (

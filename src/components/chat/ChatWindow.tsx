@@ -510,7 +510,7 @@ const MessageItem = memo(function MessageItem({
         {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
 
         <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
-          <div className={`rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
+          <div className={`selectable rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
             style={isMine ? {
               background: 'linear-gradient(165deg, #72e472 0%, #28b828 100%)',
               boxShadow: '0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50)',
