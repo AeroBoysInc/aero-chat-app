@@ -12,6 +12,7 @@ interface CornerStore {
   calendarViewActive: boolean;
   selectedGame: SelectedGame;
   gameChatOverlay: GameChatOverlay;
+  serverView: null | 'overlay' | 'server' | 'bubble';
   openGameHub: () => void;
   closeGameView: () => void;
   selectGame: (game: SelectedGame) => void;
@@ -24,6 +25,12 @@ interface CornerStore {
   openGameChat: () => void;
   openGameChatFor: (senderId: string) => void;
   closeGameChat: () => void;
+  openServerOverlay: () => void;
+  closeServerOverlay: () => void;
+  enterServer: () => void;
+  enterBubble: () => void;
+  exitToHub: () => void;
+  exitToDMs: () => void;
 }
 
 export const useCornerStore = create<CornerStore>()((set) => ({
@@ -33,16 +40,23 @@ export const useCornerStore = create<CornerStore>()((set) => ({
   calendarViewActive: false,
   selectedGame:       null,
   gameChatOverlay:    null,
-  openGameHub:        () => set({ gameViewActive: true,  writerViewActive: false, devViewActive: false, calendarViewActive: false }),
+  serverView:         null,
+  openGameHub:        () => set({ gameViewActive: true,  writerViewActive: false, devViewActive: false, calendarViewActive: false, serverView: null }),
   closeGameView:      () => set({ gameViewActive: false, selectedGame: null, gameChatOverlay: null }),
   selectGame:         (selectedGame) => set({ selectedGame }),
-  openDevView:        () => set({ devViewActive: true,   gameViewActive: false, writerViewActive: false, calendarViewActive: false, selectedGame: null, gameChatOverlay: null }),
+  openDevView:        () => set({ devViewActive: true,   gameViewActive: false, writerViewActive: false, calendarViewActive: false, selectedGame: null, gameChatOverlay: null, serverView: null }),
   closeDevView:       () => set({ devViewActive: false }),
-  openWriterHub:      () => set({ writerViewActive: true, gameViewActive: false, devViewActive: false, calendarViewActive: false, selectedGame: null, gameChatOverlay: null }),
+  openWriterHub:      () => set({ writerViewActive: true, gameViewActive: false, devViewActive: false, calendarViewActive: false, selectedGame: null, gameChatOverlay: null, serverView: null }),
   closeWriterView:    () => set({ writerViewActive: false }),
-  openCalendarView:   () => set({ calendarViewActive: true, gameViewActive: false, devViewActive: false, writerViewActive: false, selectedGame: null, gameChatOverlay: null }),
+  openCalendarView:   () => set({ calendarViewActive: true, gameViewActive: false, devViewActive: false, writerViewActive: false, selectedGame: null, gameChatOverlay: null, serverView: null }),
   closeCalendarView:  () => set({ calendarViewActive: false }),
   openGameChat:       () => set({ gameChatOverlay: { mode: 'picker' } }),
   openGameChatFor:    (senderId) => set({ gameChatOverlay: { mode: 'conversation', senderId } }),
   closeGameChat:      () => set({ gameChatOverlay: null }),
+  openServerOverlay:  () => set({ serverView: 'overlay', gameViewActive: false, devViewActive: false, writerViewActive: false, calendarViewActive: false, selectedGame: null, gameChatOverlay: null }),
+  closeServerOverlay: () => set({ serverView: null }),
+  enterServer:        () => set({ serverView: 'server' }),
+  enterBubble:        () => set({ serverView: 'bubble' }),
+  exitToHub:          () => set({ serverView: 'server' }),
+  exitToDMs:          () => set({ serverView: null }),
 }));
