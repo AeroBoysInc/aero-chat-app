@@ -21,35 +21,76 @@ function getBubblePositions(count: number, containerW: number, containerH: numbe
   });
 }
 
-function BubbleCircle({ bubble, x, y, onClick }: {
+// Generate a stable random float from a seed string (bubble id)
+function seededRandom(seed: string, offset: number): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+  h = ((h + offset) * 2654435761) >>> 0;
+  return (h & 0xffff) / 0xffff;
+}
+
+function BubbleCircle({ bubble, x, y, index, onClick }: {
   bubble: Bubble;
   x: number; y: number;
+  index: number;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const size = 80;
 
+  // Each bubble gets unique drift parameters from its id
+  const drift = useMemo(() => {
+    const r = (off: number) => seededRandom(bubble.id, off);
+    const dx1 = 6 + r(0) * 10;   // 6–16px horizontal wander
+    const dy1 = 6 + r(1) * 10;
+    const dx2 = -(4 + r(2) * 8);
+    const dy2 = 4 + r(3) * 8;
+    const dx3 = -(3 + r(4) * 7);
+    const dy3 = -(5 + r(5) * 9);
+    const duration = 5 + r(6) * 5;  // 5–10s per cycle
+    const delay = r(7) * -8;        // stagger start up to -8s
+
+    const name = `bubble-float-${index}`;
+    const keyframes = `@keyframes ${name} {
+      0%, 100% { transform: translate(0px, 0px) scale(1); }
+      25%  { transform: translate(${dx1}px, ${-dy1}px) scale(1.03); }
+      50%  { transform: translate(${dx2}px, ${dy2}px) scale(0.97); }
+      75%  { transform: translate(${dx3}px, ${dy3}px) scale(1.02); }
+    }`;
+    return { name, keyframes, duration, delay };
+  }, [bubble.id, index]);
+
   return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="absolute cursor-pointer"
-      style={{
-        width: size, height: size, borderRadius: '50%',
-        left: x - size / 2, top: y - size / 2,
-        background: `${bubble.color}14`,
-        backdropFilter: 'blur(4px)',
-        border: `1.5px solid ${bubble.color}40`,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        transform: hovered ? 'scale(1.1)' : 'scale(1)',
-        boxShadow: hovered ? `0 0 20px ${bubble.color}30` : 'none',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-      }}
-    >
-      <span style={{ fontSize: 12, fontWeight: 500, color: bubble.color }}>{bubble.name}</span>
-    </div>
+    <>
+      <style>{drift.keyframes}</style>
+      <div
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="absolute cursor-pointer"
+        style={{
+          width: size, height: size, borderRadius: '50%',
+          left: x - size / 2, top: y - size / 2,
+          background: `${bubble.color}14`,
+          backdropFilter: 'blur(4px)',
+          border: `1.5px solid ${bubble.color}40`,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          animation: `${drift.name} ${drift.duration}s ease-in-out ${drift.delay}s infinite`,
+          boxShadow: hovered ? `0 0 20px ${bubble.color}30` : `0 0 10px ${bubble.color}10`,
+          transition: 'box-shadow 0.2s',
+        }}
+      >
+        <div style={{
+          transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          transition: 'transform 0.2s',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: bubble.color }}>{bubble.name}</span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -114,6 +155,7 @@ export const BubbleHub = memo(function BubbleHub() {
               bubble={bubble}
               x={positions[i]?.x ?? 0}
               y={positions[i]?.y ?? 0}
+              index={i}
               onClick={() => handleBubbleClick(bubble)}
             />
           ))}
