@@ -22,7 +22,7 @@ import { MentionNotification } from './components/ui/MentionNotification';
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
   const { loadFriends, subscribeToRequests } = useFriendStore();
-  const { loadServers, loadAllServerMembers, subscribeBubbleUnreads } = useServerStore();
+  const { loadServers, loadAllServerMembers, subscribeBubbleUnreads, seedBubbleUnreads } = useServerStore();
   const { increment, seed } = useUnreadStore();
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingPresenceSync = useRef(false);
@@ -170,11 +170,14 @@ export default function App() {
     return unsub;
   }, [user?.id]);
 
-  // Load user's servers + subscribe to bubble unreads on login
+  // Load user's servers + seed persistent unreads + subscribe to realtime
   useEffect(() => {
     if (!user) return;
-    loadServers().then(() => loadAllServerMembers());
-    const unsub = subscribeBubbleUnreads(user.id);
+    loadServers().then(() => {
+      loadAllServerMembers();
+      seedBubbleUnreads(user.id);
+    });
+    const unsub = subscribeBubbleUnreads(user.id, user.username);
     return unsub;
   }, [user?.id]);
 

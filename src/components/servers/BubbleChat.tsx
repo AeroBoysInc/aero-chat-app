@@ -313,39 +313,6 @@ export const BubbleChat = memo(function BubbleChat() {
       }, (payload) => {
         const msg = payload.new as BubbleMessage;
         appendMessage(selectedBubbleId, msg);
-
-        // Check for mentions and trigger OS notification
-        if (user && msg.sender_id !== user.id) {
-          const mentionRegex = /@(\w+)/g;
-          let m;
-          while ((m = mentionRegex.exec(msg.content)) !== null) {
-            if (m[1].toLowerCase() === user.username?.toLowerCase()) {
-              const senderMember = members.find(mb => mb.user_id === msg.sender_id);
-              const bubbleName = bubble?.name ?? 'a bubble';
-              if (!document.hasFocus()) {
-                // OS notification
-                if ('Notification' in window && Notification.permission === 'granted') {
-                  new Notification(`Mentioned by ${senderMember?.username ?? 'someone'}`, {
-                    body: `#${bubbleName}: ${msg.content.slice(0, 80)}`,
-                    icon: '/icons/icon.png',
-                    silent: false,
-                  });
-                }
-              }
-              // In-app mention notification via custom event (picked up by MentionNotification)
-              window.dispatchEvent(new CustomEvent('aero:mention', {
-                detail: {
-                  senderUsername: senderMember?.username ?? 'Unknown',
-                  bubbleName,
-                  serverName: '', // filled by the notification component
-                  content: msg.content.slice(0, 100),
-                  serverId: bubble?.server_id,
-                },
-              }));
-              break;
-            }
-          }
-        }
       })
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'bubble_reactions',

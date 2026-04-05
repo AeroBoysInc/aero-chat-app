@@ -71,7 +71,9 @@ interface ServerStoreState {
   removeServer: (serverId: string) => void;
   updateMembers: (members: ServerMember[]) => void;
   updateBubbles: (bubbles: Bubble[]) => void;
-  subscribeBubbleUnreads: (userId: string) => () => void;
+  subscribeBubbleUnreads: (userId: string, username: string) => () => void;
+  seedBubbleUnreads: (userId: string) => Promise<void>;
+  markBubbleRead: (bubbleId: string, userId: string) => void;
   reset: () => void;
 }
 
@@ -127,7 +129,13 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   selectServer: (serverId) => set({ selectedServerId: serverId, selectedBubbleId: null }),
   selectBubble: (bubbleId) => {
     set({ selectedBubbleId: bubbleId });
-    if (bubbleId) get().clearBubbleUnread(bubbleId);
+    if (bubbleId) {
+      get().clearBubbleUnread(bubbleId);
+      // Persist read position — fire-and-forget
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) get().markBubbleRead(bubbleId, data.user.id);
+      });
+    }
   },
   setOnlineIds: (ids) => set({ onlineIds: ids }),
 
@@ -175,9 +183,8 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
     set({ serverMemberIds: map });
   },
 
-  subscribeBubbleUnreads: (userId) => {
+  subscribeBubbleUnreads: (userId, username) => {
     // Listen for new bubble_messages across ALL bubbles in the user's servers.
-    // When a message arrives for a server the user is NOT currently viewing, increment unread.
     const channel = supabase
       .channel(`server-unreads:${userId}`)
       .on('postgres_changes', {
@@ -185,18 +192,19 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
         schema: 'public',
         table: 'bubble_messages',
       }, (payload) => {
-        const msg = payload.new as { bubble_id: string; sender_id: string };
-        if (msg.sender_id === userId) return; // own messages don't count
+        const msg = payload.new as { id: string; bubble_id: string; sender_id: string; content: string };
+        if (msg.sender_id === userId) return;
 
         (async () => {
           const { data: bubble } = await supabase
             .from('bubbles')
-            .select('server_id')
+            .select('server_id, name')
             .eq('id', msg.bubble_id)
             .single();
           if (!bubble) return;
           const s = get();
-          // Always increment bubble-level unread (unless viewing that bubble)
+
+          // Increment bubble-level unread (unless viewing that bubble)
           if (s.selectedBubbleId !== msg.bubble_id) {
             get().incrementBubbleUnread(msg.bubble_id);
           }
@@ -204,11 +212,108 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
           if (s.selectedServerId !== bubble.server_id) {
             get().incrementUnread(bubble.server_id);
           }
+
+          // ── Mention detection ──────────────────────────────────────
+          if (username) {
+            const mentionRegex = /@(\w+)/g;
+            let m;
+            while ((m = mentionRegex.exec(msg.content)) !== null) {
+              if (m[1].toLowerCase() === username.toLowerCase()) {
+                // Resolve sender username
+                const { data: senderProfile } = await supabase
+                  .from('profiles').select('username').eq('id', msg.sender_id).single();
+                const senderName = senderProfile?.username ?? 'Someone';
+                const serverName = s.servers.find(sv => sv.id === bubble.server_id)?.name ?? 'a server';
+
+                // OS notification when app is not focused
+                if (!document.hasFocus()) {
+                  if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(`@${senderName} mentioned you`, {
+                      body: `${serverName} · #${bubble.name}: ${msg.content.slice(0, 80)}`,
+                      icon: '/icons/icon.png',
+                      silent: false,
+                    });
+                  }
+                }
+
+                // In-app popup
+                window.dispatchEvent(new CustomEvent('aero:mention', {
+                  detail: {
+                    senderUsername: senderName,
+                    bubbleName: bubble.name,
+                    serverName,
+                    content: msg.content.slice(0, 100),
+                    serverId: bubble.server_id,
+                    bubbleId: msg.bubble_id,
+                  },
+                }));
+                break;
+              }
+            }
+          }
         })();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+  },
+
+  seedBubbleUnreads: async (userId) => {
+    // For each bubble the user has access to, count messages after their last_read_at
+    const { data: readRows } = await supabase
+      .from('bubble_read_status')
+      .select('bubble_id, last_read_at')
+      .eq('user_id', userId);
+
+    const readMap = new Map<string, string>();
+    for (const row of readRows ?? []) {
+      readMap.set(row.bubble_id, row.last_read_at);
+    }
+
+    // Get all bubbles from the user's servers
+    const servers = get().servers;
+    if (servers.length === 0) return;
+    const { data: allBubbles } = await supabase
+      .from('bubbles')
+      .select('id, server_id')
+      .in('server_id', servers.map(s => s.id));
+    if (!allBubbles || allBubbles.length === 0) return;
+
+    const bubbleUnreads: Record<string, number> = {};
+    const serverUnreadTotals: Record<string, number> = {};
+
+    // Query unread counts per bubble in parallel (batched)
+    const results = await Promise.all(
+      allBubbles.map(async (b) => {
+        const lastRead = readMap.get(b.id);
+        let query = supabase
+          .from('bubble_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('bubble_id', b.id)
+          .neq('sender_id', userId);
+        if (lastRead) {
+          query = query.gt('created_at', lastRead);
+        }
+        const { count } = await query;
+        return { bubbleId: b.id, serverId: b.server_id, count: count ?? 0 };
+      })
+    );
+
+    for (const { bubbleId, serverId, count } of results) {
+      if (count > 0) {
+        bubbleUnreads[bubbleId] = count;
+        serverUnreadTotals[serverId] = (serverUnreadTotals[serverId] ?? 0) + count;
+      }
+    }
+
+    set({ bubbleUnreads, serverUnreads: serverUnreadTotals });
+  },
+
+  markBubbleRead: (bubbleId, userId) => {
+    supabase
+      .from('bubble_read_status')
+      .upsert({ user_id: userId, bubble_id: bubbleId, last_read_at: new Date().toISOString() }, { onConflict: 'user_id,bubble_id' })
+      .then(({ error }) => { if (error) console.error('[markBubbleRead]', error); });
   },
 
   reset: () => set({

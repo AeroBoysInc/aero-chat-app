@@ -10,19 +10,21 @@ interface MentionEvent {
   serverName: string;
   content: string;
   serverId?: string;
+  bubbleId?: string;
 }
 
 export function MentionNotification() {
   const [mention, setMention] = useState<MentionEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const servers = useServerStore(s => s.servers);
-  const { selectServer, selectBubble } = useServerStore();
-  const { enterBubble } = useCornerStore();
+  const selectServer = useServerStore(s => s.selectServer);
+  const selectBubble = useServerStore(s => s.selectBubble);
+  const loadServerData = useServerStore(s => s.loadServerData);
+  const enterBubble = useCornerStore(s => s.enterBubble);
 
   useEffect(() => {
     function handler(e: Event) {
       const detail = (e as CustomEvent<MentionEvent>).detail;
-      // Resolve server name from store if not provided
       const serverName = detail.serverName ||
         servers.find(s => s.id === detail.serverId)?.name || 'a server';
       setMention({ ...detail, serverName });
@@ -41,12 +43,16 @@ export function MentionNotification() {
 
   const handleClick = useCallback(() => {
     setVisible(false);
-    // Navigate to the server/bubble if possible
     if (mention?.serverId) {
       selectServer(mention.serverId);
-      enterBubble();
+      loadServerData(mention.serverId).then(() => {
+        if (mention.bubbleId) {
+          selectBubble(mention.bubbleId);
+          enterBubble();
+        }
+      });
     }
-  }, [mention, selectServer, selectBubble, enterBubble]);
+  }, [mention, selectServer, selectBubble, loadServerData, enterBubble]);
 
   if (!visible || !mention) return null;
 
@@ -109,7 +115,7 @@ export function MentionNotification() {
         </p>
       </div>
 
-      {/* Close hint */}
+      {/* Badge */}
       <div style={{
         position: 'absolute', top: -5, right: -5,
         width: 19, height: 19,
