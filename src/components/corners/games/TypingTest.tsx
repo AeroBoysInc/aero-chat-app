@@ -561,3 +561,5 @@ export function TypingTest() {
     </div>
   );
 }
+
+export default TypingTest;

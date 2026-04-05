@@ -813,3 +813,5 @@ export function BubblePop() {
     </div>
   );
 }
+
+export default BubblePop;

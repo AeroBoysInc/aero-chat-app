@@ -873,3 +873,5 @@ function btnStyle(bg: string): React.CSSProperties {
     cursor:'pointer', transition:'opacity 0.15s',
   };
 }
+
+export default Tropico;

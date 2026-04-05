@@ -529,3 +529,5 @@ export function TwentyFortyEight() {
     </div>
   );
 }
+
+export default TwentyFortyEight;

@@ -676,3 +676,5 @@ export function Wordle() {
     </div>
   );
 }
+
+export default Wordle;
