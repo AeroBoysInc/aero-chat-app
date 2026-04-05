@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "build:games": "vite build --config vite.games.config.ts",
+    "upload:games": "npx tsx scripts/upload-games.ts"
   },
   "dependencies": {
     "@jitsi/rnnoise-wasm": "^0.2.1",
