@@ -38,9 +38,8 @@ export async function downloadGame(
   if (!response.ok) throw new Error(`Failed to download ${gameId}: ${response.status}`);
 
   const contentLength = Number(response.headers.get('content-length') || 0);
-  const reader = response.body?.getReader();
 
-  if (!reader || !contentLength) {
+  if (!contentLength || !response.body) {
     // Fallback: no streaming progress, just cache the whole response
     const cache = await caches.open(CACHE_NAME);
     await cache.put(getCacheKey(gameId), response);
@@ -49,6 +48,7 @@ export async function downloadGame(
   }
 
   // Stream the response to track progress
+  const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let received = 0;
 
