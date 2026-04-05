@@ -159,7 +159,7 @@ $$;
 
 -- ── servers ──────────────────────────────────────────────────────────────────
 CREATE POLICY "servers_member_select" ON public.servers FOR SELECT
-  USING (is_server_member(id));
+  USING (is_server_member(id) OR owner_id = auth.uid());
 
 CREATE POLICY "servers_insert" ON public.servers FOR INSERT
   WITH CHECK (owner_id = auth.uid());
@@ -172,12 +172,19 @@ CREATE POLICY "servers_owner_delete" ON public.servers FOR DELETE
 
 -- ── server_roles ─────────────────────────────────────────────────────────────
 CREATE POLICY "roles_member_select" ON public.server_roles FOR SELECT
-  USING (is_server_member(server_id));
+  USING (
+    is_server_member(server_id)
+    OR EXISTS (SELECT 1 FROM public.servers s WHERE s.id = server_id AND s.owner_id = auth.uid())
+  );
 
 CREATE POLICY "roles_manage_insert" ON public.server_roles FOR INSERT
   WITH CHECK (
-    has_server_permission(server_id, 'manage_roles')
-    AND position < my_role_position(server_id)
+    -- Owner can always create roles (needed for server creation flow)
+    EXISTS (SELECT 1 FROM public.servers s WHERE s.id = server_id AND s.owner_id = auth.uid())
+    OR (
+      has_server_permission(server_id, 'manage_roles')
+      AND position < my_role_position(server_id)
+    )
   );
 
 CREATE POLICY "roles_manage_update" ON public.server_roles FOR UPDATE
@@ -199,7 +206,11 @@ CREATE POLICY "perms_member_select" ON public.server_role_permissions FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.server_roles sr
-      WHERE sr.id = role_id AND is_server_member(sr.server_id)
+      WHERE sr.id = role_id
+        AND (
+          is_server_member(sr.server_id)
+          OR EXISTS (SELECT 1 FROM public.servers s WHERE s.id = sr.server_id AND s.owner_id = auth.uid())
+        )
     )
   );
 
@@ -208,8 +219,14 @@ CREATE POLICY "perms_manage_insert" ON public.server_role_permissions FOR INSERT
     EXISTS (
       SELECT 1 FROM public.server_roles sr
       WHERE sr.id = role_id
-        AND has_server_permission(sr.server_id, 'manage_roles')
-        AND sr.position < my_role_position(sr.server_id)
+        AND (
+          -- Owner can always insert permissions (server creation flow)
+          EXISTS (SELECT 1 FROM public.servers s WHERE s.id = sr.server_id AND s.owner_id = auth.uid())
+          OR (
+            has_server_permission(sr.server_id, 'manage_roles')
+            AND sr.position < my_role_position(sr.server_id)
+          )
+        )
     )
   );
 
@@ -293,7 +310,10 @@ CREATE POLICY "bubbles_member_select" ON public.bubbles FOR SELECT
   );
 
 CREATE POLICY "bubbles_manage_insert" ON public.bubbles FOR INSERT
-  WITH CHECK (has_server_permission(server_id, 'manage_bubbles'));
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.servers s WHERE s.id = server_id AND s.owner_id = auth.uid())
+    OR has_server_permission(server_id, 'manage_bubbles')
+  );
 
 CREATE POLICY "bubbles_manage_update" ON public.bubbles FOR UPDATE
   USING (has_server_permission(server_id, 'manage_bubbles'));
