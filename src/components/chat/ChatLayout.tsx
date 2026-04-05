@@ -186,7 +186,7 @@ export function ChatLayout() {
             >
               <LogOut className="h-4 w-4" />
             </button>
-            {!anyViewActive && <ThemeSwitcher />}
+            <div style={{ visibility: anyViewActive ? 'hidden' : 'visible' }}><ThemeSwitcher /></div>
           </div>
         </div>
 
