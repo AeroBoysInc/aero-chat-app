@@ -776,8 +776,10 @@ export function ChatWindow({ contact, onBack }: Props) {
         backgroundImage: `url(${contact.card_image_url})`,
         backgroundSize: 'cover',
         backgroundPosition: `${contact.card_image_params?.x ?? 50}% ${contact.card_image_params?.y ?? 50}%`,
+        filter: 'blur(20px) saturate(1.4)',
+        transform: 'scale(1.15)',
       }
-    : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
+    : { background: `linear-gradient(135deg, ${bleedPreset.preview}28 0%, ${bleedPreset.preview}18 50%, transparent 100%)` };
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(user!.id, contact.id));
@@ -1357,130 +1359,128 @@ export function ChatWindow({ contact, onBack }: Props) {
     <div className="flex h-full flex-col">
 
       {/* Header */}
-      <div className="drag-region px-4 py-4"
-        style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--panel-divider)', background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+      <div className="drag-region"
+        style={{ position: 'relative', overflow: 'hidden', padding: '8px 14px', borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
 
-        {/* Contact card bleed — right edge fade */}
+        {/* Full-width blurred background */}
         <div
           aria-hidden="true"
           style={{
-            position: 'absolute', top: 0, right: 0, bottom: 0, width: '48%',
-            zIndex: 1,
+            position: 'absolute', inset: -12,
+            zIndex: 0,
             pointerEvents: 'none',
             ...bleedBackground,
-            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
-            maskImage:       'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.80) 100%)',
-            opacity: 0.85,
+            opacity: liveStatus === 'offline' ? 0.20 : 0.35,
+          }}
+        />
+        {/* Dark overlay for readability */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none',
+            background: 'linear-gradient(180deg, rgba(10,18,36,0.35) 0%, rgba(10,18,36,0.7) 100%)',
           }}
         />
 
         {/* Header content — above bleed */}
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '0.625rem', width: '100%' }}>
         {onBack && (
           <button
             onClick={onBack}
-            className="no-drag flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl transition-all"
+            className="no-drag flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-xl transition-all"
             style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-muted)' }}
             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--btn-ghost-bg)'}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
           </button>
         )}
-        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="lg" status={liveStatus} playingGame={contactGame} />
+        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} />
         <div className="no-drag flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 15 }}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 13 }}>
               {contact.username}
             </p>
-            {/* Clear chat button — next to name */}
+            {contactTyping ? (
+              <>
+                <span style={{ fontSize: 10, color: 'var(--separator-dot)' }}>·</span>
+                <span className="flex items-center gap-1 text-[10px] italic" style={{ color: '#1a6fd4' }}>
+                  <span className="typing-dots" style={{ color: '#1a6fd4' }}>
+                    <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                  </span>
+                  typing…
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ background: statusColor[liveStatus], boxShadow: `0 0 4px ${statusColor[liveStatus]}cc` }} />
+                <span className="text-[10px]" style={{ color: statusColor[liveStatus] }}>
+                  {statusLabel[liveStatus]}
+                </span>
+                {contactGame && (
+                  <>
+                    <span style={{ fontSize: 10, color: 'var(--separator-dot)' }}>·</span>
+                    <span className="text-[10px]" style={{ color: 'var(--game-activity-color)', fontWeight: 500 }}>
+                      🎮 {GAME_LABELS[contactGame as keyof typeof GAME_LABELS] ?? contactGame}
+                    </span>
+                  </>
+                )}
+              </>
+            )}
+            {/* Clear chat button */}
             <button
               onClick={() => setShowClearModal(true)}
-              className="no-drag flex-shrink-0 rounded-aero p-1 transition-all"
+              className="no-drag flex-shrink-0 rounded-aero p-0.5 transition-all"
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               title="Clear chat"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3 w-3" />
             </button>
           </div>
-          {contactTyping ? (
-            <p className="flex items-center gap-1.5 text-[11px] italic" style={{ color: '#1a6fd4' }}>
-              <span className="typing-dots" style={{ color: '#1a6fd4' }}>
-                <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
-              </span>
-              typing…
-            </p>
-          ) : (
-            <p className="flex items-center gap-1 text-[11px]" style={{ color: statusColor[liveStatus] }}>
-              <span className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: statusColor[liveStatus], boxShadow: `0 0 4px ${statusColor[liveStatus]}cc` }} />
-              {statusLabel[liveStatus]}
-              {contactGame && (
-                <>
-                  <span style={{ color: 'var(--separator-dot)' }}>·</span>
-                  <span style={{ color: 'var(--game-activity-color)', fontWeight: 500 }}>
-                    🎮 Playing {GAME_LABELS[contactGame as keyof typeof GAME_LABELS] ?? contactGame}
-                  </span>
-                </>
-              )}
-            </p>
-          )}
         </div>
-        <div className="no-drag flex items-center gap-2">
+        <div className="no-drag flex items-center gap-1.5">
           {/* Call buttons — only when idle */}
           {callStatus === 'idle' && groupCallStatus === 'idle' && (
             <>
               <button
                 onClick={() => startCall(contact, 'audio')}
                 title="Voice call"
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
-                style={{
-                  color: 'var(--text-muted)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
+                style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
-                <Phone className="h-4 w-4" />
+                <Phone className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => setShowGroupCallModal(true)}
                 title="Group call"
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
-                style={{
-                  color: 'var(--text-muted)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
+                style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
-                <Users className="h-4 w-4" />
+                <Users className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => startCall(contact, 'video')}
                 title="Video call"
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition-all"
-                style={{
-                  color: 'var(--text-muted)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
+                style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00d4ff'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
-                <Video className="h-4 w-4" />
+                <Video className="h-3.5 w-3.5" />
               </button>
             </>
           )}
-          <AeroLogo size={20} className="opacity-20" />
-          <Lock className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
+          <AeroLogo size={16} className="opacity-20" />
+          <Lock className="h-2.5 w-2.5" style={{ color: 'var(--text-muted)' }} />
         </div>
         </div> {/* /header content */}
       </div> {/* /header outer */}
