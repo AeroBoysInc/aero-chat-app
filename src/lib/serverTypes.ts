@@ -42,6 +42,10 @@ export interface ServerMember {
   // Joined from profiles:
   username?: string;
   avatar_url?: string | null;
+  status?: string | null;
+  card_gradient?: string | null;
+  card_image_url?: string | null;
+  card_image_params?: any;
 }
 
 export interface Bubble {

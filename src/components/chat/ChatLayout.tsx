@@ -18,6 +18,7 @@ import { ServerOverlay } from '../servers/ServerOverlay';
 import { ServerView } from '../servers/ServerView';
 import { CreateServerWizard } from '../servers/CreateServerWizard';
 import { JoinServerModal } from '../servers/JoinServerModal';
+import { playSwoosh } from '../../lib/swooshSound';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
@@ -42,6 +43,11 @@ export function ChatLayout() {
   const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, serverView } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive;
   const serverActive = serverView === 'server' || serverView === 'bubble';
+  const prevServerActive = useRef(false);
+  useEffect(() => {
+    if (serverActive && !prevServerActive.current) playSwoosh();
+    prevServerActive.current = serverActive;
+  }, [serverActive]);
   const callStatus = useCallStore(s => s.status);
   const callActive = callStatus !== 'idle';
   const groupCallStatus = useGroupCallStore(s => s.status);
@@ -215,10 +221,12 @@ export function ChatLayout() {
             inset: 0,
             display: 'flex',
             gap: 0,
-            transform: (anyViewActive || serverActive) ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
+            transform: serverActive ? 'scale(0.92) translateY(-15px)' : (anyViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)'),
             opacity: (anyViewActive || serverActive) ? 0 : 1,
-            filter: serverActive ? 'blur(8px)' : 'none',
-            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
+            filter: serverActive ? 'blur(12px)' : 'none',
+            transition: serverActive
+              ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, filter 0.4s ease'
+              : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: (anyViewActive || serverActive) ? 'none' : 'auto',
           }}
         >
@@ -368,13 +376,14 @@ export function ChatLayout() {
           </div>
         )}
 
-        {/* ── SERVER LAYER (full takeover) ──────────────────────────── */}
+        {/* ── SERVER LAYER (full takeover — dramatic zoom-in) ──────── */}
         <div
           style={{
             position: 'absolute', inset: 0,
-            transform: serverActive ? 'scale(1)' : 'scale(1.05)',
+            transform: serverActive ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(30px)',
             opacity: serverActive ? 1 : 0,
-            transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+            filter: serverActive ? 'blur(0px)' : 'blur(6px)',
+            transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, filter 0.4s ease',
             pointerEvents: serverActive ? 'auto' : 'none',
             borderRadius: 18, overflow: 'hidden',
           }}

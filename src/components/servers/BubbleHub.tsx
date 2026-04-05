@@ -1,6 +1,7 @@
 // src/components/servers/BubbleHub.tsx
-import { memo, useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback, useRef } from 'react';
 import { Plus } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
@@ -95,7 +96,7 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
 }
 
 export const BubbleHub = memo(function BubbleHub() {
-  const { selectBubble } = useServerStore();
+  const { selectBubble, selectedServerId, loadServerData } = useServerStore();
   const { enterBubble } = useCornerStore();
   const bubbles = useServerStore(s => s.bubbles);
   const server = useServerStore(s => s.servers.find(sv => sv.id === s.selectedServerId));
@@ -107,10 +108,42 @@ export const BubbleHub = memo(function BubbleHub() {
     ? hasPermission(server.id, user.id, members, 'manage_bubbles')
     : false;
 
-  const handleBubbleClick = useCallback((bubble: Bubble) => {
-    selectBubble(bubble.id);
-    enterBubble();
-  }, []);
+  // Zoom transition state
+  const [zoomBubble, setZoomBubble] = useState<{ color: string; x: number; y: number } | null>(null);
+
+  // Inline create-bubble state
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState('#00d4ff');
+  const [creating, setCreating] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCreateBubble = useCallback(async () => {
+    if (!selectedServerId || !newName.trim() || creating) return;
+    setCreating(true);
+    await supabase.from('bubbles').insert({
+      server_id: selectedServerId, name: newName.trim(), color: newColor, restricted_to_roles: [],
+    });
+    await loadServerData(selectedServerId);
+    setNewName('');
+    setNewColor('#00d4ff');
+    setShowCreate(false);
+    setCreating(false);
+  }, [selectedServerId, newName, newColor, creating]);
+
+  const handleBubbleClick = useCallback((bubble: Bubble, index: number) => {
+    // Get approximate position of the bubble within the container for the zoom origin
+    const pos = getBubblePositions(bubbles.length, W, H);
+    const bx = pos[index]?.x ?? W / 2;
+    const by = pos[index]?.y ?? H / 2;
+    setZoomBubble({ color: bubble.color, x: bx, y: by });
+    // Delay navigation to let the zoom animation play
+    setTimeout(() => {
+      selectBubble(bubble.id);
+      enterBubble();
+      setZoomBubble(null);
+    }, 350);
+  }, [bubbles.length]);
 
   // Use a fixed 800x500 virtual space for positioning
   const W = 800, H = 500;
@@ -130,24 +163,6 @@ export const BubbleHub = memo(function BubbleHub() {
       <div className="absolute inset-0 flex items-center justify-center">
         <div style={{ position: 'relative', width: W, height: H, maxWidth: '95%', maxHeight: '90%' }}>
 
-          {/* Center server icon */}
-          <div
-            className="absolute"
-            style={{
-              left: W / 2 - 32, top: H / 2 - 32,
-              width: 64, height: 64, borderRadius: 18,
-              background: server?.icon_url
-                ? `url(${server.icon_url}) center/cover`
-                : 'linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 24, fontWeight: 700, color: 'white',
-              boxShadow: '0 0 30px rgba(0,212,255,0.25)',
-              zIndex: 2,
-            }}
-          >
-            {!server?.icon_url && initial}
-          </div>
-
           {/* Bubbles */}
           {bubbles.map((bubble, i) => (
             <BubbleCircle
@@ -156,27 +171,135 @@ export const BubbleHub = memo(function BubbleHub() {
               x={positions[i]?.x ?? 0}
               y={positions[i]?.y ?? 0}
               index={i}
-              onClick={() => handleBubbleClick(bubble)}
+              onClick={() => handleBubbleClick(bubble, i)}
             />
           ))}
 
           {/* Add bubble button */}
           {canManageBubbles && (
             <div
-              className="absolute cursor-pointer"
+              onClick={() => { setShowCreate(true); setTimeout(() => nameInputRef.current?.focus(), 50); }}
+              className="absolute cursor-pointer transition-all hover:scale-110"
               style={{
                 right: 20, bottom: 20,
                 width: 42, height: 42, borderRadius: '50%',
-                border: '1.5px dashed var(--panel-divider)',
+                border: '1.5px dashed rgba(0,212,255,0.4)',
+                background: 'rgba(0,212,255,0.06)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'opacity 0.2s',
+                boxShadow: '0 0 12px rgba(0,212,255,0.15)',
               }}
             >
-              <Plus className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+              <Plus className="h-4 w-4" style={{ color: '#00d4ff' }} />
             </div>
           )}
         </div>
       </div>
+
+      {/* Server icon — bottom center with glow */}
+      <div
+        className="absolute"
+        style={{
+          bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          width: 56, height: 56, borderRadius: 16,
+          background: server?.icon_url
+            ? `url(${server.icon_url}) center/cover`
+            : 'linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, fontWeight: 700, color: 'white',
+          boxShadow: '0 0 30px rgba(0,212,255,0.35), 0 0 60px rgba(0,212,255,0.15)',
+          animation: 'server-icon-glow 3s ease-in-out infinite',
+          zIndex: 2,
+        }}
+      >
+        {!server?.icon_url && initial}
+      </div>
+      <style>{`@keyframes server-icon-glow {
+        0%, 100% { box-shadow: 0 0 30px rgba(0,212,255,0.35), 0 0 60px rgba(0,212,255,0.15); }
+        50% { box-shadow: 0 0 40px rgba(0,212,255,0.5), 0 0 80px rgba(0,212,255,0.25); }
+      }`}</style>
+
+      {/* Bubble zoom-in transition */}
+      {zoomBubble && (
+        <>
+          <style>{`@keyframes bubble-zoom {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(20); opacity: 0; }
+          }`}</style>
+          <div
+            className="pointer-events-none"
+            style={{
+              position: 'absolute', zIndex: 15,
+              left: '50%', top: '50%',
+              width: 80, height: 80, borderRadius: '50%',
+              background: `radial-gradient(circle, ${zoomBubble.color}60 0%, ${zoomBubble.color}20 50%, transparent 70%)`,
+              animation: 'bubble-zoom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            }}
+          />
+        </>
+      )}
+
+      {/* Create bubble modal */}
+      {showCreate && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'absolute', inset: 0, zIndex: 20,
+            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 320, borderRadius: 16, padding: 24,
+              background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
+            }}
+          >
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, textAlign: 'center' }}>
+              New Bubble
+            </h3>
+            <div className="flex flex-col gap-3">
+              <input
+                ref={nameInputRef}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 10, fontSize: 13,
+                  background: 'var(--input-bg)', border: '1px solid var(--input-border)',
+                  color: 'var(--text-primary)', outline: 'none',
+                }}
+                value={newName}
+                onChange={e => setNewName(e.target.value.slice(0, 30))}
+                placeholder="Bubble name..."
+                onKeyDown={e => e.key === 'Enter' && handleCreateBubble()}
+              />
+              <div className="flex items-center gap-3">
+                <label style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Color</label>
+                <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)}
+                  style={{ width: 32, height: 32, border: 'none', cursor: 'pointer', borderRadius: 8 }} />
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: newColor, boxShadow: `0 0 12px ${newColor}40` }} />
+              </div>
+            </div>
+            <div className="flex justify-center gap-3" style={{ marginTop: 20 }}>
+              <button
+                onClick={() => setShowCreate(false)}
+                className="rounded-aero px-4 py-2 text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--panel-divider)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateBubble}
+                disabled={!newName.trim() || creating}
+                className="rounded-aero px-4 py-2 text-xs font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}
+              >
+                {creating ? 'Creating...' : 'Create Bubble'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

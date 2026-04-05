@@ -47,7 +47,7 @@ export const useServerStore = create<ServerStoreState>()((set, _get) => ({
     const [membersRes, bubblesRes] = await Promise.all([
       supabase
         .from('server_members')
-        .select('*, profiles:user_id(username, avatar_url)')
+        .select('*, profiles:user_id(username, avatar_url, status, card_gradient, card_image_url, card_image_params)')
         .eq('server_id', serverId),
       supabase
         .from('bubbles')
@@ -62,6 +62,10 @@ export const useServerStore = create<ServerStoreState>()((set, _get) => ({
       joined_at: m.joined_at,
       username: m.profiles?.username,
       avatar_url: m.profiles?.avatar_url,
+      status: m.profiles?.status,
+      card_gradient: m.profiles?.card_gradient,
+      card_image_url: m.profiles?.card_image_url,
+      card_image_params: m.profiles?.card_image_params,
     }));
     set({
       members,

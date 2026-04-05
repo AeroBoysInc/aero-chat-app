@@ -34,13 +34,14 @@ function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }:
         display: 'flex', flexDirection: 'column',
       }}
     >
-      {/* Banner */}
-      <div style={{ height: 80, position: 'relative', overflow: 'hidden' }}>
+      {/* Banner — taller for vertical feel */}
+      <div style={{ height: 100, position: 'relative', overflow: 'hidden' }}>
         {server.banner_url ? (
           <img src={server.banner_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))` }} />
         )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.4) 100%)' }} />
         {unread > 0 && (
           <div
             className="absolute flex items-center justify-center rounded-full"
@@ -72,24 +73,24 @@ function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }:
         )}
       </div>
 
-      {/* Info */}
-      <div style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div className="flex items-center gap-2">
-          <div style={{
-            width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginTop: -20,
-            border: '2px solid var(--sidebar-bg)',
-            background: server.icon_url ? `url(${server.icon_url}) center/cover` : `linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: 'white',
-          }}>
-            {!server.icon_url && initial}
-          </div>
-          <span className="truncate text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {server.name}
-          </span>
+      {/* Info — centered vertical layout */}
+      <div style={{ padding: '0 12px 14px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        {/* Icon overlapping banner */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, marginTop: -18, flexShrink: 0,
+          border: '2.5px solid var(--sidebar-bg)',
+          background: server.icon_url ? `url(${server.icon_url}) center/cover` : `linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, color: 'white',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+        }}>
+          {!server.icon_url && initial}
         </div>
+        <span className="truncate w-full mt-2 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {server.name}
+        </span>
         {server.description && (
-          <p className="mt-1 truncate" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          <p className="truncate w-full mt-0.5" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
             {server.description}
           </p>
         )}
