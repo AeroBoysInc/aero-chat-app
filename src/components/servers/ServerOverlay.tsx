@@ -226,50 +226,93 @@ export const ServerOverlay = memo(function ServerOverlay({
       </div>
 
       {/* Delete confirmation dialog */}
-      {confirmDeleteId && (
-        <div
-          className="animate-fade-in"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 70,
-            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={() => { if (!deleting) setConfirmDeleteId(null); }}
-        >
+      {confirmDeleteId && (() => {
+        const serverToDelete = servers.find(s => s.id === confirmDeleteId);
+        return (
           <div
-            onClick={e => e.stopPropagation()}
+            className="animate-fade-in"
             style={{
-              width: 360, borderRadius: 16, padding: '24px',
-              background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
+              position: 'fixed', inset: 0, zIndex: 70,
+              background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
+            onClick={() => { if (!deleting) setConfirmDeleteId(null); }}
           >
-            <h3 className="text-sm font-bold" style={{ color: '#ff5032' }}>Delete Server</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.5 }}>
-              Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>
-                {servers.find(s => s.id === confirmDeleteId)?.name}
-              </strong>? This will permanently remove all bubbles, messages, roles, and members. This cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2 mt-5">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                disabled={deleting}
-                className="rounded-aero px-3 py-1.5 text-xs transition-opacity hover:opacity-70 disabled:opacity-40"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(confirmDeleteId)}
-                disabled={deleting}
-                className="rounded-aero px-4 py-1.5 text-xs font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
-                style={{ background: 'rgba(255,80,50,0.15)', color: '#ff5032', border: '1px solid rgba(255,80,50,0.3)' }}
-              >
-                {deleting ? 'Deleting...' : 'Delete Server'}
-              </button>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: 400, borderRadius: 18, overflow: 'visible',
+                background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
+                boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+                position: 'relative',
+              }}
+            >
+              {/* Floating badge — half in, half out */}
+              <div style={{
+                position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)',
+                background: '#ff5032', borderRadius: 12, padding: '6px 18px',
+                boxShadow: '0 4px 16px rgba(255,80,50,0.4)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                whiteSpace: 'nowrap',
+              }}>
+                <Trash2 className="h-3.5 w-3.5" style={{ color: 'white' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'white', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Crucial — Irreversible
+                </span>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '40px 28px 24px', textAlign: 'center' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  Delete Server
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  You are about to permanently delete
+                </p>
+                <p style={{
+                  fontSize: 15, fontWeight: 700, color: 'var(--text-primary)',
+                  margin: '8px 0 12px',
+                  padding: '6px 14px', borderRadius: 10,
+                  background: 'rgba(255,80,50,0.08)', border: '1px solid rgba(255,80,50,0.15)',
+                  display: 'inline-block',
+                }}>
+                  {serverToDelete?.name}
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 4 }}>
+                  All bubbles, messages, roles, members, and invites will be removed forever. This action cannot be undone.
+                </p>
+
+                {/* Centered buttons */}
+                <div className="flex justify-center gap-3" style={{ marginTop: 24 }}>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    disabled={deleting}
+                    className="rounded-aero px-5 py-2 text-xs font-medium transition-all hover:opacity-80 disabled:opacity-40"
+                    style={{
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--panel-divider)',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDelete(confirmDeleteId)}
+                    disabled={deleting}
+                    className="rounded-aero px-5 py-2 text-xs font-medium transition-all hover:opacity-90 disabled:opacity-40"
+                    style={{
+                      background: '#ff5032', color: 'white',
+                      boxShadow: '0 2px 12px rgba(255,80,50,0.35)',
+                    }}
+                  >
+                    {deleting ? 'Deleting...' : 'Delete Server'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 });
