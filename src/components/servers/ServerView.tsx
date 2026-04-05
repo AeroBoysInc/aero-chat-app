@@ -4,6 +4,7 @@ import { ArrowLeft, Settings } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
+import { BubbleHub } from './BubbleHub';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
@@ -66,11 +67,9 @@ export const ServerView = memo(function ServerView() {
         </div>
       </div>
 
-      {/* Content — placeholder until BubbleHub/BubbleChat exist */}
-      <div className="relative flex-1 min-h-0 overflow-hidden flex items-center justify-center">
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-          {serverView === 'bubble' && selectedBubbleId ? 'Bubble Chat (loading...)' : 'Bubble Hub (loading...)'}
-        </p>
+      {/* Content */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        <BubbleHub />
       </div>
     </div>
   );
