@@ -80,19 +80,36 @@ export async function loadGame(gameId: string): Promise<React.ComponentType> {
 
   const cache = await caches.open(CACHE_NAME);
   let response = await cache.match(getCacheKey(gameId));
+  let fromCache = !!response;
 
   if (!response) {
-    // Cache miss — fetch, cache, then load
-    const url = getBundleUrl(gameId);
-    const fetched = await fetch(url);
-    if (!fetched.ok) throw new Error(`Failed to fetch ${gameId}: ${fetched.status}`);
-    await cache.put(getCacheKey(gameId), fetched.clone());
-    response = fetched;
+    response = await fetchAndCache(cache, gameId);
   }
 
+  try {
+    return await importFromResponse(response);
+  } catch (err) {
+    if (fromCache) {
+      // Cached bundle may be corrupt/stale — purge and re-fetch
+      await cache.delete(getCacheKey(gameId));
+      const fresh = await fetchAndCache(cache, gameId);
+      return await importFromResponse(fresh);
+    }
+    throw err;
+  }
+}
+
+async function fetchAndCache(cache: Cache, gameId: string): Promise<Response> {
+  const url = getBundleUrl(gameId);
+  const fetched = await fetch(url);
+  if (!fetched.ok) throw new Error(`Failed to fetch ${gameId}: ${fetched.status}`);
+  await cache.put(getCacheKey(gameId), fetched.clone());
+  return fetched;
+}
+
+async function importFromResponse(response: Response): Promise<React.ComponentType> {
   const blob = await response.blob();
   const blobUrl = URL.createObjectURL(blob);
-
   try {
     const mod = await import(/* @vite-ignore */ blobUrl);
     return mod.default as React.ComponentType;
