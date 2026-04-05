@@ -1,5 +1,5 @@
 // src/components/servers/ServerView.tsx
-import { memo, useEffect, useState, useCallback, useRef } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { ArrowLeft, Settings, X } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
@@ -10,41 +10,13 @@ import { BubbleHub } from './BubbleHub';
 import { BubbleChat } from './BubbleChat';
 import { ServerSettings } from './ServerSettings';
 
-const DISSOLVE_MS = 500;
-
 export const ServerView = memo(function ServerView() {
-  const { serverView, exitToDMs, exitToHub, enterBubble } = useCornerStore();
+  const { serverView, exitToDMs, exitToHub } = useCornerStore();
   const { selectedServerId, selectedBubbleId, servers, members, loadServerData } = useServerStore();
   const { roles, loadRoles } = useServerRoleStore();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
-
-  // Circular dissolve transition state
-  const [dissolve, setDissolve] = useState<{ originX: number; originY: number; radius: number } | null>(null);
-  const dissolveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  const handleBubbleTransition = useCallback((_bubbleId: string, originX: number, originY: number) => {
-    // Calculate the max radius needed to cover the entire container from the click point
-    if (!contentRef.current) { enterBubble(); return; }
-    const { width, height } = contentRef.current.getBoundingClientRect();
-    const maxDist = Math.sqrt(
-      Math.max(originX, width - originX) ** 2 + Math.max(originY, height - originY) ** 2
-    );
-    // Start dissolve — circle starts at max radius and shrinks to 0
-    setDissolve({ originX, originY, radius: maxDist });
-    // Trigger the shrink on next frame so CSS transition fires
-    requestAnimationFrame(() => {
-      setDissolve(prev => prev ? { ...prev, radius: 0 } : null);
-    });
-    // After animation completes, commit the navigation
-    clearTimeout(dissolveTimer.current);
-    dissolveTimer.current = setTimeout(() => {
-      enterBubble();
-      setDissolve(null);
-    }, DISSOLVE_MS);
-  }, [enterBubble]);
 
   const server = servers.find(s => s.id === selectedServerId);
 
@@ -132,8 +104,8 @@ export const ServerView = memo(function ServerView() {
         </div>
       </div>
 
-      {/* Floating bubble name — half in header, half out. No animation, appears instantly. */}
-      {inBubble && activeBubble && !dissolve && (
+      {/* Floating bubble name — half in header, half out */}
+      {inBubble && activeBubble && (
         <div
           style={{
             position: 'absolute', bottom: -14, left: '50%', transform: 'translateX(-50%)',
@@ -153,52 +125,27 @@ export const ServerView = memo(function ServerView() {
       )}
       </div>{/* end header wrapper */}
 
-      {/* Content — layered for circular dissolve transition */}
-      <div ref={contentRef} className="relative flex-1 min-h-0 overflow-hidden">
-        {/* BubbleChat sits behind — during dissolve show a static bg, after dissolve render fully */}
-        {dissolve && selectedBubbleId && (
-          <div className="absolute inset-0" style={{ zIndex: 0, background: 'var(--chat-bg)' }} />
-        )}
-        {serverView === 'bubble' && !dissolve && selectedBubbleId && (
-          <div className="absolute inset-0" style={{ zIndex: 0 }}>
-            <BubbleChat />
-          </div>
-        )}
-
-        {/* BubbleHub sits on top — during dissolve it gets a shrinking circular clip-path */}
-        {(serverView !== 'bubble' || dissolve) && (
-          <div
-            className="absolute inset-0"
-            style={{
-              zIndex: 1,
-              clipPath: dissolve
-                ? `circle(${dissolve.radius}px at ${dissolve.originX}px ${dissolve.originY}px)`
-                : undefined,
-              transition: dissolve !== null
-                ? `clip-path ${DISSOLVE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
-                : undefined,
-            }}
-          >
-            <BubbleHub onBubbleTransition={handleBubbleTransition} />
-          </div>
-        )}
-
-        {/* Visible ring at the dissolve boundary */}
-        {dissolve && (
-          <div
-            className="pointer-events-none absolute"
-            style={{
-              zIndex: 2,
-              left: dissolve.originX, top: dissolve.originY,
-              width: dissolve.radius * 2, height: dissolve.radius * 2,
-              transform: 'translate(-50%, -50%)',
-              borderRadius: '50%',
-              border: '2px solid rgba(0,212,255,0.6)',
-              boxShadow: '0 0 20px rgba(0,212,255,0.4), inset 0 0 20px rgba(0,212,255,0.15)',
-              transition: `width ${DISSOLVE_MS}ms cubic-bezier(0.4, 0, 0.2, 1), height ${DISSOLVE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-            }}
-          />
-        )}
+      {/* Content — slide transition between Hub and Chat */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {/* Both layers always rendered, positioned via translateX */}
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: inBubble ? 'translateX(-100%)' : 'translateX(0)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <BubbleHub />
+        </div>
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: inBubble ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {selectedBubbleId && <BubbleChat />}
+        </div>
       </div>
       {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}
 

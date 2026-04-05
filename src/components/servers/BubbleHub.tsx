@@ -34,7 +34,7 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
   bubble: Bubble;
   x: number; y: number;
   index: number;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const size = 80;
@@ -95,9 +95,7 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
   );
 }
 
-export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
-  onBubbleTransition?: (bubbleId: string, originX: number, originY: number) => void;
-}) {
+export const BubbleHub = memo(function BubbleHub() {
   const { selectBubble, selectedServerId, loadServerData } = useServerStore();
   const { enterBubble } = useCornerStore();
   const bubbles = useServerStore(s => s.bubbles);
@@ -116,7 +114,6 @@ export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
   const [newColor, setNewColor] = useState('#00d4ff');
   const [creating, setCreating] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const hubRef = useRef<HTMLDivElement>(null);
 
   const handleCreateBubble = useCallback(async () => {
     if (!selectedServerId || !newName.trim() || creating) return;
@@ -131,19 +128,10 @@ export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
     setCreating(false);
   }, [selectedServerId, newName, newColor, creating]);
 
-  const handleBubbleClick = useCallback((bubble: Bubble, e: React.MouseEvent) => {
-    if (onBubbleTransition && hubRef.current) {
-      // Get click position relative to the hub container
-      const rect = hubRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      selectBubble(bubble.id);
-      onBubbleTransition(bubble.id, x, y);
-    } else {
-      selectBubble(bubble.id);
-      enterBubble();
-    }
-  }, [onBubbleTransition]);
+  const handleBubbleClick = useCallback((bubble: Bubble) => {
+    selectBubble(bubble.id);
+    enterBubble();
+  }, []);
 
   // Use a fixed 800x500 virtual space for positioning
   const W = 800, H = 500;
@@ -152,7 +140,7 @@ export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
   const initial = server?.name.charAt(0).toUpperCase() ?? '?';
 
   return (
-    <div ref={hubRef} className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       {/* Background orbs */}
       <div className="pointer-events-none absolute inset-0">
         <div className="orb" style={{ width: 200, height: 200, left: '5%', top: '5%', background: 'radial-gradient(circle, rgba(0,180,255,0.08) 0%, transparent 70%)', animation: 'orb-drift 8s ease-in-out infinite' }} />
@@ -189,7 +177,7 @@ export const BubbleHub = memo(function BubbleHub({ onBubbleTransition }: {
               x={positions[i]?.x ?? 0}
               y={positions[i]?.y ?? 0}
               index={i}
-              onClick={(e) => handleBubbleClick(bubble, e)}
+              onClick={() => handleBubbleClick(bubble)}
             />
           ))}
 
