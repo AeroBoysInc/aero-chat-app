@@ -21,7 +21,7 @@ import { GameNotification } from './components/ui/GameNotification';
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
   const { loadFriends, subscribeToRequests } = useFriendStore();
-  const { loadServers } = useServerStore();
+  const { loadServers, loadAllServerMembers, subscribeBubbleUnreads } = useServerStore();
   const { increment, seed } = useUnreadStore();
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingPresenceSync = useRef(false);
@@ -169,10 +169,12 @@ export default function App() {
     return unsub;
   }, [user?.id]);
 
-  // Load user's servers on login
+  // Load user's servers + subscribe to bubble unreads on login
   useEffect(() => {
     if (!user) return;
-    loadServers();
+    loadServers().then(() => loadAllServerMembers());
+    const unsub = subscribeBubbleUnreads(user.id);
+    return unsub;
   }, [user?.id]);
 
   // Seed unread counts from DB on login (covers messages received while offline)

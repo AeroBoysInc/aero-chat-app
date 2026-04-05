@@ -1,10 +1,11 @@
 // src/components/servers/ServerOverlay.tsx
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Link2, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
+import { usePresenceStore } from '../../store/presenceStore';
 import type { Server } from '../../lib/serverTypes';
 
 function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }: {
@@ -78,6 +79,7 @@ function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }:
         {/* Icon overlapping banner */}
         <div style={{
           width: 36, height: 36, borderRadius: 10, marginTop: -18, flexShrink: 0,
+          position: 'relative', zIndex: 2,
           border: '2.5px solid var(--sidebar-bg)',
           background: server.icon_url ? `url(${server.icon_url}) center/cover` : `linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -111,11 +113,21 @@ export const ServerOverlay = memo(function ServerOverlay({
 }) {
   const user = useAuthStore(s => s.user);
   const { closeServerOverlay, enterServer } = useCornerStore();
-  const { servers, serverUnreads, selectServer, clearUnread, loadServers, removeServer } = useServerStore();
+  const { servers, serverUnreads, serverMemberIds, selectServer, clearUnread, loadServers, loadAllServerMembers, removeServer } = useServerStore();
+  const onlineIds = usePresenceStore(s => s.onlineIds);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { loadServers(); }, []);
+  useEffect(() => { loadServers().then(() => loadAllServerMembers()); }, []);
+
+  // Compute online counts per server
+  const onlineCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [serverId, memberIds] of Object.entries(serverMemberIds)) {
+      counts[serverId] = memberIds.filter(id => onlineIds.has(id)).length;
+    }
+    return counts;
+  }, [serverMemberIds, onlineIds]);
 
   const handleSelect = useCallback((server: Server) => {
     selectServer(server.id);
@@ -208,7 +220,7 @@ export const ServerOverlay = memo(function ServerOverlay({
             <ServerCard
               key={server.id}
               server={server}
-              onlineCount={0}
+              onlineCount={onlineCounts[server.id] ?? 0}
               unread={serverUnreads[server.id] ?? 0}
               isOwner={server.owner_id === user?.id}
               onClick={() => handleSelect(server)}

@@ -53,9 +53,12 @@ interface ServerStoreState {
   selectedBubbleId: string | null;
   onlineIds: Set<string>;
   serverUnreads: Record<string, number>;
+  /** member user_ids per server (for online counts on cards) */
+  serverMemberIds: Record<string, string[]>;
 
   loadServers: () => Promise<void>;
   loadServerData: (serverId: string) => Promise<void>;
+  loadAllServerMembers: () => Promise<void>;
   selectServer: (serverId: string | null) => void;
   selectBubble: (bubbleId: string | null) => void;
   setOnlineIds: (ids: Set<string>) => void;
@@ -65,10 +68,11 @@ interface ServerStoreState {
   removeServer: (serverId: string) => void;
   updateMembers: (members: ServerMember[]) => void;
   updateBubbles: (bubbles: Bubble[]) => void;
+  subscribeBubbleUnreads: (userId: string) => () => void;
   reset: () => void;
 }
 
-export const useServerStore = create<ServerStoreState>()((set, _get) => ({
+export const useServerStore = create<ServerStoreState>()((set, get) => ({
   servers: [],
   members: [],
   bubbles: [],
@@ -76,6 +80,7 @@ export const useServerStore = create<ServerStoreState>()((set, _get) => ({
   selectedBubbleId: null,
   onlineIds: new Set(),
   serverUnreads: {},
+  serverMemberIds: {},
 
   loadServers: async () => {
     const { data } = await supabase
@@ -138,9 +143,56 @@ export const useServerStore = create<ServerStoreState>()((set, _get) => ({
   })),
   updateMembers: (members) => set({ members }),
   updateBubbles: (bubbles) => set({ bubbles }),
+
+  loadAllServerMembers: async () => {
+    const servers = get().servers;
+    if (servers.length === 0) return;
+    const { data } = await supabase
+      .from('server_members')
+      .select('server_id, user_id')
+      .in('server_id', servers.map(s => s.id));
+    if (!data) return;
+    const map: Record<string, string[]> = {};
+    for (const row of data) {
+      (map[row.server_id] ??= []).push(row.user_id);
+    }
+    set({ serverMemberIds: map });
+  },
+
+  subscribeBubbleUnreads: (userId) => {
+    // Listen for new bubble_messages across ALL bubbles in the user's servers.
+    // When a message arrives for a server the user is NOT currently viewing, increment unread.
+    const channel = supabase
+      .channel(`server-unreads:${userId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'bubble_messages',
+      }, (payload) => {
+        const msg = payload.new as { bubble_id: string; sender_id: string };
+        if (msg.sender_id === userId) return; // own messages don't count
+
+        (async () => {
+          const { data: bubble } = await supabase
+            .from('bubbles')
+            .select('server_id')
+            .eq('id', msg.bubble_id)
+            .single();
+          if (!bubble) return;
+          // Don't increment if user is currently viewing this server
+          if (get().selectedServerId === bubble.server_id) return;
+          get().incrementUnread(bubble.server_id);
+        })();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  },
+
   reset: () => set({
     servers: [], members: [], bubbles: [],
     selectedServerId: null, selectedBubbleId: null,
     onlineIds: new Set(), serverUnreads: {},
+    serverMemberIds: {},
   }),
 }));
