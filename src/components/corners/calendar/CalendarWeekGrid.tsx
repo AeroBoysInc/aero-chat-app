@@ -114,8 +114,13 @@ export function CalendarWeekGrid({ userId: _userId }: Props) {
         style={{ gridTemplateColumns: 'repeat(7, 1fr)', alignContent: 'start' }}
       >
         {days.map((day, i) => {
-          const dayStr = day.toISOString().slice(0, 10);
-          const dayEvents = events.filter(e => e.start_at.slice(0, 10) === dayStr);
+          // Use local date string — toISOString() shifts to UTC which mismatches in non-UTC timezones
+          const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+          const dayEvents = events.filter(e => {
+            const ed = new Date(e.start_at);
+            const edStr = `${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}-${String(ed.getDate()).padStart(2, '0')}`;
+            return edStr === dayStr;
+          });
           return (
             <div
               key={i}

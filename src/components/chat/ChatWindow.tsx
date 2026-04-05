@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -55,6 +55,27 @@ function isCallMessage(content: string): boolean {
   try { return JSON.parse(content)._call === true; } catch { return false; }
 }
 
+function isCalendarInvite(content: string): boolean {
+  try { return JSON.parse(content)._calendarInvite === true; } catch { return false; }
+}
+
+interface CalendarInviteData {
+  eventId: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  color: string;
+  description: string;
+}
+
+function parseCalendarInvite(content: string): CalendarInviteData | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._calendarInvite) return { eventId: p.eventId, title: p.title, startAt: p.startAt, endAt: p.endAt, color: p.color, description: p.description ?? '' };
+    return null;
+  } catch { return null; }
+}
+
 function parseCallMessage(content: string): { event: 'ended' | 'missed'; duration?: number; callType?: string } | null {
   try {
     const p = JSON.parse(content);
@@ -95,6 +116,95 @@ function formatDateLabel(date: Date): string {
 function fmtDuration(s: number): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+// ── Calendar invite action button ─────────────────────────────────────────────
+
+function InviteActionButton({ eventId, isMine }: { eventId: string; isMine: boolean }) {
+  const [status, setStatus] = useState<'idle' | 'viewing' | 'accepted' | 'declined'>('idle');
+  const [eventDetails, setEventDetails] = useState<{ title: string; description?: string; start_at: string; end_at: string; color: string } | null>(null);
+
+  if (isMine) {
+    return (
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+        Invite sent
+      </span>
+    );
+  }
+
+  async function handleViewInvite() {
+    if (status === 'viewing') { setStatus('idle'); return; }
+    const { data } = await supabase.from('calendar_events').select('title, description, start_at, end_at, color').eq('id', eventId).single();
+    if (data) { setEventDetails(data); setStatus('viewing'); }
+  }
+
+  async function handleRespond(response: 'accepted' | 'declined') {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('calendar_event_invites').update({ status: response }).eq('event_id', eventId).eq('invitee_id', user.id);
+    setStatus(response);
+  }
+
+  if (status === 'accepted') return <span style={{ fontSize: 11, color: '#3dd87a', fontWeight: 500 }}>Accepted</span>;
+  if (status === 'declined') return <span style={{ fontSize: 11, color: 'rgba(239,68,68,0.85)', fontWeight: 500 }}>Declined</span>;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        onClick={handleViewInvite}
+        style={{
+          fontSize: 11, fontWeight: 600, color: '#00d4ff', background: 'rgba(0,212,255,0.10)',
+          border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, padding: '4px 12px',
+          cursor: 'pointer', transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.20)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.10)'; }}
+      >
+        {status === 'viewing' ? 'Hide Details' : 'View Invite'}
+      </button>
+      {status === 'viewing' && eventDetails && (
+        <div style={{
+          padding: '8px 12px', borderRadius: 8,
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          fontSize: 11, lineHeight: 1.5,
+        }}>
+          <div style={{ fontWeight: 600, color: '#fff', marginBottom: 2 }}>{eventDetails.title}</div>
+          <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+            {new Date(eventDetails.start_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', marginBottom: eventDetails.description ? 4 : 8 }}>
+            {new Date(eventDetails.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(eventDetails.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          {eventDetails.description && (
+            <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>{eventDetails.description}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleRespond('accepted')}
+              style={{
+                fontSize: 11, fontWeight: 600, color: '#fff', background: 'rgba(61,216,122,0.25)',
+                border: '1px solid rgba(61,216,122,0.45)', borderRadius: 8, padding: '4px 14px',
+                cursor: 'pointer',
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => handleRespond('declined')}
+              style={{
+                fontSize: 11, fontWeight: 600, color: 'rgba(239,68,68,0.85)', background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '4px 14px',
+                cursor: 'pointer',
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── MessageItem ────────────────────────────────────────────────────────────────
@@ -166,6 +276,54 @@ const MessageItem = memo(function MessageItem({
               <span style={{ color: 'var(--text-muted)', fontSize: 10, opacity: 0.7 }}>
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
+            </div>
+          </div>
+        );
+      })() : isCalendarInvite(msg.content) ? (() => {
+        const inv = parseCalendarInvite(msg.content);
+        if (!inv) return null;
+        const startDate = new Date(inv.startAt);
+        const endDate = new Date(inv.endAt);
+        const dateStr = startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        const timeStr = `${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        return (
+          <div
+            data-msg-id={msg.id}
+            className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+            style={{ position: 'relative', zIndex: 1 }}
+          >
+            {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
+            <div
+              style={{
+                maxWidth: '75%', borderRadius: 16, overflow: 'hidden',
+                background: 'rgba(10,20,50,0.65)',
+                border: `1px solid ${inv.color}44`,
+                boxShadow: `0 4px 20px ${inv.color}22`,
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
+            >
+              {/* Color accent bar */}
+              <div style={{ height: 3, background: inv.color }} />
+              <div style={{ padding: '12px 16px' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" style={{ color: inv.color }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{inv.title}</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: inv.description ? 6 : 8 }}>
+                  {dateStr} · {timeStr}
+                </div>
+                {inv.description && (
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8, lineHeight: 1.4 }}>
+                    {inv.description.length > 120 ? inv.description.slice(0, 120) + '…' : inv.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <InviteActionButton eventId={inv.eventId} isMine={isMine} />
+                  <span style={{ color: 'var(--text-muted)', fontSize: 10, opacity: 0.7, marginLeft: 'auto' }}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         );

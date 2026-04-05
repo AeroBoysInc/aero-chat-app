@@ -1,6 +1,6 @@
 // src/components/corners/calendar/CalendarLeftPanel.tsx
 import { useState, useRef, useCallback } from 'react';
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useCalendarStore } from '../../../store/calendarStore';
 
 const ACCENT_CAL = '#00d4ff';
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function CalendarLeftPanel({ userId, onClose }: Props) {
-  const { tasks, addTask, toggleTask, fetchTodayTasks, goToWeekContaining } = useCalendarStore();
+  const { tasks, addTask, toggleTask, renameTask, deleteTask, fetchTodayTasks, goToWeekContaining } = useCalendarStore();
   const [miniMonth, setMiniMonth] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -69,7 +69,7 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
     <div
       className="flex flex-col flex-shrink-0 overflow-y-auto"
       style={{
-        width: 200,
+        width: 260,
         borderRight: '1px solid var(--panel-divider)',
         padding: '12px 10px',
         background: 'rgba(0,180,255,0.03)',
@@ -189,10 +189,16 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
 
         <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto">
           {pendingTasks.map(task => (
-            <TaskRow key={task.id} title={task.title} done={false} onToggle={() => toggleTask(task.id, true)} />
+            <TaskRow key={task.id} title={task.title} done={false}
+              onToggle={() => toggleTask(task.id, true)}
+              onRename={(t) => renameTask(task.id, t)}
+              onDelete={() => deleteTask(task.id)} />
           ))}
           {doneTasks.map(task => (
-            <TaskRow key={task.id} title={task.title} done onToggle={() => toggleTask(task.id, false)} />
+            <TaskRow key={task.id} title={task.title} done
+              onToggle={() => toggleTask(task.id, false)}
+              onRename={(t) => renameTask(task.id, t)}
+              onDelete={() => deleteTask(task.id)} />
           ))}
         </div>
 
@@ -221,7 +227,39 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
   );
 }
 
-function TaskRow({ title, done, onToggle }: { title: string; done: boolean; onToggle: () => void }) {
+function TaskRow({ title, done, onToggle, onRename, onDelete }: {
+  title: string; done: boolean; onToggle: () => void; onRename: (t: string) => void; onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState(title);
+
+  function commitEdit() {
+    const trimmed = editVal.trim();
+    if (trimmed && trimmed !== title) onRename(trimmed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          value={editVal}
+          onChange={e => setEditVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
+          className="flex-1 min-w-0 bg-transparent outline-none text-[10px] rounded px-1 py-0.5"
+          style={{ color: 'var(--text-primary)', border: '1px solid rgba(0,180,255,0.40)' }}
+        />
+        <button onClick={commitEdit} style={{ color: '#3dd87a', background: 'none', border: 'none', cursor: 'pointer', padding: 1 }}>
+          <Check className="h-3 w-3" />
+        </button>
+        <button onClick={() => setEditing(false)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 1 }}>
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2 group">
       <button
@@ -246,6 +284,21 @@ function TaskRow({ title, done, onToggle }: { title: string; done: boolean; onTo
       >
         {title}
       </span>
+      {/* Edit / Delete — visible on hover */}
+      <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+        <button
+          onClick={() => { setEditVal(title); setEditing(true); }}
+          style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 1 }}
+        >
+          <Pencil className="h-2.5 w-2.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 1 }}
+        >
+          <Trash2 className="h-2.5 w-2.5" />
+        </button>
+      </div>
     </div>
   );
 }

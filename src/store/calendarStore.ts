@@ -1,6 +1,7 @@
 // src/store/calendarStore.ts
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { encryptMessage, loadPrivateKey } from '../lib/crypto';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,47 @@ export function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+// ── Invite message helper ────────────────────────────────────────────────────
+
+/**
+ * Send an encrypted calendar-invite message to a friend.
+ * Content is JSON with `_calendarInvite: true` so ChatWindow can render it as a card.
+ */
+async function insertInviteMessage(
+  senderId: string,
+  recipientId: string,
+  event: { id: string; title: string; start_at: string; end_at: string; color: string; description?: string },
+) {
+  try {
+    const privateKey = loadPrivateKey(senderId);
+    if (!privateKey) { console.warn('[CalendarInvite] No private key for sender', senderId); return; }
+
+    const { data: profile } = await supabase
+      .from('profiles').select('public_key').eq('id', recipientId).single();
+    if (!profile?.public_key) { console.warn('[CalendarInvite] No public key for recipient', recipientId); return; }
+
+    const content = JSON.stringify({
+      _calendarInvite: true,
+      eventId: event.id,
+      title: event.title,
+      startAt: event.start_at,
+      endAt: event.end_at,
+      color: event.color,
+      description: event.description ?? '',
+    });
+
+    const ciphertext = encryptMessage(content, profile.public_key, privateKey);
+    const { error } = await supabase.from('messages').insert({
+      sender_id: senderId,
+      recipient_id: recipientId,
+      content: ciphertext,
+    });
+    if (error) console.error('[CalendarInvite] Failed to insert message:', error);
+  } catch (err) {
+    console.error('[CalendarInvite] Error sending invite message:', err);
+  }
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 interface CalendarState {
@@ -77,6 +119,7 @@ interface CalendarState {
   deleteEvent: (id: string) => Promise<void>;
   addTask: (userId: string, title: string) => Promise<void>;
   toggleTask: (id: string, done: boolean) => Promise<void>;
+  renameTask: (id: string, title: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   goToPrevWeek: () => void;
   goToNextWeek: () => void;
@@ -158,6 +201,12 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
       await supabase.from('calendar_event_invites').insert(
         payload.invitee_ids.map(inviteeId => ({ event_id: newId, invitee_id: inviteeId }))
       );
+
+      // Send an invite chat message to each invitee
+      const eventInfo = { id: newId, title: payload.title, start_at: payload.start_at, end_at: payload.end_at, color: payload.color, description: payload.description };
+      await Promise.all(
+        payload.invitee_ids.map(inviteeId => insertInviteMessage(userId, inviteeId, eventInfo))
+      );
     }
 
     set({ activeModal: null });
@@ -166,6 +215,14 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
 
   updateEvent: async (id, payload) => {
     const visibility = payload.invitee_ids.length > 0 ? 'invited' : 'private';
+
+    // Snapshot existing invitees so we only message NEW ones
+    const { data: existingInvites } = await supabase
+      .from('calendar_event_invites')
+      .select('invitee_id')
+      .eq('event_id', id);
+    const existingIds = new Set((existingInvites ?? []).map(i => i.invitee_id));
+
     await supabase
       .from('calendar_events')
       .update({
@@ -184,6 +241,18 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
       await supabase.from('calendar_event_invites').insert(
         payload.invitee_ids.map(invitee_id => ({ event_id: id, invitee_id }))
       );
+
+      // Send invite messages only to newly added invitees
+      const newInviteeIds = payload.invitee_ids.filter(uid => !existingIds.has(uid));
+      if (newInviteeIds.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const eventInfo = { id, title: payload.title, start_at: payload.start_at, end_at: payload.end_at, color: payload.color, description: payload.description };
+          await Promise.all(
+            newInviteeIds.map(inviteeId => insertInviteMessage(user.id, inviteeId, eventInfo))
+          );
+        }
+      }
     }
 
     set({ activeModal: null, editingEvent: null });
@@ -206,6 +275,11 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
   toggleTask: async (id, done) => {
     await supabase.from('tasks').update({ done }).eq('id', id);
     set(s => ({ tasks: s.tasks.map(t => t.id === id ? { ...t, done } : t) }));
+  },
+
+  renameTask: async (id, title) => {
+    await supabase.from('tasks').update({ title }).eq('id', id);
+    set(s => ({ tasks: s.tasks.map(t => t.id === id ? { ...t, title } : t) }));
   },
 
   deleteTask: async (id) => {
