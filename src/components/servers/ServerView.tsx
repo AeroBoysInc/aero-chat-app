@@ -8,7 +8,7 @@ import { BubbleHub } from './BubbleHub';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
-  const { selectedServerId, selectedBubbleId, servers, members, loadServerData } = useServerStore();
+  const { selectedServerId, servers, members, loadServerData } = useServerStore();
   const { loadRoles } = useServerRoleStore();
 
   const server = servers.find(s => s.id === selectedServerId);
