@@ -125,10 +125,24 @@ export function CornerRail() {
           onClick={() => calendarViewActive ? closeCalendarView() : openCalendarView()}
         />
 
+      </div>
+
+      {/* Bottom section — Servers (with glow) + Dev */}
+      <div className="mt-auto flex flex-col items-center gap-3">
+        {import.meta.env.DEV && (
+          <RailBtn
+            icon={Terminal}
+            isActive={devViewActive}
+            color="#ff9d3d"
+            tooltip={devViewActive ? 'Back to Chat' : 'Dev Board'}
+            onClick={() => devViewActive ? closeDevView() : openDevView()}
+          />
+        )}
+
         {/* Separator */}
         <div style={{ width: 20, height: 1, background: 'var(--panel-divider)', opacity: 0.5 }} />
 
-        {/* Servers */}
+        {/* Servers — bottom with glow */}
         <div className="relative">
           <RailBtn
             icon={Globe}
@@ -137,6 +151,18 @@ export function CornerRail() {
             tooltip={serverView ? 'Close Servers' : 'Servers'}
             onClick={() => serverView ? closeServerOverlay() : openServerOverlay()}
           />
+          {/* Persistent glow ring */}
+          <div
+            className="pointer-events-none absolute inset-0 rounded-full"
+            style={{
+              boxShadow: '0 0 12px rgba(0,212,255,0.3), 0 0 24px rgba(0,212,255,0.12)',
+              animation: 'server-rail-glow 3s ease-in-out infinite',
+            }}
+          />
+          <style>{`@keyframes server-rail-glow {
+            0%, 100% { box-shadow: 0 0 12px rgba(0,212,255,0.3), 0 0 24px rgba(0,212,255,0.12); }
+            50% { box-shadow: 0 0 18px rgba(0,212,255,0.45), 0 0 36px rgba(0,212,255,0.2); }
+          }`}</style>
           {totalUnread > 0 && !serverView && (
             <div
               className="absolute -top-1 -right-1 flex items-center justify-center rounded-full"
@@ -151,18 +177,6 @@ export function CornerRail() {
           )}
         </div>
       </div>
-
-      {import.meta.env.DEV && (
-        <div className="mt-auto">
-          <RailBtn
-            icon={Terminal}
-            isActive={devViewActive}
-            color="#ff9d3d"
-            tooltip={devViewActive ? 'Back to Chat' : 'Dev Board'}
-            onClick={() => devViewActive ? closeDevView() : openDevView()}
-          />
-        </div>
-      )}
     </div>
   );
 }

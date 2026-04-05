@@ -163,6 +163,24 @@ export const BubbleHub = memo(function BubbleHub() {
       <div className="absolute inset-0 flex items-center justify-center">
         <div style={{ position: 'relative', width: W, height: H, maxWidth: '95%', maxHeight: '90%' }}>
 
+          {/* Center server icon */}
+          <div
+            className="absolute"
+            style={{
+              left: W / 2 - 32, top: H / 2 - 32,
+              width: 64, height: 64, borderRadius: 18,
+              background: server?.icon_url
+                ? `url(${server.icon_url}) center/cover`
+                : 'linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24, fontWeight: 700, color: 'white',
+              boxShadow: '0 0 30px rgba(0,212,255,0.25)',
+              zIndex: 2,
+            }}
+          >
+            {!server?.icon_url && initial}
+          </div>
+
           {/* Bubbles */}
           {bubbles.map((bubble, i) => (
             <BubbleCircle
@@ -194,29 +212,6 @@ export const BubbleHub = memo(function BubbleHub() {
           )}
         </div>
       </div>
-
-      {/* Server icon — bottom center with glow */}
-      <div
-        className="absolute"
-        style={{
-          bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          width: 56, height: 56, borderRadius: 16,
-          background: server?.icon_url
-            ? `url(${server.icon_url}) center/cover`
-            : 'linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22, fontWeight: 700, color: 'white',
-          boxShadow: '0 0 30px rgba(0,212,255,0.35), 0 0 60px rgba(0,212,255,0.15)',
-          animation: 'server-icon-glow 3s ease-in-out infinite',
-          zIndex: 2,
-        }}
-      >
-        {!server?.icon_url && initial}
-      </div>
-      <style>{`@keyframes server-icon-glow {
-        0%, 100% { box-shadow: 0 0 30px rgba(0,212,255,0.35), 0 0 60px rgba(0,212,255,0.15); }
-        50% { box-shadow: 0 0 40px rgba(0,212,255,0.5), 0 0 80px rgba(0,212,255,0.25); }
-      }`}</style>
 
       {/* Bubble zoom-in transition */}
       {zoomBubble && (
