@@ -17,6 +17,7 @@ import { clearAllChatCaches, pruneUnscopedCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
 import { GameNotification } from './components/ui/GameNotification';
+import { MentionNotification } from './components/ui/MentionNotification';
 
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
@@ -338,6 +339,7 @@ export default function App() {
     <>
       {user ? <ChatLayout /> : <AuthPage />}
       {user && <GameNotification />}
+      {user && <MentionNotification />}
     </>
   );
 }
