@@ -14,6 +14,10 @@ import { CallView } from '../call/CallView';
 import { GroupCallView } from '../call/GroupCallView';
 import { MiniCallWidget } from '../call/MiniCallWidget';
 import { FriendRequestModal } from './FriendRequestModal';
+import { ServerOverlay } from '../servers/ServerOverlay';
+import { ServerView } from '../servers/ServerView';
+import { CreateServerWizard } from '../servers/CreateServerWizard';
+import { JoinServerModal } from '../servers/JoinServerModal';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
@@ -35,8 +39,9 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive, devViewActive, writerViewActive, calendarViewActive } = useCornerStore();
+  const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, serverView } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive;
+  const serverActive = serverView === 'server' || serverView === 'bubble';
   const callStatus = useCallStore(s => s.status);
   const callActive = callStatus !== 'idle';
   const groupCallStatus = useGroupCallStore(s => s.status);
@@ -45,6 +50,8 @@ export function ChatLayout() {
   const { signOut } = useAuthStore();
   const { pendingIncoming } = useFriendStore();
   const [requestsOpen, setRequestsOpen] = useState(false);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
   const [isNight, setIsNight] = useState(() => document.documentElement.dataset.theme === 'night');
   const dragging = useRef(false);
@@ -208,10 +215,11 @@ export function ChatLayout() {
             inset: 0,
             display: 'flex',
             gap: 0,
-            transform: anyViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
-            opacity: anyViewActive ? 0 : 1,
+            transform: (anyViewActive || serverActive) ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)',
+            opacity: (anyViewActive || serverActive) ? 0 : 1,
+            filter: serverActive ? 'blur(8px)' : 'none',
             transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
-            pointerEvents: anyViewActive ? 'none' : 'auto',
+            pointerEvents: (anyViewActive || serverActive) ? 'none' : 'auto',
           }}
         >
           {/* Atmospheric background orbs — behind both glass panels */}
@@ -360,6 +368,20 @@ export function ChatLayout() {
           </div>
         )}
 
+        {/* ── SERVER LAYER (full takeover) ──────────────────────────── */}
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            transform: serverActive ? 'scale(1)' : 'scale(1.05)',
+            opacity: serverActive ? 1 : 0,
+            transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+            pointerEvents: serverActive ? 'auto' : 'none',
+            borderRadius: 18, overflow: 'hidden',
+          }}
+        >
+          <ServerView />
+        </div>
+
         {/* MINI CALL WIDGET — shown over corners when a call is active */}
         {anyCallActive && anyViewActive && <MiniCallWidget />}
 
@@ -371,6 +393,16 @@ export function ChatLayout() {
         )}
 
       </div>
+
+      {/* Server overlay + modals — rendered outside the layer host */}
+      {serverView === 'overlay' && (
+        <ServerOverlay
+          onCreateClick={() => setShowCreateWizard(true)}
+          onJoinClick={() => setShowJoinModal(true)}
+        />
+      )}
+      {showCreateWizard && <CreateServerWizard onClose={() => setShowCreateWizard(false)} />}
+      {showJoinModal && <JoinServerModal onClose={() => setShowJoinModal(false)} />}
 
       </div>
     </div>
