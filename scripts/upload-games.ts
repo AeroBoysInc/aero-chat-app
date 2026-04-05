@@ -13,7 +13,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 const BUCKET = 'game-bundles';
-const VERSION = 'v1';
+const VERSION = 'v2';
 const DIST_DIR = resolve(import.meta.dirname, '..', 'dist-games');
 
 async function main() {

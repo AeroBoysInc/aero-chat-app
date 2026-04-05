@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 const CACHE_NAME = 'aero-games-v1';
-const BUCKET_VERSION = 'v1';
+const BUCKET_VERSION = 'v2';
 
 function getBundleUrl(gameId: string): string {
   const base = import.meta.env.VITE_SUPABASE_URL as string;
