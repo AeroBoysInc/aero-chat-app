@@ -10,7 +10,7 @@
     "tauri": "tauri",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "build:games": "vite build --config vite.games.config.ts",
+    "build:games": "rm -rf dist-games && for g in bubblepop tropico wordle typingtest twentyfortyeight; do GAME=$g vite build --config vite.games.config.ts; done",
     "upload:games": "npx tsx scripts/upload-games.ts"
   },
   "dependencies": {
