@@ -53,9 +53,9 @@ export function getWeekStart(date: Date): Date {
   return d;
 }
 
-/** Returns YYYY-MM-DD for a Date. */
+/** Returns YYYY-MM-DD for a Date in local time. */
 export function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 // ── Invite message helper ────────────────────────────────────────────────────
@@ -109,6 +109,8 @@ interface CalendarState {
   activeModal: 'create' | 'edit' | null;
   editingEvent: CalendarEvent | null;
   modalPrefillDate: Date | null;
+  selectedDate: Date;
+  miniMonthOpen: boolean;
 
   // Actions
   init: (userId: string) => Promise<void>;
@@ -128,6 +130,8 @@ interface CalendarState {
   openCreateModal: (prefillDate?: Date) => void;
   openEditModal: (event: CalendarEvent) => Promise<void>;
   closeModal: () => void;
+  selectDate: (date: Date) => void;
+  toggleMiniMonth: () => void;
   subscribeRealtime: (userId: string) => () => void;
 }
 
@@ -139,10 +143,12 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
   activeModal: null,
   editingEvent: null,
   modalPrefillDate: null,
+  selectedDate: new Date(),
+  miniMonthOpen: false,
 
   init: async (userId) => {
     const weekStart = getWeekStart(new Date());
-    set({ currentWeekStart: weekStart });
+    set({ currentWeekStart: weekStart, selectedDate: new Date() });
     await Promise.all([
       get().fetchWeek(weekStart),
       get().fetchTodayTasks(userId),
@@ -325,6 +331,17 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
     }
   },
   closeModal: () => set({ activeModal: null, editingEvent: null, modalPrefillDate: null }),
+
+  selectDate: (date) => {
+    const ws = getWeekStart(date);
+    const current = get().currentWeekStart;
+    if (ws.getTime() !== current.getTime()) {
+      get().fetchWeek(ws);
+    }
+    set({ selectedDate: date });
+  },
+
+  toggleMiniMonth: () => set(s => ({ miniMonthOpen: !s.miniMonthOpen })),
 
   subscribeRealtime: (userId) => {
     const channel = supabase
