@@ -1,7 +1,8 @@
 // src/components/corners/CornerRail.tsx
 import { useState } from 'react';
-import { Gamepad2, Terminal, PenTool, CalendarDays } from 'lucide-react';
+import { Gamepad2, Terminal, PenTool, CalendarDays, Globe } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
+import { useServerStore } from '../../store/serverStore';
 
 interface RailBtnProps {
   icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>;
@@ -83,7 +84,11 @@ export function CornerRail() {
     devViewActive, openDevView, closeDevView,
     writerViewActive, openWriterHub, closeWriterView,
     calendarViewActive, openCalendarView, closeCalendarView,
+    serverView, openServerOverlay, closeServerOverlay,
   } = useCornerStore();
+
+  const serverUnreads = useServerStore(s => s.serverUnreads);
+  const totalUnread = Object.values(serverUnreads).reduce((a, b) => a + b, 0);
 
   return (
     <div
@@ -119,6 +124,32 @@ export function CornerRail() {
           tooltip={calendarViewActive ? 'Back to Chat' : 'Calendar & Tasks'}
           onClick={() => calendarViewActive ? closeCalendarView() : openCalendarView()}
         />
+
+        {/* Separator */}
+        <div style={{ width: 20, height: 1, background: 'var(--panel-divider)', opacity: 0.5 }} />
+
+        {/* Servers */}
+        <div className="relative">
+          <RailBtn
+            icon={Globe}
+            isActive={serverView === 'overlay' || serverView === 'server' || serverView === 'bubble'}
+            color="#00d4ff"
+            tooltip={serverView ? 'Close Servers' : 'Servers'}
+            onClick={() => serverView ? closeServerOverlay() : openServerOverlay()}
+          />
+          {totalUnread > 0 && !serverView && (
+            <div
+              className="absolute -top-1 -right-1 flex items-center justify-center rounded-full"
+              style={{
+                minWidth: 16, height: 16, padding: '0 4px',
+                background: '#ff2e63', fontSize: 9, fontWeight: 700,
+                color: 'white', border: '2px solid var(--sidebar-bg)',
+              }}
+            >
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </div>
+          )}
+        </div>
       </div>
 
       {import.meta.env.DEV && (
