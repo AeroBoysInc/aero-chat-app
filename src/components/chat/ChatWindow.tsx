@@ -776,10 +776,10 @@ export function ChatWindow({ contact, onBack }: Props) {
         backgroundImage: `url(${contact.card_image_url})`,
         backgroundSize: 'cover',
         backgroundPosition: `${contact.card_image_params?.x ?? 50}% ${contact.card_image_params?.y ?? 50}%`,
-        filter: 'blur(20px) saturate(1.4)',
-        transform: 'scale(1.15)',
+        filter: 'blur(6px) saturate(1.3)',
+        transform: 'scale(1.06)',
       }
-    : { background: `linear-gradient(135deg, ${bleedPreset.preview}28 0%, ${bleedPreset.preview}18 50%, transparent 100%)` };
+    : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(user!.id, contact.id));
@@ -1362,25 +1362,17 @@ export function ChatWindow({ contact, onBack }: Props) {
       <div className="drag-region"
         style={{ position: 'relative', overflow: 'hidden', padding: '8px 14px', borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
 
-        {/* Full-width blurred background */}
+        {/* Card image / gradient bleed — right-side fade */}
         <div
           aria-hidden="true"
           style={{
-            position: 'absolute', inset: -12,
-            zIndex: 0,
+            position: 'absolute', top: -4, right: -4, bottom: -4, width: '55%',
+            zIndex: 1,
             pointerEvents: 'none',
             ...bleedBackground,
-            opacity: liveStatus === 'offline' ? 0.20 : 0.35,
-          }}
-        />
-        {/* Dark overlay for readability */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute', inset: 0,
-            zIndex: 0,
-            pointerEvents: 'none',
-            background: 'linear-gradient(180deg, rgba(10,18,36,0.35) 0%, rgba(10,18,36,0.7) 100%)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.50) 35%, rgba(0,0,0,0.85) 100%)',
+            maskImage:       'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.50) 35%, rgba(0,0,0,0.85) 100%)',
+            opacity: liveStatus === 'offline' ? 0.25 : 0.75,
           }}
         />
 
