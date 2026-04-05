@@ -275,9 +275,11 @@ function ServerInviteJoinButton({ serverId, isMine }: { serverId: string; isMine
         .from('server_roles')
         .select('id, is_owner_role, position')
         .eq('server_id', serverId)
-        .order('position', { ascending: false });
+        .eq('is_owner_role', false)
+        .order('position', { ascending: true })
+        .limit(1);
 
-      const defaultRole = roles?.find(r => !r.is_owner_role) ?? roles?.[0];
+      const defaultRole = roles?.[0];
       if (!defaultRole) { console.error('[ServerInvite] No roles found'); setStatus('idle'); return; }
 
       const { error } = await supabase.from('server_members').insert({

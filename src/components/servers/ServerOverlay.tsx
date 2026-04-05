@@ -113,7 +113,7 @@ export const ServerOverlay = memo(function ServerOverlay({
 }) {
   const user = useAuthStore(s => s.user);
   const { closeServerOverlay, enterServer } = useCornerStore();
-  const { servers, serverUnreads, serverMemberIds, selectServer, clearUnread, loadServers, loadAllServerMembers, removeServer } = useServerStore();
+  const { servers, serverUnreads, serverMemberIds, selectServer, clearUnread, loadServers, loadAllServerMembers, loadServerData, removeServer } = useServerStore();
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -129,9 +129,10 @@ export const ServerOverlay = memo(function ServerOverlay({
     return counts;
   }, [serverMemberIds, onlineIds]);
 
-  const handleSelect = useCallback((server: Server) => {
+  const handleSelect = useCallback(async (server: Server) => {
     selectServer(server.id);
     clearUnread(server.id);
+    await loadServerData(server.id);
     enterServer();
   }, []);
 
