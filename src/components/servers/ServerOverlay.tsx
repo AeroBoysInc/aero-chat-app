@@ -1,15 +1,19 @@
 // src/components/servers/ServerOverlay.tsx
 import { memo, useState, useEffect, useCallback } from 'react';
-import { X, Plus, Link2 } from 'lucide-react';
+import { X, Plus, Link2, Trash2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import type { Server } from '../../lib/serverTypes';
 
-function ServerCard({ server, onlineCount, unread, onClick }: {
+function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }: {
   server: Server;
   onlineCount: number;
   unread: number;
+  isOwner: boolean;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const initial = server.name.charAt(0).toUpperCase();
@@ -47,6 +51,24 @@ function ServerCard({ server, onlineCount, unread, onClick }: {
           >
             {unread > 99 ? '99+' : unread}
           </div>
+        )}
+        {isOwner && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="absolute flex items-center justify-center rounded-full transition-all"
+            style={{
+              top: 6, left: 6, width: 24, height: 24,
+              background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#ff5032',
+              opacity: hovered ? 1 : 0,
+              pointerEvents: hovered ? 'auto' : 'none',
+              transform: hovered ? 'scale(1)' : 'scale(0.8)',
+            }}
+            title="Delete server"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
         )}
       </div>
 
@@ -86,8 +108,11 @@ export const ServerOverlay = memo(function ServerOverlay({
   onCreateClick: () => void;
   onJoinClick: () => void;
 }) {
+  const user = useAuthStore(s => s.user);
   const { closeServerOverlay, enterServer } = useCornerStore();
-  const { servers, serverUnreads, selectServer, clearUnread, loadServers } = useServerStore();
+  const { servers, serverUnreads, selectServer, clearUnread, loadServers, removeServer } = useServerStore();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadServers(); }, []);
 
@@ -95,6 +120,14 @@ export const ServerOverlay = memo(function ServerOverlay({
     selectServer(server.id);
     clearUnread(server.id);
     enterServer();
+  }, []);
+
+  const handleDelete = useCallback(async (serverId: string) => {
+    setDeleting(true);
+    const { error } = await supabase.from('servers').delete().eq('id', serverId);
+    if (!error) removeServer(serverId);
+    setDeleting(false);
+    setConfirmDeleteId(null);
   }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -176,7 +209,9 @@ export const ServerOverlay = memo(function ServerOverlay({
               server={server}
               onlineCount={0}
               unread={serverUnreads[server.id] ?? 0}
+              isOwner={server.owner_id === user?.id}
               onClick={() => handleSelect(server)}
+              onDelete={() => setConfirmDeleteId(server.id)}
             />
           ))}
           {servers.length === 0 && (
@@ -189,6 +224,52 @@ export const ServerOverlay = memo(function ServerOverlay({
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {confirmDeleteId && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 70,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => { if (!deleting) setConfirmDeleteId(null); }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 360, borderRadius: 16, padding: '24px',
+              background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
+            }}
+          >
+            <h3 className="text-sm font-bold" style={{ color: '#ff5032' }}>Delete Server</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>
+                {servers.find(s => s.id === confirmDeleteId)?.name}
+              </strong>? This will permanently remove all bubbles, messages, roles, and members. This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                disabled={deleting}
+                className="rounded-aero px-3 py-1.5 text-xs transition-opacity hover:opacity-70 disabled:opacity-40"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDeleteId)}
+                disabled={deleting}
+                className="rounded-aero px-4 py-1.5 text-xs font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ background: 'rgba(255,80,50,0.15)', color: '#ff5032', border: '1px solid rgba(255,80,50,0.3)' }}
+              >
+                {deleting ? 'Deleting...' : 'Delete Server'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
