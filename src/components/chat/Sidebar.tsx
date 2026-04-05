@@ -11,6 +11,7 @@ import { usePresenceStore } from '../../store/presenceStore';
 import { useShallow } from 'zustand/react/shallow';
 import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
+import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { FriendRequestModal } from './FriendRequestModal';
 import { SettingsPanel } from '../settings/SettingsPanel';
@@ -743,13 +744,22 @@ const FriendItem = memo(function FriendItem({
       onMouseEnter={e => { setIsHovered(true); if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'; }}
       onMouseLeave={e => { setIsHovered(false); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
     >
-      <AvatarImage
-        username={friend.username}
-        avatarUrl={friend.avatar_url}
-        size="xl"
-        status={effectiveStatus}
-        playingGame={playingGame}
-      />
+      <ProfileTooltip data={{
+        username: friend.username,
+        avatarUrl: friend.avatar_url,
+        status: effectiveStatus,
+        cardGradient: friend.card_gradient,
+        cardImageUrl: friend.card_image_url,
+        cardImageParams: friend.card_image_params,
+      }}>
+        <AvatarImage
+          username={friend.username}
+          avatarUrl={friend.avatar_url}
+          size="xl"
+          status={effectiveStatus}
+          playingGame={playingGame}
+        />
+      </ProfileTooltip>
 
       <div className="min-w-0 flex-1">
         <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>

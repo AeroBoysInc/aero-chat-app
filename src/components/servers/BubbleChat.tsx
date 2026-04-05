@@ -8,6 +8,7 @@ import { useServerMessageStore } from '../../store/serverMessageStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { useAudioStore } from '../../store/audioStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { MessageContent } from '../chat/MessageContent';
 import { ImageLightbox } from '../chat/ImageLightbox';
 import { ExternalLinkModal } from '../chat/ExternalLinkModal';
@@ -549,7 +550,14 @@ export const BubbleChat = memo(function BubbleChat() {
   const getSenderInfo = useCallback((senderId: string) => {
     const member = members.find(m => m.user_id === senderId);
     const role = member ? (roles.find(r => r.id === member.role_id) ?? null) : null;
-    return { username: member?.username ?? 'Unknown', avatarUrl: member?.avatar_url, role };
+    return {
+      username: member?.username ?? 'Unknown',
+      avatarUrl: member?.avatar_url,
+      role,
+      cardGradient: member?.card_gradient,
+      cardImageUrl: member?.card_image_url,
+      cardImageParams: member?.card_image_params,
+    };
   }, [members, roles]);
 
   if (!bubble) return null;
@@ -560,7 +568,7 @@ export const BubbleChat = memo(function BubbleChat() {
       <div className="flex-1 overflow-y-auto px-4 py-3" style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1 }} />
         {messages.map((msg) => {
-          const { username, avatarUrl, role } = getSenderInfo(msg.sender_id);
+          const { username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams } = getSenderInfo(msg.sender_id);
           const isMine = msg.sender_id === user?.id;
           const msgReactions = reactions[msg.id] ?? {};
           const reactionEntries = Object.entries(msgReactions).filter(([, ids]) => ids.length > 0);
@@ -572,6 +580,9 @@ export const BubbleChat = memo(function BubbleChat() {
               username={username}
               avatarUrl={avatarUrl}
               role={role}
+              cardGradient={cardGradient}
+              cardImageUrl={cardImageUrl}
+              cardImageParams={cardImageParams}
               isMine={isMine}
               msgReactions={reactionEntries}
               memberUsernames={memberUsernames}
@@ -680,13 +691,17 @@ export const BubbleChat = memo(function BubbleChat() {
 // ── Per-message row ──────────────────────────────────────────────────────────
 
 const BubbleMessageItem = memo(function BubbleMessageItem({
-  msg, username, avatarUrl, role, isMine: _isMine, msgReactions, memberUsernames, userId,
+  msg, username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams,
+  isMine: _isMine, msgReactions, memberUsernames, userId,
   outputVolume, outputDeviceId, toggleReaction, setLightboxImage, setPendingLinkUrl,
 }: {
   msg: BubbleMessage;
   username: string;
   avatarUrl?: string | null;
   role: { color: string; name: string; is_owner_role: boolean; position: number } | null;
+  cardGradient?: string | null;
+  cardImageUrl?: string | null;
+  cardImageParams?: any;
   isMine: boolean;
   msgReactions: [string, string[]][];
   memberUsernames: Set<string>;
@@ -710,7 +725,16 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPickerOpen(false); }}
     >
-      <AvatarImage username={username} avatarUrl={avatarUrl} size="sm" />
+      <ProfileTooltip data={{
+        username,
+        avatarUrl,
+        cardGradient,
+        cardImageUrl,
+        cardImageParams,
+        role: role ? { name: role.is_owner_role ? 'Owner' : role.name, color: role.color } : null,
+      }}>
+        <AvatarImage username={username} avatarUrl={avatarUrl} size="sm" />
+      </ProfileTooltip>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div className="flex items-center gap-1.5">
           <span style={{ fontSize: 12, fontWeight: 500, color: role?.color ?? 'var(--text-primary)' }}>

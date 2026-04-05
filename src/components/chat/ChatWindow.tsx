@@ -23,6 +23,7 @@ import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../
 import { ChessInviteCard } from '../chess/ChessInviteCard';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageContent } from './MessageContent';
+import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { ExternalLinkModal } from './ExternalLinkModal';
 import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -1389,7 +1390,16 @@ export function ChatWindow({ contact, onBack }: Props) {
             <ArrowLeft className="h-3.5 w-3.5" />
           </button>
         )}
-        <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} />
+        <ProfileTooltip data={{
+          username: contact.username,
+          avatarUrl: contact.avatar_url,
+          status: liveStatus,
+          cardGradient: contact.card_gradient,
+          cardImageUrl: contact.card_image_url,
+          cardImageParams: contact.card_image_params,
+        }}>
+          <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} />
+        </ProfileTooltip>
         <div className="no-drag flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 13 }}>
