@@ -5,10 +5,11 @@ import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { BubbleHub } from './BubbleHub';
+import { BubbleChat } from './BubbleChat';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
-  const { selectedServerId, servers, members, loadServerData } = useServerStore();
+  const { selectedServerId, selectedBubbleId, servers, members, loadServerData } = useServerStore();
   const { loadRoles } = useServerRoleStore();
 
   const server = servers.find(s => s.id === selectedServerId);
@@ -69,7 +70,11 @@ export const ServerView = memo(function ServerView() {
 
       {/* Content */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
-        <BubbleHub />
+        {serverView === 'bubble' && selectedBubbleId ? (
+          <BubbleChat />
+        ) : (
+          <BubbleHub />
+        )}
       </div>
     </div>
   );
