@@ -1,7 +1,49 @@
 // src/store/serverStore.ts
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { loadPrivateKey, encryptMessage } from '../lib/crypto';
 import type { Server, ServerMember, Bubble } from '../lib/serverTypes';
+
+// ── Server invite message helper ─────────────────────────────────────────────
+
+/**
+ * Send an encrypted server-invite DM to a friend.
+ * Content is JSON with `_serverInvite: true` so ChatWindow renders it as a card.
+ */
+export async function insertServerInviteMessage(
+  senderId: string,
+  recipientId: string,
+  server: { id: string; name: string; description: string | null; icon_url: string | null; banner_url: string | null; member_count: number },
+) {
+  try {
+    const privateKey = loadPrivateKey(senderId);
+    if (!privateKey) { console.warn('[ServerInvite] No private key for sender', senderId); return; }
+
+    const { data: profile } = await supabase
+      .from('profiles').select('public_key').eq('id', recipientId).single();
+    if (!profile?.public_key) { console.warn('[ServerInvite] No public key for recipient', recipientId); return; }
+
+    const content = JSON.stringify({
+      _serverInvite: true,
+      serverId: server.id,
+      name: server.name,
+      description: server.description ?? '',
+      iconUrl: server.icon_url ?? '',
+      bannerUrl: server.banner_url ?? '',
+      memberCount: server.member_count,
+    });
+
+    const ciphertext = encryptMessage(content, profile.public_key, privateKey);
+    const { error } = await supabase.from('messages').insert({
+      sender_id: senderId,
+      recipient_id: recipientId,
+      content: ciphertext,
+    });
+    if (error) console.error('[ServerInvite] Failed to insert message:', error);
+  } catch (err) {
+    console.error('[ServerInvite] Error sending invite message:', err);
+  }
+}
 
 interface ServerStoreState {
   servers: Server[];

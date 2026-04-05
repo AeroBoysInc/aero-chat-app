@@ -1,4 +1,5 @@
 // src/components/corners/calendar/AgendaTimeline.tsx
+import { Globe } from 'lucide-react';
 import { useCalendarStore, toDateString, type CalendarEvent } from '../../../store/calendarStore';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -109,8 +110,20 @@ function EventTimeline({ events, onEventClick }: { events: CalendarEvent[]; onEv
                 cursor: 'pointer',
               }}
             >
-              <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, marginBottom: 3 }}>
-                {event.title}
+              <div className="flex items-center gap-2" style={{ marginBottom: 3 }}>
+                <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                  {event.title}
+                </span>
+                {event.server_name && (
+                  <span className="flex items-center gap-1 flex-shrink-0" style={{
+                    fontSize: 9, fontWeight: 600, padding: '1px 7px', borderRadius: 6,
+                    background: 'rgba(0,212,255,0.12)', color: '#00d4ff',
+                    border: '1px solid rgba(0,212,255,0.20)',
+                  }}>
+                    <Globe style={{ width: 8, height: 8 }} />
+                    {event.server_name}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
                 <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>

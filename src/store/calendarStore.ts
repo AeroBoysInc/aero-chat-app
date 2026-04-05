@@ -22,6 +22,8 @@ export interface CalendarEvent {
   visibility: 'private' | 'invited';
   created_at: string;
   invites?: CalendarEventInvite[];
+  server_id?: string | null;
+  server_name?: string;
 }
 
 export interface Task {
@@ -39,6 +41,7 @@ export interface CreateEventPayload {
   end_at: string;
   color: string;
   invitee_ids: string[];
+  server_id?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -170,7 +173,22 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
       .order('start_at', { ascending: true });
 
     if (error) { set({ loading: false }); return; }
-    set({ events: data ?? [], loading: false });
+
+    // Attach server names for server events
+    const events: CalendarEvent[] = data ?? [];
+    const serverIds = [...new Set(events.filter(e => e.server_id).map(e => e.server_id!))];
+    if (serverIds.length > 0) {
+      const { data: servers } = await supabase
+        .from('servers')
+        .select('id, name')
+        .in('id', serverIds);
+      const nameMap = new Map((servers ?? []).map(s => [s.id, s.name]));
+      for (const e of events) {
+        if (e.server_id) e.server_name = nameMap.get(e.server_id);
+      }
+    }
+
+    set({ events, loading: false });
   },
 
   fetchTodayTasks: async (userId) => {
@@ -185,7 +203,7 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
   },
 
   createEvent: async (userId, payload) => {
-    const visibility = payload.invitee_ids.length > 0 ? 'invited' : 'private';
+    const visibility = payload.server_id ? 'private' : payload.invitee_ids.length > 0 ? 'invited' : 'private';
     // Pre-generate ID client-side to avoid INSERT+RETURNING with RLS subquery (causes 500)
     const newId = crypto.randomUUID();
     const { error } = await supabase
@@ -199,6 +217,7 @@ export const useCalendarStore = create<CalendarState>()((set, get) => ({
         end_at: payload.end_at,
         color: payload.color,
         visibility,
+        ...(payload.server_id ? { server_id: payload.server_id } : {}),
       });
 
     if (error) return;

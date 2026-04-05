@@ -59,6 +59,27 @@ function isCalendarInvite(content: string): boolean {
   try { return JSON.parse(content)._calendarInvite === true; } catch { return false; }
 }
 
+function isServerInvite(content: string): boolean {
+  try { return JSON.parse(content)._serverInvite === true; } catch { return false; }
+}
+
+interface ServerInviteData {
+  serverId: string;
+  name: string;
+  description: string;
+  iconUrl: string;
+  bannerUrl: string;
+  memberCount: number;
+}
+
+function parseServerInvite(content: string): ServerInviteData | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._serverInvite) return { serverId: p.serverId, name: p.name, description: p.description ?? '', iconUrl: p.iconUrl ?? '', bannerUrl: p.bannerUrl ?? '', memberCount: p.memberCount ?? 0 };
+    return null;
+  } catch { return null; }
+}
+
 interface CalendarInviteData {
   eventId: string;
   title: string;
@@ -207,6 +228,95 @@ function InviteActionButton({ eventId, isMine }: { eventId: string; isMine: bool
   );
 }
 
+// ── Server invite join button ─────────────────────────────────────────────────
+
+function ServerInviteJoinButton({ serverId, isMine }: { serverId: string; isMine: boolean }) {
+  const [status, setStatus] = useState<'idle' | 'joining' | 'joined' | 'already'>('idle');
+
+  useEffect(() => {
+    // Check if already a member
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('server_members')
+        .select('user_id')
+        .eq('server_id', serverId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) setStatus('already');
+    })();
+  }, [serverId]);
+
+  if (isMine) {
+    return (
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+        Invite sent
+      </span>
+    );
+  }
+
+  if (status === 'already') {
+    return <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' }}>Already a member</span>;
+  }
+  if (status === 'joined') {
+    return <span style={{ fontSize: 11, color: '#3dd87a', fontWeight: 500 }}>Joined!</span>;
+  }
+
+  async function handleJoin() {
+    setStatus('joining');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setStatus('idle'); return; }
+
+      // Find the default (lowest-position non-owner) role
+      const { data: roles } = await supabase
+        .from('server_roles')
+        .select('id, is_owner_role, position')
+        .eq('server_id', serverId)
+        .order('position', { ascending: false });
+
+      const defaultRole = roles?.find(r => !r.is_owner_role) ?? roles?.[0];
+      if (!defaultRole) { console.error('[ServerInvite] No roles found'); setStatus('idle'); return; }
+
+      const { error } = await supabase.from('server_members').insert({
+        server_id: serverId,
+        user_id: user.id,
+        role_id: defaultRole.id,
+      });
+
+      if (error) {
+        if (error.code === '23505') setStatus('already'); // unique constraint = already member
+        else { console.error('[ServerInvite] Join error:', error); setStatus('idle'); }
+      } else {
+        setStatus('joined');
+      }
+    } catch (err) {
+      console.error('[ServerInvite] Join error:', err);
+      setStatus('idle');
+    }
+  }
+
+  return (
+    <button
+      onClick={handleJoin}
+      disabled={status === 'joining'}
+      style={{
+        fontSize: 11, fontWeight: 600, color: '#fff',
+        background: 'rgba(0,212,255,0.20)',
+        border: '1px solid rgba(0,212,255,0.40)', borderRadius: 8,
+        padding: '5px 16px', cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        opacity: status === 'joining' ? 0.5 : 1,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.30)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.20)'; }}
+    >
+      {status === 'joining' ? 'Joining...' : 'Join Server'}
+    </button>
+  );
+}
+
 // ── MessageItem ────────────────────────────────────────────────────────────────
 // Memoized per-message row. Owns its own hover + reaction picker state so that
 // hovering any message does not re-render the rest of the list.
@@ -319,6 +429,67 @@ const MessageItem = memo(function MessageItem({
                 )}
                 <div className="flex items-center gap-2">
                   <InviteActionButton eventId={inv.eventId} isMine={isMine} />
+                  <span style={{ color: 'var(--text-muted)', fontSize: 10, opacity: 0.7, marginLeft: 'auto' }}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : isServerInvite(msg.content) ? (() => {
+        const inv = parseServerInvite(msg.content);
+        if (!inv) return null;
+        const initial = inv.name.charAt(0).toUpperCase();
+        return (
+          <div
+            data-msg-id={msg.id}
+            className={`relative flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+            style={{ position: 'relative', zIndex: 1 }}
+          >
+            {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
+            <div
+              style={{
+                maxWidth: '75%', width: 280, borderRadius: 16, overflow: 'hidden',
+                background: 'rgba(10,20,50,0.65)',
+                border: '1px solid rgba(0,212,255,0.25)',
+                boxShadow: '0 4px 20px rgba(0,180,255,0.12)',
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
+            >
+              {/* Banner */}
+              <div style={{ height: 64, position: 'relative', overflow: 'hidden' }}>
+                {inv.bannerUrl ? (
+                  <img src={inv.bannerUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, rgba(0,180,255,0.25) 0%, rgba(120,0,255,0.15) 100%)' }} />
+                )}
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(10,20,50,0.6) 100%)' }} />
+              </div>
+              <div style={{ padding: '0 14px 14px', marginTop: -16, position: 'relative' }}>
+                {/* Server icon */}
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                  background: inv.iconUrl ? `url(${inv.iconUrl}) center/cover` : 'linear-gradient(135deg, #00b4ff, #7800ff)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700, color: 'white',
+                  border: '2px solid rgba(10,20,50,0.65)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  marginBottom: 8,
+                }}>
+                  {!inv.iconUrl && initial}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 2 }}>{inv.name}</div>
+                {inv.description && (
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 6, lineHeight: 1.4 }}>
+                    {inv.description.length > 80 ? inv.description.slice(0, 80) + '…' : inv.description}
+                  </p>
+                )}
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
+                  {inv.memberCount} member{inv.memberCount !== 1 ? 's' : ''}
+                </div>
+                <div className="flex items-center gap-2">
+                  <ServerInviteJoinButton serverId={inv.serverId} isMine={isMine} />
                   <span style={{ color: 'var(--text-muted)', fontSize: 10, opacity: 0.7, marginLeft: 'auto' }}>
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>

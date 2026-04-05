@@ -8,8 +8,9 @@ import { RoleEditor } from './RoleEditor';
 import { MemberList } from './MemberList';
 import { BubbleManager } from './BubbleManager';
 import { InviteManager } from './InviteManager';
+import { ServerEvents } from './ServerEvents';
 
-type Tab = 'roles' | 'members' | 'bubbles' | 'invites';
+type Tab = 'roles' | 'members' | 'bubbles' | 'invites' | 'events';
 
 export const ServerSettings = memo(function ServerSettings({
   onClose,
@@ -31,6 +32,7 @@ export const ServerSettings = memo(function ServerSettings({
     { id: 'members', label: 'Members', show: true },
     { id: 'bubbles', label: 'Bubbles', show: can('manage_bubbles') },
     { id: 'invites', label: 'Invites', show: can('send_invites') },
+    { id: 'events', label: 'Events', show: true },
   ];
 
   const visibleTabs = tabs.filter(t => t.show);
@@ -71,6 +73,7 @@ export const ServerSettings = memo(function ServerSettings({
           {tab === 'members' && <MemberList />}
           {tab === 'bubbles' && <BubbleManager />}
           {tab === 'invites' && <InviteManager />}
+          {tab === 'events' && <ServerEvents />}
         </div>
       </div>
     </div>

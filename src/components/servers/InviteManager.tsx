@@ -1,115 +1,144 @@
 // src/components/servers/InviteManager.tsx
-import { memo, useState, useEffect } from 'react';
-import { Copy, Trash2, Plus } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useServerStore } from '../../store/serverStore';
+import { memo, useState, useMemo } from 'react';
+import { Send, Check, Search } from 'lucide-react';
+import { useServerStore, insertServerInviteMessage } from '../../store/serverStore';
 import { useAuthStore } from '../../store/authStore';
-import type { ServerInvite } from '../../lib/serverTypes';
-
-function generateCode(): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(6)))
-    .map(b => b.toString(36).padStart(2, '0'))
-    .join('')
-    .slice(0, 8);
-}
+import { useFriendStore } from '../../store/friendStore';
+import { AvatarImage } from '../ui/AvatarImage';
 
 export const InviteManager = memo(function InviteManager() {
   const user = useAuthStore(s => s.user);
-  const { selectedServerId } = useServerStore();
-  const [invites, setInvites] = useState<ServerInvite[]>([]);
-  const [expiry, setExpiry] = useState<string>('24h');
-  const [maxUses, setMaxUses] = useState<string>('unlimited');
-  const [copied, setCopied] = useState<string | null>(null);
+  const { selectedServerId, servers, members } = useServerStore();
+  const friends = useFriendStore(s => s.friends);
+  const [search, setSearch] = useState('');
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState<string | null>(null);
 
-  const loadInvites = async () => {
-    if (!selectedServerId) return;
-    const { data } = await supabase
-      .from('server_invites')
-      .select('*')
-      .eq('server_id', selectedServerId)
-      .order('created_at', { ascending: false });
-    if (data) setInvites(data);
-  };
+  const server = servers.find(s => s.id === selectedServerId);
 
-  useEffect(() => { loadInvites(); }, [selectedServerId]);
+  // Filter friends: exclude those already members, then by search
+  const filteredFriends = useMemo(() => {
+    const memberIds = new Set(members.map(m => m.user_id));
+    return friends
+      .filter(f => !memberIds.has(f.id))
+      .filter(f => !search || f.username.toLowerCase().includes(search.toLowerCase()));
+  }, [friends, members, search]);
 
-  const handleCreate = async () => {
-    if (!selectedServerId || !user) return;
-    const expiryMap: Record<string, string | null> = {
-      '1h': new Date(Date.now() + 3600000).toISOString(),
-      '24h': new Date(Date.now() + 86400000).toISOString(),
-      '7d': new Date(Date.now() + 604800000).toISOString(),
-      'never': null,
-    };
-    const usesMap: Record<string, number | null> = {
-      '1': 1, '10': 10, '50': 50, 'unlimited': null,
-    };
-    await supabase.from('server_invites').insert({
-      server_id: selectedServerId,
-      created_by: user.id,
-      code: generateCode(),
-      expires_at: expiryMap[expiry],
-      max_uses: usesMap[maxUses],
+  const alreadyMembers = useMemo(() => {
+    const memberIds = new Set(members.map(m => m.user_id));
+    return friends.filter(f => memberIds.has(f.id));
+  }, [friends, members]);
+
+  const handleSendInvite = async (friendId: string) => {
+    if (!user || !server || sending) return;
+    setSending(friendId);
+    await insertServerInviteMessage(user.id, friendId, {
+      id: server.id,
+      name: server.name,
+      description: server.description,
+      icon_url: server.icon_url,
+      banner_url: server.banner_url,
+      member_count: members.length,
     });
-    await loadInvites();
-  };
-
-  const handleRevoke = async (id: string) => {
-    await supabase.from('server_invites').delete().eq('id', id);
-    await loadInvites();
-  };
-
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopied(code);
-    setTimeout(() => setCopied(null), 2000);
+    setSentTo(prev => new Set(prev).add(friendId));
+    setSending(null);
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Create invite */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <select value={expiry} onChange={e => setExpiry(e.target.value)}
-          className="rounded-aero px-2 py-1.5 text-xs"
-          style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}>
-          <option value="1h">Expires: 1 hour</option>
-          <option value="24h">Expires: 24 hours</option>
-          <option value="7d">Expires: 7 days</option>
-          <option value="never">Never expires</option>
-        </select>
-        <select value={maxUses} onChange={e => setMaxUses(e.target.value)}
-          className="rounded-aero px-2 py-1.5 text-xs"
-          style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-primary)' }}>
-          <option value="1">Max: 1 use</option>
-          <option value="10">Max: 10 uses</option>
-          <option value="50">Max: 50 uses</option>
-          <option value="unlimited">Unlimited</option>
-        </select>
-        <button onClick={handleCreate}
-          className="flex items-center gap-1 rounded-aero px-3 py-1.5 text-xs"
-          style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff' }}>
-          <Plus className="h-3 w-3" /> Generate
-        </button>
+    <div className="flex flex-col gap-3">
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+        Send a server invite as a DM. Your friend will see a card they can tap to join.
+      </p>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search friends..."
+          style={{
+            width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10, fontSize: 12,
+            background: 'var(--input-bg)', border: '1px solid var(--input-border)',
+            color: 'var(--text-primary)', outline: 'none',
+          }}
+        />
       </div>
 
-      {/* Invite list */}
-      {invites.map(inv => (
-        <div key={inv.id} className="flex items-center gap-3 rounded-aero px-3 py-2" style={{ border: '1px solid var(--panel-divider)' }}>
-          <code className="flex-1 text-xs font-mono" style={{ color: 'var(--text-primary)' }}>{inv.code}</code>
-          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
-            {inv.use_count}{inv.max_uses ? `/${inv.max_uses}` : ''} uses
-          </span>
-          <button onClick={() => handleCopy(inv.code)} className="transition-opacity hover:opacity-70" style={{ color: '#00d4ff' }}>
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={() => handleRevoke(inv.id)} className="transition-opacity hover:opacity-70" style={{ color: '#ff5032' }}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          {copied === inv.code && <span style={{ fontSize: 9, color: '#4fc97a' }}>Copied!</span>}
+      {/* Friend list */}
+      <div className="flex flex-col gap-1.5" style={{ maxHeight: 320, overflowY: 'auto' }}>
+        {filteredFriends.map(friend => {
+          const isSent = sentTo.has(friend.id);
+          const isSending = sending === friend.id;
+          return (
+            <div
+              key={friend.id}
+              className="flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors"
+              style={{
+                border: '1px solid var(--panel-divider)',
+                background: isSent ? 'rgba(0,212,255,0.06)' : 'transparent',
+              }}
+            >
+              <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="sm" />
+              <span className="flex-1 truncate" style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>
+                {friend.username}
+              </span>
+              {isSent ? (
+                <div className="flex items-center gap-1" style={{ color: '#4fc97a', fontSize: 10, fontWeight: 600 }}>
+                  <Check className="h-3 w-3" />
+                  Sent
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleSendInvite(friend.id)}
+                  disabled={isSending}
+                  className="flex items-center gap-1 rounded-aero px-2.5 py-1 text-[10px] font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+                  style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.25)' }}
+                >
+                  <Send className="h-3 w-3" />
+                  {isSending ? 'Sending...' : 'Invite'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {filteredFriends.length === 0 && !search && alreadyMembers.length === friends.length && (
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 16 }}>
+            All your friends are already members
+          </p>
+        )}
+        {filteredFriends.length === 0 && !search && friends.length === 0 && (
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 16 }}>
+            Add friends first to send invites
+          </p>
+        )}
+        {filteredFriends.length === 0 && search && (
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 16 }}>
+            No friends match "{search}"
+          </p>
+        )}
+      </div>
+
+      {/* Already members section */}
+      {alreadyMembers.length > 0 && (
+        <div>
+          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+            Already members
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {alreadyMembers.map(f => (
+              <div
+                key={f.id}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--panel-divider)' }}
+              >
+                <AvatarImage username={f.username} avatarUrl={f.avatar_url} size="sm" />
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{f.username}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-      {invites.length === 0 && (
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 12 }}>No active invites</p>
       )}
     </div>
   );
