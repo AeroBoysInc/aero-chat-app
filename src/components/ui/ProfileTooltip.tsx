@@ -78,20 +78,22 @@ export function ProfileTooltip({ data, children }: { data: ProfileTooltipData; c
             top: pos.y,
             transform: 'translate(-50%, -100%) translateY(-8px)',
             zIndex: 99990,
+            pointerEvents: 'none',
+          }}
+        >
+          <style>{`@keyframes profile-tooltip-fade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }`}</style>
+          <div style={{
             width: 220,
             borderRadius: 14,
             overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.1)',
             border: '1px solid rgba(80,145,255,0.12)',
             backdropFilter: 'blur(20px)',
-            animation: 'profile-tooltip-in 0.18s ease-out',
-            pointerEvents: 'none',
-          }}
-        >
-          <style>{`@keyframes profile-tooltip-in {
-            from { opacity: 0; transform: translateY(4px) scale(0.97); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-          }`}</style>
+            animation: 'profile-tooltip-fade 0.18s ease-out',
+          }}>
 
           {/* Banner */}
           <div style={{ height: 48, position: 'relative', overflow: 'hidden' }}>
@@ -154,6 +156,7 @@ export function ProfileTooltip({ data, children }: { data: ProfileTooltipData; c
               {label}
             </div>
           </div>
+          </div> {/* /inner card wrapper */}
         </div>,
         document.body
       )}
