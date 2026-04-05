@@ -14,6 +14,10 @@ interface Props {
   onClose: () => void;
 }
 
+const MIN_WIDTH = 240;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 310;
+
 export function CalendarLeftPanel({ userId, onClose }: Props) {
   const { tasks, addTask, toggleTask, renameTask, deleteTask, fetchTodayTasks, goToWeekContaining } = useCalendarStore();
   const [miniMonth, setMiniMonth] = useState(() => {
@@ -22,6 +26,32 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
   });
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
+  const resizing = useRef(false);
+  const resizeStart = useRef({ mouse: 0, size: 0 });
+
+  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    resizeStart.current = { mouse: e.clientX, size: panelWidth };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      const delta = ev.clientX - resizeStart.current.mouse;
+      setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(resizeStart.current.size + delta))));
+    };
+    const onUp = () => {
+      resizing.current = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [panelWidth]);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -67,9 +97,12 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
 
   return (
     <div
-      className="flex flex-col flex-shrink-0 overflow-y-auto"
+      className="flex flex-shrink-0 relative"
+      style={{ width: panelWidth }}
+    >
+    <div
+      className="flex flex-col flex-1 min-w-0 overflow-y-auto"
       style={{
-        width: 310,
         borderRight: '1px solid var(--panel-divider)',
         padding: '14px 12px',
         background: 'rgba(0,180,255,0.03)',
@@ -223,6 +256,27 @@ export function CalendarLeftPanel({ userId, onClose }: Props) {
           />
         </div>
       </div>
+    </div>
+
+    {/* Resize drag handle */}
+    <div
+      onMouseDown={onResizeMouseDown}
+      style={{
+        position: 'absolute',
+        top: 0, right: 0, bottom: 0, width: 6,
+        cursor: 'col-resize',
+        zIndex: 10,
+      }}
+    >
+      {/* Visible drag indicator */}
+      <div style={{
+        position: 'absolute',
+        right: 1, top: '50%', transform: 'translateY(-50%)',
+        width: 3, height: 40, borderRadius: 2,
+        background: 'rgba(0,200,255,0.25)',
+        transition: 'background 0.15s',
+      }} />
+    </div>
     </div>
   );
 }
