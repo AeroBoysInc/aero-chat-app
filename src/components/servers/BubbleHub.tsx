@@ -30,10 +30,11 @@ function seededRandom(seed: string, offset: number): number {
   return (h & 0xffff) / 0xffff;
 }
 
-function BubbleCircle({ bubble, x, y, index, onClick }: {
+function BubbleCircle({ bubble, x, y, index, unread, onClick }: {
   bubble: Bubble;
   x: number; y: number;
   index: number;
+  unread: number;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -90,13 +91,25 @@ function BubbleCircle({ bubble, x, y, index, onClick }: {
         }}>
           <span style={{ fontSize: 12, fontWeight: 500, color: bubble.color }}>{bubble.name}</span>
         </div>
+        {unread > 0 && (
+          <div style={{
+            position: 'absolute', top: -2, right: -2,
+            minWidth: 18, height: 18, padding: '0 5px',
+            borderRadius: 9, background: '#ff2e63',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontWeight: 700, color: 'white',
+            boxShadow: '0 2px 8px rgba(255,46,99,0.4)',
+          }}>
+            {unread > 99 ? '99+' : unread}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
 export const BubbleHub = memo(function BubbleHub() {
-  const { selectBubble, selectedServerId, loadServerData } = useServerStore();
+  const { selectBubble, selectedServerId, loadServerData, bubbleUnreads } = useServerStore();
   const { enterBubble } = useCornerStore();
   const bubbles = useServerStore(s => s.bubbles);
   const server = useServerStore(s => s.servers.find(sv => sv.id === s.selectedServerId));
@@ -177,6 +190,7 @@ export const BubbleHub = memo(function BubbleHub() {
               x={positions[i]?.x ?? 0}
               y={positions[i]?.y ?? 0}
               index={i}
+              unread={bubbleUnreads[bubble.id] ?? 0}
               onClick={() => handleBubbleClick(bubble)}
             />
           ))}

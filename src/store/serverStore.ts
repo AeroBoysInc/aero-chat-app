@@ -53,6 +53,7 @@ interface ServerStoreState {
   selectedBubbleId: string | null;
   onlineIds: Set<string>;
   serverUnreads: Record<string, number>;
+  bubbleUnreads: Record<string, number>;
   /** member user_ids per server (for online counts on cards) */
   serverMemberIds: Record<string, string[]>;
 
@@ -64,6 +65,8 @@ interface ServerStoreState {
   setOnlineIds: (ids: Set<string>) => void;
   incrementUnread: (serverId: string) => void;
   clearUnread: (serverId: string) => void;
+  incrementBubbleUnread: (bubbleId: string) => void;
+  clearBubbleUnread: (bubbleId: string) => void;
   addServer: (server: Server) => void;
   removeServer: (serverId: string) => void;
   updateMembers: (members: ServerMember[]) => void;
@@ -80,6 +83,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   selectedBubbleId: null,
   onlineIds: new Set(),
   serverUnreads: {},
+  bubbleUnreads: {},
   serverMemberIds: {},
 
   loadServers: async () => {
@@ -121,7 +125,10 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   },
 
   selectServer: (serverId) => set({ selectedServerId: serverId, selectedBubbleId: null }),
-  selectBubble: (bubbleId) => set({ selectedBubbleId: bubbleId }),
+  selectBubble: (bubbleId) => {
+    set({ selectedBubbleId: bubbleId });
+    if (bubbleId) get().clearBubbleUnread(bubbleId);
+  },
   setOnlineIds: (ids) => set({ onlineIds: ids }),
 
   incrementUnread: (serverId) => set(s => ({
@@ -134,6 +141,15 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   clearUnread: (serverId) => set(s => {
     const { [serverId]: _, ...rest } = s.serverUnreads;
     return { serverUnreads: rest };
+  }),
+
+  incrementBubbleUnread: (bubbleId) => set(s => ({
+    bubbleUnreads: { ...s.bubbleUnreads, [bubbleId]: (s.bubbleUnreads[bubbleId] ?? 0) + 1 },
+  })),
+
+  clearBubbleUnread: (bubbleId) => set(s => {
+    const { [bubbleId]: _, ...rest } = s.bubbleUnreads;
+    return { bubbleUnreads: rest };
   }),
 
   addServer: (server) => set(s => ({ servers: [...s.servers, server] })),
@@ -179,9 +195,15 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
             .eq('id', msg.bubble_id)
             .single();
           if (!bubble) return;
-          // Don't increment if user is currently viewing this server
-          if (get().selectedServerId === bubble.server_id) return;
-          get().incrementUnread(bubble.server_id);
+          const s = get();
+          // Always increment bubble-level unread (unless viewing that bubble)
+          if (s.selectedBubbleId !== msg.bubble_id) {
+            get().incrementBubbleUnread(msg.bubble_id);
+          }
+          // Increment server-level unread only if not viewing that server
+          if (s.selectedServerId !== bubble.server_id) {
+            get().incrementUnread(bubble.server_id);
+          }
         })();
       })
       .subscribe();
@@ -192,7 +214,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   reset: () => set({
     servers: [], members: [], bubbles: [],
     selectedServerId: null, selectedBubbleId: null,
-    onlineIds: new Set(), serverUnreads: {},
+    onlineIds: new Set(), serverUnreads: {}, bubbleUnreads: {},
     serverMemberIds: {},
   }),
 }));
