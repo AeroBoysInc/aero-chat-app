@@ -392,7 +392,7 @@ export function DevCorner() {
     <div style={{
       height: '100%', display:'flex', flexDirection:'column',
       background: 'linear-gradient(160deg, #020d24, #031530, #040e25)',
-      color: '#fff', overflow: 'hidden', borderRadius: 16,
+      color: '#fff', overflow: 'hidden',
     }}>
 
       {/* ── Header ── */}

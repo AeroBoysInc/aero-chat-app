@@ -199,7 +199,7 @@ export function ChatLayout() {
       <CornerRail />
 
       {/* ── Layer host — chat and game views stacked ── */}
-      <div className="relative flex-1 min-w-0 overflow-hidden" style={{ borderRadius: 16 }}>
+      <div className="relative flex-1 min-w-0 overflow-hidden" style={{ borderRadius: 18 }}>
 
         {/* CHAT LAYER */}
         <div

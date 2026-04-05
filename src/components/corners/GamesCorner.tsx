@@ -508,9 +508,6 @@ export function GamesCorner() {
       className="flex h-full flex-col"
       style={{
         background: 'var(--sidebar-bg)',
-        borderRadius: 16,
-        border: '1px solid var(--sidebar-border)',
-        boxShadow: 'var(--sidebar-shadow)',
         overflow: 'hidden',
       }}
     >
