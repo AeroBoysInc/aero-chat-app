@@ -132,10 +132,9 @@ export const ServerView = memo(function ServerView() {
         </div>
       </div>
 
-      {/* Floating bubble name — half in header, half out */}
-      {inBubble && activeBubble && (
+      {/* Floating bubble name — half in header, half out. No animation, appears instantly. */}
+      {inBubble && activeBubble && !dissolve && (
         <div
-          className="animate-fade-in"
           style={{
             position: 'absolute', bottom: -14, left: '50%', transform: 'translateX(-50%)',
             display: 'flex', alignItems: 'center', gap: 6,
@@ -156,8 +155,11 @@ export const ServerView = memo(function ServerView() {
 
       {/* Content — layered for circular dissolve transition */}
       <div ref={contentRef} className="relative flex-1 min-h-0 overflow-hidden">
-        {/* BubbleChat sits behind, always rendered when a bubble is selected or dissolving */}
-        {(serverView === 'bubble' || dissolve) && selectedBubbleId && (
+        {/* BubbleChat sits behind — during dissolve show a static bg, after dissolve render fully */}
+        {dissolve && selectedBubbleId && (
+          <div className="absolute inset-0" style={{ zIndex: 0, background: 'var(--chat-bg)' }} />
+        )}
+        {serverView === 'bubble' && !dissolve && selectedBubbleId && (
           <div className="absolute inset-0" style={{ zIndex: 0 }}>
             <BubbleChat />
           </div>
