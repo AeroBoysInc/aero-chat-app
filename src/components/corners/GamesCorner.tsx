@@ -610,6 +610,16 @@ export function GamesCorner() {
     >
       {selectedGame ? (
         <>
+          {/* Gamer XP bar — visible while playing (premium only) */}
+          {user?.is_premium && (
+            <div style={{
+              padding: '8px 16px',
+              borderBottom: '1px solid var(--panel-divider)',
+              flexShrink: 0,
+            }}>
+              <XpMiniBar bar="gamer" />
+            </div>
+          )}
           <div className="flex-1 min-h-0">
             {selectedGame === 'chess' && (
               <Suspense fallback={

@@ -1,6 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
 import { useCornerStore } from '../../../store/cornerStore';
+import { useXpStore } from '../../../store/xpStore';
+import { useAuthStore } from '../../../store/authStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SIZE     = 4;
@@ -165,18 +167,38 @@ function freshTiles(): Tile[] {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function TwentyFortyEight() {
   const { selectGame } = useCornerStore();
+  const awardXp = useXpStore(s => s.awardXp);
+  const user = useAuthStore(s => s.user);
+  const isPremium = useAuthStore(s => s.user?.is_premium === true);
 
   const [tiles,  setTiles]  = useState<Tile[]>(freshTiles);
   const [score,  setScore]  = useState(0);
   const [best,   setBest]   = useState(() => Number(localStorage.getItem(HS_KEY) ?? '0'));
   const [status, setStatus] = useState<Status>('playing');
 
-  const tilesRef  = useRef(tiles);
-  const statusRef = useRef(status);
-  tilesRef.current  = tiles;
-  statusRef.current = status;
+  const tilesRef     = useRef(tiles);
+  const statusRef    = useRef(status);
+  const userIdRef    = useRef(user?.id);
+  const isPremiumRef = useRef(isPremium);
+  const awardXpRef   = useRef(awardXp);
+  tilesRef.current     = tiles;
+  statusRef.current    = status;
+  userIdRef.current    = user?.id;
+  isPremiumRef.current = isPremium;
+  awardXpRef.current   = awardXp;
 
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Time-based XP: 2 XP every 60 seconds while playing ──
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = setInterval(() => {
+      if (statusRef.current !== 'over') {
+        awardXp('gamer', 2, user.id, isPremium);
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [user?.id, isPremium, awardXp]);
 
   const move = useCallback((dir: Dir) => {
     if (statusRef.current === 'over') return;
@@ -195,6 +217,11 @@ export function TwentyFortyEight() {
       });
       return ns;
     });
+
+    // Award gamer XP for merges (1 XP per merge)
+    if (gained > 0 && userIdRef.current) {
+      awardXpRef.current('gamer', 1, userIdRef.current, isPremiumRef.current);
+    }
 
     if (hasWon(withNew) && statusRef.current === 'playing') setStatus('won');
     else if (!canMove(withNew))                              setStatus('over');
