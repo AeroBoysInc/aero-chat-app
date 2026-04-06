@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroChat Freemium Model — Visual Mockups</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(145deg, #050d1a 0%, #0a1628 40%, #0d1f3c 100%);
+    color: #c8daf0;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 {
+    font-size: 36px; font-weight: 900; text-align: center;
+    background: linear-gradient(135deg, #00d4ff, #5bc8f5, #00d4ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .subtitle { text-align: center; color: rgba(138,171,222,0.6); font-size: 14px; margin-bottom: 60px; }
+
+  h2 {
+    font-size: 22px; font-weight: 700; color: #e0eaf5; margin: 60px 0 24px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(80,145,255,0.12);
+  }
+  h3 { font-size: 15px; font-weight: 600; color: #a8c4e0; margin: 24px 0 12px; }
+
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(138,171,222,0.45); margin-bottom: 8px; }
+
+  /* ── Glass panel ── */
+  .glass {
+    background: rgba(12,20,45,0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(80,145,255,0.12);
+    border-radius: 18px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .glass::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+    pointer-events: none; border-radius: 18px 18px 0 0;
+  }
+
+  /* ── Tier comparison ── */
+  .tier-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+  @media (max-width: 800px) { .tier-grid { grid-template-columns: 1fr; } }
+
+  .tier-card { position: relative; }
+  .tier-card .glass { height: 100%; display: flex; flex-direction: column; }
+  .tier-card.featured .glass {
+    border-color: rgba(0,212,255,0.35);
+    box-shadow: 0 0 40px rgba(0,212,255,0.08);
+  }
+  .tier-badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em; margin-bottom: 14px; width: fit-content;
+  }
+  .tier-badge.free { background: rgba(80,200,120,0.15); color: #50c878; border: 1px solid rgba(80,200,120,0.3); }
+  .tier-badge.plus { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+  .tier-badge.shop { background: rgba(200,120,255,0.12); color: #c878ff; border: 1px solid rgba(200,120,255,0.3); }
+
+  .tier-price { font-size: 28px; font-weight: 800; color: #fff; margin: 8px 0 4px; }
+  .tier-price span { font-size: 14px; font-weight: 500; color: rgba(138,171,222,0.5); }
+  .tier-desc { font-size: 12px; color: rgba(138,171,222,0.5); margin-bottom: 20px; }
+
+  .tier-features { list-style: none; flex: 1; }
+  .tier-features li {
+    font-size: 13px; padding: 7px 0;
+    border-bottom: 1px solid rgba(80,145,255,0.06);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tier-features li::before { font-size: 12px; flex-shrink: 0; }
+  .tier-features li.yes::before { content: '\2713'; color: #50c878; }
+  .tier-features li.no::before { content: '\2715'; color: rgba(138,171,222,0.25); }
+  .tier-features li.no { color: rgba(138,171,222,0.3); }
+  .tier-features li.upgrade::before { content: '\2B06'; color: #00d4ff; }
+
+  /* ── Avatar Corner mockup ── */
+  .avatar-mockup {
+    display: flex; gap: 32px; align-items: flex-start; margin-top: 20px;
+  }
+  @media (max-width: 700px) { .avatar-mockup { flex-direction: column; } }
+
+  .avatar-figure {
+    width: 200px; height: 260px; flex-shrink: 0;
+    background: linear-gradient(160deg, rgba(0,160,255,0.12), rgba(120,0,200,0.08));
+    border-radius: 20px; border: 1px solid rgba(80,145,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .avatar-figure .orb1 {
+    position: absolute; width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%);
+    top: -20px; right: -20px; filter: blur(15px);
+  }
+  .avatar-figure .orb2 {
+    position: absolute; width: 80px; height: 80px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(120,0,255,0.12) 0%, transparent 70%);
+    bottom: -10px; left: -10px; filter: blur(12px);
+  }
+  .avatar-silhouette {
+    width: 120px; height: 180px; position: relative; z-index: 1;
+    background: linear-gradient(180deg, rgba(0,180,255,0.25) 0%, rgba(80,120,200,0.15) 100%);
+    border-radius: 60px 60px 40px 40px;
+    border: 2px solid rgba(0,212,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 30px rgba(0,180,255,0.12);
+  }
+  .avatar-silhouette span { font-size: 48px; opacity: 0.8; }
+
+  .avatar-info { flex: 1; }
+
+  .xp-section { margin-bottom: 16px; }
+  .xp-header {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px;
+  }
+  .xp-title { font-size: 13px; font-weight: 600; }
+  .xp-title.chatter { color: #00d4ff; }
+  .xp-title.gamer { color: #50c878; }
+  .xp-title.writer { color: #c878ff; }
+  .xp-rank { font-size: 11px; color: rgba(138,171,222,0.5); }
+  .xp-rank strong { color: rgba(200,220,255,0.7); font-weight: 600; }
+
+  .xp-bar-bg {
+    height: 10px; border-radius: 5px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden; position: relative;
+  }
+  .xp-bar-fill {
+    height: 100%; border-radius: 5px; position: relative;
+    transition: width 0.5s ease;
+  }
+  .xp-bar-fill::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%);
+    border-radius: 5px 5px 0 0;
+  }
+  .xp-bar-fill.chatter { background: linear-gradient(90deg, #007aff, #00d4ff); width: 68%; }
+  .xp-bar-fill.gamer { background: linear-gradient(90deg, #28a745, #50c878); width: 32%; }
+  .xp-bar-fill.writer { background: linear-gradient(90deg, #7b2ff7, #c878ff); width: 84%; }
+
+  .xp-detail { font-size: 10px; color: rgba(138,171,222,0.35); margin-top: 3px; text-align: right; }
+
+  /* ── Profile card comparison ── */
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+  @media (max-width: 700px) { .comparison { grid-template-columns: 1fr; } }
+
+  .profile-card {
+    border-radius: 16px; padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .profile-card.free-version {
+    background: linear-gradient(145deg, rgba(60,80,120,0.3), rgba(40,55,85,0.4));
+    border: 1px solid rgba(80,145,255,0.10);
+  }
+  .profile-card.premium-version {
+    background: linear-gradient(145deg, rgba(0,120,255,0.18), rgba(120,0,200,0.12));
+    border: 1px solid rgba(0,212,255,0.25);
+    box-shadow: 0 0 30px rgba(0,180,255,0.08);
+  }
+  .profile-card .corner-orb {
+    position: absolute; width: 80px; height: 80px; top: -20px; right: -20px;
+    border-radius: 50%; filter: blur(15px);
+  }
+  .profile-card.free-version .corner-orb { background: radial-gradient(circle, rgba(100,140,200,0.12) 0%, transparent 70%); }
+  .profile-card.premium-version .corner-orb { background: radial-gradient(circle, rgba(0,212,255,0.25) 0%, transparent 70%); }
+
+  .profile-row { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+
+  .profile-avatar {
+    width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #fff;
+  }
+  .profile-avatar.free-ring {
+    border: 2px solid rgba(0,212,255,0.50);
+    background: linear-gradient(135deg, #1a3a5c, #0d2440);
+  }
+  .profile-avatar.premium-ring {
+    border: 2px solid #00d4ff;
+    box-shadow: 0 0 12px rgba(0,212,255,0.4);
+    background: linear-gradient(135deg, #1a3a5c, #0d2440);
+    animation: aura-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes aura-pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(0,212,255,0.4); }
+    50% { box-shadow: 0 0 20px rgba(0,212,255,0.6); }
+  }
+
+  .profile-name { font-size: 14px; font-weight: 700; color: #e0eaf5; }
+  .profile-status { font-size: 11px; color: rgba(0,212,255,0.7); display: flex; align-items: center; gap: 4px; }
+  .profile-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #00d4ff; }
+
+  .profile-badge {
+    display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .profile-badge.plus-badge {
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(120,0,200,0.12));
+    color: #00d4ff; border: 1px solid rgba(0,212,255,0.3);
+  }
+
+  .card-label {
+    position: absolute; top: 10px; right: 14px; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; z-index: 1;
+  }
+  .card-label.free-label { color: rgba(138,171,222,0.35); }
+  .card-label.premium-label { color: rgba(0,212,255,0.5); }
+
+  /* Animated shimmer for premium card */
+  .profile-card.premium-version::before {
+    content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+    animation: shimmer 4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% { left: -50%; }
+    100% { left: 150%; }
+  }
+
+  /* ── Bubble styles mockup ── */
+  .bubble-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; }
+  @media (max-width: 700px) { .bubble-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .bubble-demo {
+    padding: 16px; border-radius: 14px;
+    background: rgba(12,20,45,0.6); border: 1px solid rgba(80,145,255,0.08);
+    text-align: center;
+  }
+  .bubble-demo.locked {
+    opacity: 0.45; position: relative;
+  }
+  .bubble-demo.locked::after {
+    content: '\1F512'; position: absolute; top: 8px; right: 10px; font-size: 12px;
+  }
+  .bubble-sample {
+    display: inline-block; padding: 8px 14px; font-size: 12px; color: #fff;
+    margin: 10px 0 8px; max-width: 100%;
+  }
+  .bubble-sample.default {
+    background: linear-gradient(165deg, #72e472 0%, #28b828 100%);
+    border-radius: 14px 14px 4px 14px;
+    box-shadow: 0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50);
+  }
+  .bubble-sample.sharp {
+    background: linear-gradient(165deg, #00a8ff 0%, #0066cc 100%);
+    border-radius: 4px;
+    box-shadow: 0 3px 14px rgba(0,100,255,0.3);
+  }
+  .bubble-sample.cloud {
+    background: linear-gradient(165deg, #ff8a50 0%, #e05020 100%);
+    border-radius: 20px;
+    box-shadow: 0 3px 14px rgba(200,60,20,0.3);
+  }
+  .bubble-sample.minimal {
+    background: transparent;
+    border: 1px solid rgba(0,212,255,0.35);
+    border-radius: 14px;
+    color: #00d4ff;
+  }
+  .bubble-name { font-size: 11px; font-weight: 600; color: rgba(138,171,222,0.5); }
+
+  /* ── Theme grid ── */
+  .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+  @media (max-width: 700px) { .theme-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .theme-swatch {
+    height: 100px; border-radius: 14px; position: relative; overflow: hidden;
+    border: 1px solid rgba(80,145,255,0.12);
+    display: flex; align-items: flex-end; padding: 10px;
+  }
+  .theme-swatch.locked { opacity: 0.4; }
+  .theme-swatch.locked::after {
+    content: '\1F512'; position: absolute; top: 8px; right: 10px; font-size: 12px;
+  }
+  .theme-swatch .name {
+    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  .theme-swatch .tag {
+    position: absolute; top: 8px; left: 10px; font-size: 8px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .tag.free-tag { background: rgba(80,200,120,0.25); color: #50c878; }
+  .tag.plus-tag { background: rgba(0,212,255,0.2); color: #00d4ff; }
+
+  .theme-day { background: linear-gradient(145deg, #87ceeb, #b8e4f0, #e8f4f8); }
+  .theme-night { background: linear-gradient(145deg, #050d1a, #0a1628, #0d1f3c); }
+  .theme-ocean { background: linear-gradient(145deg, #001f3f, #003d6b, #006994); }
+  .theme-sunset { background: linear-gradient(145deg, #2d1b4e, #6b2a4d, #c44536); }
+  .theme-aurora { background: linear-gradient(145deg, #0a1a2e, #0d4d2b, #2dd4a8); }
+  .theme-sakura { background: linear-gradient(145deg, #2d1b2e, #5c2d4a, #ffb7c5); }
+
+  /* ── Milestone rewards ── */
+  .milestone-track { display: flex; gap: 0; margin: 20px 0; position: relative; }
+  .milestone-track::before {
+    content: ''; position: absolute; top: 20px; left: 24px; right: 24px; height: 3px;
+    background: rgba(80,145,255,0.12); border-radius: 2px;
+  }
+  .milestone-item {
+    flex: 1; text-align: center; position: relative; z-index: 1;
+  }
+  .milestone-dot {
+    width: 42px; height: 42px; border-radius: 50%; margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    background: rgba(12,20,45,0.9); border: 2px solid rgba(80,145,255,0.2);
+  }
+  .milestone-dot.earned {
+    border-color: #00d4ff; box-shadow: 0 0 12px rgba(0,212,255,0.25);
+  }
+  .milestone-dot.premium-only {
+    border-color: rgba(200,120,255,0.4); box-shadow: 0 0 8px rgba(200,120,255,0.15);
+  }
+  .milestone-level { font-size: 10px; font-weight: 700; color: rgba(138,171,222,0.4); }
+  .milestone-reward { font-size: 10px; color: rgba(138,171,222,0.5); margin-top: 2px; }
+  .milestone-reward.premium-text { color: rgba(200,120,255,0.5); }
+
+  /* ── Exclusive shop ── */
+  .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+  @media (max-width: 700px) { .shop-grid { grid-template-columns: 1fr; } }
+
+  .shop-item {
+    border-radius: 16px; overflow: hidden; position: relative;
+    background: rgba(12,20,45,0.7); border: 1px solid rgba(200,120,255,0.15);
+  }
+  .shop-preview {
+    height: 120px; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; position: relative;
+  }
+  .shop-preview .bg {
+    position: absolute; inset: 0;
+  }
+  .shop-preview .bg.cosmic { background: linear-gradient(135deg, #0a0a2e, #1a0a3e, #0a2a5e); }
+  .shop-preview .bg.neon { background: linear-gradient(135deg, #1a0a0a, #2e0a1a, #0a1a2e); }
+  .shop-preview .bg.frutiger { background: linear-gradient(135deg, #0a2040, #0a3060, #0a2040); }
+  .shop-preview span { position: relative; z-index: 1; }
+
+  .shop-info { padding: 14px 16px; }
+  .shop-name { font-size: 14px; font-weight: 700; color: #e0eaf5; }
+  .shop-desc { font-size: 11px; color: rgba(138,171,222,0.45); margin-top: 2px; }
+  .shop-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .shop-price { font-size: 14px; font-weight: 700; color: #c878ff; }
+  .shop-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px;
+    background: rgba(255,80,80,0.12); color: #ff6b6b; border: 1px solid rgba(255,80,80,0.2);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center; margin-top: 80px; padding: 30px 0;
+    border-top: 1px solid rgba(80,145,255,0.08);
+    color: rgba(138,171,222,0.3); font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1>AeroChat Freemium Model</h1>
+  <p class="subtitle">Visual mockups for the free, Aero Chat+, and Exclusive Shop tiers</p>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Tier Comparison</h2>
+
+  <div class="tier-grid">
+    <!-- Free -->
+    <div class="tier-card">
+      <div class="glass">
+        <span class="tier-badge free">FREE</span>
+        <div class="tier-price">$0 <span>/ forever</span></div>
+        <p class="tier-desc">Full communication platform, no cost</p>
+        <ul class="tier-features">
+          <li class="yes">DMs, Servers, Bubbles, Calls</li>
+          <li class="yes">Emoji Picker + GIF Search</li>
+          <li class="yes">Games (Chess + more)</li>
+          <li class="yes">Writer's Corner</li>
+          <li class="yes">Avatar Corner (base avatar)</li>
+          <li class="yes">Free cosmetics at milestones</li>
+          <li class="no">Daily XP cap (100/bar/day)</li>
+          <li class="no">10 MB file upload limit</li>
+          <li class="no">3 profile card presets</li>
+          <li class="no">Day / Night themes only</li>
+          <li class="no">Default bubble style only</li>
+          <li class="no">No custom emoji</li>
+          <li class="no">No Exclusive Shop access</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Aero Chat+ -->
+    <div class="tier-card featured">
+      <div class="glass">
+        <span class="tier-badge plus">AERO CHAT+</span>
+        <div class="tier-price">$X.XX <span>/ month</span></div>
+        <p class="tier-desc">Unlock your full visual identity</p>
+        <ul class="tier-features">
+          <li class="yes">Everything in Free</li>
+          <li class="upgrade">Unlimited daily XP</li>
+          <li class="upgrade">100 MB file uploads</li>
+          <li class="upgrade">Full gradient library + custom colors</li>
+          <li class="upgrade">Animated profile card effects</li>
+          <li class="upgrade">Custom aura ring colors</li>
+          <li class="upgrade">Full theme library (6+ themes)</li>
+          <li class="upgrade">Chat bubble styles + custom colors</li>
+          <li class="upgrade">Sound packs (5+ sets)</li>
+          <li class="upgrade">Custom server emoji uploads</li>
+          <li class="upgrade">Premium avatar cosmetic catalog</li>
+          <li class="upgrade">Exclusive Shop access</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Exclusive Shop -->
+    <div class="tier-card">
+      <div class="glass">
+        <span class="tier-badge shop">EXCLUSIVE SHOP</span>
+        <div class="tier-price">$$ <span>/ per item</span></div>
+        <p class="tier-desc">Requires active Aero Chat+ subscription</p>
+        <ul class="tier-features">
+          <li class="yes">Ultra-rare avatar sets</li>
+          <li class="yes">Limited edition seasonal drops</li>
+          <li class="yes">Unique animated effects</li>
+          <li class="yes">Collector display badges</li>
+          <li class="yes">Items permanently owned</li>
+          <li class="yes">New items added regularly</li>
+          <li class="no">Requires Aero Chat+ to purchase</li>
+          <li class="no">Limited availability windows</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Avatar Corner</h2>
+  <p style="font-size: 13px; color: rgba(138,171,222,0.45); margin-bottom: 10px;">
+    Every user gets a Frutiger Aero character with three XP progression bars.
+    Rank titles are the primary display; numeric levels appear as detail.
+  </p>
+
+  <div class="glass">
+    <div class="avatar-mockup">
+      <div class="avatar-figure">
+        <div class="orb1"></div>
+        <div class="orb2"></div>
+        <div class="avatar-silhouette">
+          <span>:)</span>
+        </div>
+      </div>
+
+      <div class="avatar-info">
+        <div style="font-size: 18px; font-weight: 700; color: #e0eaf5; margin-bottom: 4px;">AeroPlayer42</div>
+        <div style="font-size: 11px; color: rgba(138,171,222,0.4); margin-bottom: 20px;">Member since March 2026</div>
+
+        <div class="xp-section">
+          <div class="xp-header">
+            <span class="xp-title chatter">Chatter &middot; <span style="color: rgba(200,220,255,0.7);">Storyteller</span></span>
+            <span class="xp-rank">Lv. <strong>34</strong></span>
+          </div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill chatter"></div></div>
+          <div class="xp-detail">680 / 1,000 XP</div>
+        </div>
+
+        <div class="xp-section">
+          <div class="xp-header">
+            <span class="xp-title gamer">Gamer &middot; <span style="color: rgba(200,220,255,0.7);">Player</span></span>
+            <span class="xp-rank">Lv. <strong>8</strong></span>
+          </div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill gamer"></div></div>
+          <div class="xp-detail">160 / 500 XP</div>
+        </div>
+
+        <div class="xp-section">
+          <div class="xp-header">
+            <span class="xp-title writer">Writer &middot; <span style="color: rgba(200,220,255,0.7);">Author</span></span>
+            <span class="xp-rank">Lv. <strong>21</strong></span>
+          </div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill writer"></div></div>
+          <div class="xp-detail">840 / 1,000 XP</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Milestone rewards ── -->
+  <h3>Milestone Rewards Track (Chatter example)</h3>
+  <div class="glass" style="padding: 24px 16px;">
+    <div class="milestone-track">
+      <div class="milestone-item">
+        <div class="milestone-dot earned">&#x1F4AC;</div>
+        <div class="milestone-level">Lv. 5</div>
+        <div class="milestone-reward">Speech Bubble</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot earned">&#x2728;</div>
+        <div class="milestone-level">Lv. 10</div>
+        <div class="milestone-reward">2nd Slot</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot">&#x1F451;</div>
+        <div class="milestone-level">Lv. 25</div>
+        <div class="milestone-reward">XP Bar Glow</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot premium-only">&#x1F525;</div>
+        <div class="milestone-level">Lv. 30</div>
+        <div class="milestone-reward premium-text">Chat+ Only</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot">&#x1F308;</div>
+        <div class="milestone-level">Lv. 50</div>
+        <div class="milestone-reward">Title Color</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot premium-only">&#x1F48E;</div>
+        <div class="milestone-level">Lv. 75</div>
+        <div class="milestone-reward premium-text">Chat+ Only</div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot premium-only">&#x1F31F;</div>
+        <div class="milestone-level">Lv. 100</div>
+        <div class="milestone-reward premium-text">Aero Voice</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Profile Card — Free vs Premium</h2>
+
+  <div class="comparison">
+    <div class="profile-card free-version">
+      <div class="corner-orb"></div>
+      <span class="card-label free-label">Free</span>
+      <div class="profile-row">
+        <div class="profile-avatar free-ring">A</div>
+        <div>
+          <div class="profile-name">AeroPlayer42</div>
+          <div class="profile-status"><span class="dot"></span> Online</div>
+        </div>
+      </div>
+      <div style="margin-top: 14px; font-size: 11px; color: rgba(138,171,222,0.35);">
+        Static gradient &middot; Basic aura ring &middot; No badge &middot; No animation
+      </div>
+    </div>
+
+    <div class="profile-card premium-version">
+      <div class="corner-orb"></div>
+      <span class="card-label premium-label">Aero Chat+</span>
+      <div class="profile-row">
+        <div class="profile-avatar premium-ring">A</div>
+        <div>
+          <div class="profile-name">AeroPlayer42</div>
+          <div class="profile-status"><span class="dot"></span> Online</div>
+          <span class="profile-badge plus-badge">Aero Chat+</span>
+        </div>
+      </div>
+      <div style="margin-top: 14px; font-size: 11px; color: rgba(0,212,255,0.35);">
+        Custom gradient &middot; Animated aura ring &middot; Chat+ badge &middot; Shimmer effect
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Chat Bubble Styles</h2>
+  <p style="font-size: 13px; color: rgba(138,171,222,0.45); margin-bottom: 0;">
+    Free users get the default bubble. Aero Chat+ unlocks additional styles and custom colors.
+  </p>
+
+  <div class="bubble-grid">
+    <div class="bubble-demo">
+      <p class="label">Default</p>
+      <div class="bubble-sample default">Hey there!</div>
+      <p class="bubble-name" style="color: rgba(80,200,120,0.5);">Free</p>
+    </div>
+    <div class="bubble-demo locked">
+      <p class="label">Sharp</p>
+      <div class="bubble-sample sharp">Hey there!</div>
+      <p class="bubble-name">Chat+</p>
+    </div>
+    <div class="bubble-demo locked">
+      <p class="label">Cloud</p>
+      <div class="bubble-sample cloud">Hey there!</div>
+      <p class="bubble-name">Chat+</p>
+    </div>
+    <div class="bubble-demo locked">
+      <p class="label">Minimal</p>
+      <div class="bubble-sample minimal">Hey there!</div>
+      <p class="bubble-name">Chat+</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Chat Themes</h2>
+  <p style="font-size: 13px; color: rgba(138,171,222,0.45); margin-bottom: 0;">
+    Free: Day and Night. Aero Chat+ unlocks the full theme library.
+  </p>
+
+  <div class="theme-grid">
+    <div class="theme-swatch theme-day">
+      <span class="tag free-tag">Free</span>
+      <span class="name" style="color: rgba(0,0,0,0.7);">Day</span>
+    </div>
+    <div class="theme-swatch theme-night">
+      <span class="tag free-tag">Free</span>
+      <span class="name">Night</span>
+    </div>
+    <div class="theme-swatch theme-ocean locked">
+      <span class="tag plus-tag">Chat+</span>
+      <span class="name">Ocean</span>
+    </div>
+    <div class="theme-swatch theme-sunset locked">
+      <span class="tag plus-tag">Chat+</span>
+      <span class="name">Sunset</span>
+    </div>
+    <div class="theme-swatch theme-aurora locked">
+      <span class="tag plus-tag">Chat+</span>
+      <span class="name">Aurora</span>
+    </div>
+    <div class="theme-swatch theme-sakura locked">
+      <span class="tag plus-tag">Chat+</span>
+      <span class="name">Sakura</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2>Exclusive Shop — Preview</h2>
+  <p style="font-size: 13px; color: rgba(138,171,222,0.45); margin-bottom: 0;">
+    One-time purchase items. Requires active Aero Chat+ subscription.
+  </p>
+
+  <div class="shop-grid">
+    <div class="shop-item">
+      <div class="shop-preview">
+        <div class="bg cosmic"></div>
+        <span>&#x1F680;</span>
+      </div>
+      <div class="shop-info">
+        <div class="shop-name">Cosmic Voyager Set</div>
+        <div class="shop-desc">Full outfit + nebula aura + star trail effect</div>
+        <div class="shop-footer">
+          <span class="shop-price">$4.99</span>
+        </div>
+      </div>
+    </div>
+    <div class="shop-item">
+      <div class="shop-preview">
+        <div class="bg neon"></div>
+        <span>&#x2694;</span>
+      </div>
+      <div class="shop-info">
+        <div class="shop-name">Neon Samurai Set</div>
+        <div class="shop-desc">Armor + katana accessory + ember particles</div>
+        <div class="shop-footer">
+          <span class="shop-price">$4.99</span>
+          <span class="shop-tag">Limited</span>
+        </div>
+      </div>
+    </div>
+    <div class="shop-item">
+      <div class="shop-preview">
+        <div class="bg frutiger"></div>
+        <span>&#x1F30A;</span>
+      </div>
+      <div class="shop-info">
+        <div class="shop-name">Frutiger Original Set</div>
+        <div class="shop-desc">Classic Aero outfit + glass wings + bubble trail</div>
+        <div class="shop-footer">
+          <span class="shop-price">$6.99</span>
+          <span class="shop-tag">Limited</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="footer">
+    AeroChat Freemium Model &mdash; Internal Design Document &mdash; v1.0 &mdash; April 2026
+  </div>
+
+</div>
+</body>
+</html>
