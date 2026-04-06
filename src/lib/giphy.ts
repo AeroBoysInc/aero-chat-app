@@ -1,6 +1,6 @@
 // src/lib/giphy.ts
 const BASE = 'https://api.giphy.com/v1/gifs';
-const KEY = import.meta.env.VITE_GIPHY_API_KEY ?? '';
+const KEY = (import.meta.env.VITE_GIPHY_API_KEY ?? '').trim();
 
 export interface GiphyGif {
   id: string;
