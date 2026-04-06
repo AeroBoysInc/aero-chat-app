@@ -291,7 +291,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         className="relative mx-3 my-2 rounded-[14px] overflow-visible"
         ref={statusMenuRef}
         style={{
-          border: '1px solid var(--panel-divider)',
+          border: user?.is_premium
+            ? '1px solid rgba(255,215,0,0.22)'
+            : '1px solid var(--panel-divider)',
           padding: '12px 14px',
           flexShrink: 0,
           ...(cardImage
@@ -302,7 +304,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 backgroundRepeat: 'no-repeat',
               }
             : { background: CARD_GRADIENTS.find(g => g.id === cardGradient)?.css ?? CARD_GRADIENTS[0].css }),
-          boxShadow: '0 4px 16px rgba(0,80,200,0.08), inset 0 1px 0 rgba(255,255,255,0.18)',
+          boxShadow: user?.is_premium
+            ? '0 4px 20px rgba(255,180,0,0.10), 0 0 30px rgba(255,215,0,0.04), inset 0 1px 0 rgba(255,255,255,0.18)'
+            : '0 4px 16px rgba(0,80,200,0.08), inset 0 1px 0 rgba(255,255,255,0.18)',
         }}
       >
         {/* Dark overlay when image is set — keeps text readable */}
@@ -311,11 +315,24 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             style={{ background: 'rgba(0,0,0,0.42)', zIndex: 0 }} />
         )}
 
+        {/* Premium shimmer animation */}
+        {user?.is_premium && (
+          <div className="pointer-events-none absolute inset-0 rounded-[14px] overflow-hidden" style={{ zIndex: 0 }}>
+            <div style={{
+              position: 'absolute', top: 0, left: '-100%', width: '50%', height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
+              animation: 'card-shimmer 4s ease-in-out infinite',
+            }} />
+          </div>
+        )}
+
         {/* Decorative corner orb */}
         <div className="pointer-events-none absolute" style={{
           width: 80, height: 80, top: -20, right: -20,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%)',
+          background: user?.is_premium
+            ? 'radial-gradient(circle, rgba(255,200,0,0.22) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%)',
           filter: 'blur(12px)',
           zIndex: 0,
         }} />
@@ -345,6 +362,18 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 </span>
               )}
             </p>
+            {user?.is_premium && (
+              <span style={{
+                display: 'inline-block', marginTop: 2,
+                padding: '2px 8px', borderRadius: 10,
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+                background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10))',
+                color: '#FFD700',
+                border: '1px solid rgba(255,215,0,0.28)',
+              }}>
+                Aero Chat+
+              </span>
+            )}
             <button
               onClick={() => setStatusMenuOpen(o => !o)}
               className="flex items-center gap-1.5 mt-0.5 rounded transition-opacity hover:opacity-70"
