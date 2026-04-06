@@ -65,20 +65,32 @@ const StatBar = React.memo(function StatBar({ bar, isPremium }: { bar: XpBar; is
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.15)',
           overflow: 'visible',
         }}>
-          {/* Fill */}
+          {/* Liquid fill */}
           <div style={{
             height: '100%', borderRadius: 12,
-            background: `linear-gradient(90deg, ${meta.color}55, ${meta.color}bb, ${meta.color})`,
+            background: `
+              linear-gradient(90deg, ${meta.color}70 0%, ${meta.color}90 30%, ${meta.color}aa 55%, rgba(120,230,200,0.7) 80%, rgba(200,255,240,0.85) 100%),
+              linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 40%, rgba(0,0,0,0.08) 100%)
+            `,
+            backgroundBlendMode: 'screen',
             width: `${progress}%`,
             transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: `0 0 14px ${meta.color}40, inset 0 1px 0 rgba(255,255,255,0.30)`,
+            boxShadow: `0 0 16px ${meta.color}35, inset 0 -2px 4px rgba(0,0,0,0.12), inset 0 2px 4px rgba(255,255,255,0.20)`,
             position: 'relative',
             minWidth: progress > 0 ? 20 : 0,
+            overflow: 'hidden',
           }}>
-            {/* Gloss highlight */}
+            {/* Liquid gloss — top highlight */}
             <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)',
+              position: 'absolute', top: 1, left: 4, right: 4, height: '38%',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.10) 100%)',
+              borderRadius: 10,
+            }} />
+            {/* Liquid shimmer — animated light refraction */}
+            <div className="xp-liquid-shimmer" style={{
+              position: 'absolute', inset: 0,
+              background: `linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.25) 35%, rgba(255,255,255,0.40) 40%, rgba(255,255,255,0.25) 45%, transparent 60%)`,
+              backgroundSize: '200% 100%',
               borderRadius: 'inherit',
             }} />
             {/* Diamond/crystal tip at the end of the fill */}

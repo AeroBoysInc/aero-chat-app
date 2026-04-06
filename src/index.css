@@ -1118,6 +1118,18 @@
   animation: splash-progress-slide 1.8s ease-in-out infinite;
 }
 
+/* ── XP liquid shimmer (Avatar Corner bars) ── */
+@keyframes xp-liquid-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.xp-liquid-shimmer {
+  animation: xp-liquid-shimmer 3s ease-in-out infinite;
+}
+.paused .xp-liquid-shimmer {
+  animation-play-state: paused;
+}
+
 /* ── XP Mini Bar animations ── */
 @keyframes xp-shimmer {
   0%   { transform: translateX(-100%); }
