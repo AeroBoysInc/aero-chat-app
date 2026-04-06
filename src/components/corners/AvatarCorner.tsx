@@ -208,10 +208,10 @@ export function AvatarCorner() {
             overflow: 'visible',
           }}>
             <div style={{
-              width: 1800,
+              width: 2400,
               position: 'relative',
               zIndex: 2,
-              marginLeft: -180,
+              marginLeft: -80,
             }}>
               <AeroAgent
                 base={avatarBase.src}
