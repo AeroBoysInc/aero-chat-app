@@ -7,7 +7,7 @@ import {
   loadRecentEmojis, saveRecentEmoji,
   type CategoryId,
 } from '../../lib/emojiData';
-import { fetchTrending, searchGifs, type TenorGif } from '../../lib/tenor';
+import { fetchTrending, searchGifs, type GiphyGif } from '../../lib/giphy';
 
 export interface EmojiGifPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -28,10 +28,10 @@ export const EmojiGifPicker = memo(function EmojiGifPicker({
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
   // GIF state
-  const [gifs, setGifs] = useState<TenorGif[]>([]);
+  const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState(false);
-  const [trendingCache, setTrendingCache] = useState<TenorGif[] | null>(null);
+  const [trendingCache, setTrendingCache] = useState<GiphyGif[] | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const gifSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,7 +111,7 @@ export const EmojiGifPicker = memo(function EmojiGifPicker({
     onEmojiSelect(emoji);
   }, [userId, onEmojiSelect]);
 
-  const handleGifClick = useCallback((gif: TenorGif) => {
+  const handleGifClick = useCallback((gif: GiphyGif) => {
     onGifSelect({ url: gif.url, width: gif.width, height: gif.height, previewUrl: gif.previewUrl });
     onClose();
   }, [onGifSelect, onClose]);
@@ -296,7 +296,7 @@ export const EmojiGifPicker = memo(function EmojiGifPicker({
                 <input
                   value={gifSearch}
                   onChange={e => handleGifSearchChange(e.target.value)}
-                  placeholder="Search Tenor..."
+                  placeholder="Search GIPHY..."
                   style={{
                     flex: 1, background: 'none', border: 'none', outline: 'none',
                     color: 'rgba(255,255,255,0.85)', fontSize: 11,
@@ -383,7 +383,7 @@ export const EmojiGifPicker = memo(function EmojiGifPicker({
 
             {/* Tenor attribution */}
             <div style={{ padding: '4px 12px 8px', fontSize: 9, color: 'rgba(255,255,255,0.2)', textAlign: 'right', flexShrink: 0 }}>
-              Powered by Tenor
+              Powered by GIPHY
             </div>
           </>
         )}
