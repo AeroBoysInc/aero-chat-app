@@ -178,8 +178,8 @@ export function AvatarCorner() {
       {/* ── Glass card ── */}
       <div style={{
         display: 'flex',
-        width: '100%', maxWidth: 860,
-        height: 'auto', maxHeight: 440,
+        width: '100%', maxWidth: 960,
+        height: 'auto', maxHeight: 520,
         background: 'linear-gradient(145deg, rgba(0,150,255,0.08), rgba(0,80,200,0.04), rgba(120,0,200,0.03))',
         border: '1px solid rgba(255,255,255,0.10)',
         borderRadius: 20,
@@ -202,7 +202,7 @@ export function AvatarCorner() {
           display: 'flex',
           position: 'relative',
           padding: '16px 0 16px 20px',
-          minHeight: 360,
+          minHeight: 420,
         }}>
           {/* Character — fills most of the panel */}
           <div style={{
@@ -213,8 +213,8 @@ export function AvatarCorner() {
           }}>
             {/* Agent display — large, no max-width cap */}
             <div style={{
-              width: '100%', maxWidth: 320,
-              marginTop: -20,
+              width: '120%', maxWidth: 420,
+              marginTop: -30,
               position: 'relative',
               zIndex: 2,
             }}>
