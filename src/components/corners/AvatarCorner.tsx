@@ -201,20 +201,18 @@ export function AvatarCorner() {
           flex: '0 0 42%',
           display: 'flex',
           position: 'relative',
-          padding: '16px 0 16px 20px',
-          minHeight: 420,
+          padding: '0 0 0 20px',
         }}>
-          {/* Character — fills most of the panel */}
+          {/* Character — fills most of the panel, bottom-aligned */}
           <div style={{
             flex: 1,
             display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
+            alignItems: 'center', justifyContent: 'flex-end',
             position: 'relative',
           }}>
-            {/* Agent display — large, no max-width cap */}
+            {/* Agent display — oversized, anchored to bottom */}
             <div style={{
-              width: '120%', maxWidth: 420,
-              marginTop: -30,
+              width: '150%', maxWidth: 500,
               position: 'relative',
               zIndex: 2,
             }}>
@@ -228,7 +226,7 @@ export function AvatarCorner() {
             </div>
 
             {/* Agent label — at the bottom */}
-            <div style={{ textAlign: 'center', marginTop: 8, position: 'relative', zIndex: 2 }}>
+            <div style={{ textAlign: 'center', marginTop: 4, marginBottom: 12, position: 'relative', zIndex: 2 }}>
               <div style={{
                 fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
                 color: 'var(--text-muted)', textTransform: 'uppercase',
@@ -340,7 +338,7 @@ export function AvatarCorner() {
               Loading XP data...
             </div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: 'relative', zIndex: 2 }}>
               <StatBar bar="chatter" isPremium={isPremium} />
               <StatBar bar="writer" isPremium={isPremium} />
               <StatBar bar="gamer" isPremium={isPremium} />
