@@ -5,6 +5,7 @@ import { useChessStore } from '../../store/chessStore';
 import { useAuthStore } from '../../store/authStore';
 import { getInstalledGames, installGame, uninstallGame } from '../../lib/gameInstalls';
 import { downloadGame, loadGame, removeGame } from '../../lib/gameLoader';
+import { XpMiniBar } from '../ui/XpMiniBar';
 
 // Chess stays bundled — multiplayer + Three.js dependency tree
 const AeroChess = lazy(() =>
@@ -362,6 +363,12 @@ function GameHub({
         <div className="flex-1">
           <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Games Corner</p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Mini-games while you chat</p>
+          {/* Premium Gamer XP strip */}
+          {user?.is_premium && (
+            <div style={{ marginTop: 6 }}>
+              <XpMiniBar bar="gamer" />
+            </div>
+          )}
         </div>
 
         {/* Tabs */}

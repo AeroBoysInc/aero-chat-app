@@ -22,6 +22,7 @@ import { useCallStore } from '../../store/callStore';
 import { GAME_LABELS } from '../../lib/gameLabels';
 import { CardImageCropModal, type CropParams } from './CardImageCropModal';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
+import { XpMiniBar } from '../ui/XpMiniBar';
 
 const CARD_GRADIENT_KEY = 'aero_card_gradient';
 
@@ -384,6 +385,13 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               {statusLabel[myStatus]}
               <ChevronUp className="h-3 w-3" style={{ transform: statusMenuOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
             </button>
+            {/* Premium XP bars — Chatter + Writer under profile card */}
+            {user?.is_premium && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+                <XpMiniBar bar="chatter" />
+                <XpMiniBar bar="writer" />
+              </div>
+            )}
           </div>
           <button
             onClick={() => setGradientPickerOpen(o => !o)}

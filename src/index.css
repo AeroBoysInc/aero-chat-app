@@ -250,6 +250,466 @@
 }
 
 /* ═══════════════════════════════════════════════
+   PREMIUM THEMES
+═══════════════════════════════════════════════ */
+
+[data-theme="ocean"] {
+  /* Deep Ocean — teal & navy with luminous cyan accents */
+  --body-bg:
+    radial-gradient(ellipse 520px 440px at 90% 12%, rgba(0,220,200,0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 400px 400px at  8% 80%, rgba(0,80,180,0.22)  0%, transparent 55%),
+    radial-gradient(ellipse 380px 380px at 50% 50%, rgba(0,140,200,0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 260px 260px at 25% 20%, rgba(0,200,220,0.15) 0%, transparent 50%),
+    linear-gradient(165deg, #062a3e 0%, #041e30 55%, #021520 100%);
+
+  --sidebar-bg:      rgba(4,30,48,0.94);
+  --sidebar-border:  rgba(0,180,200,0.20);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(0,200,220,0.12);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(0,220,200,0.08) 0%, rgba(0,180,200,0.02) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(3,22,38,0.80);
+  --chat-border:     rgba(0,160,200,0.18);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(0,180,200,0.10);
+  --chat-gloss:      linear-gradient(180deg, rgba(0,220,200,0.06) 0%, rgba(0,180,200,0.02) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(4,30,48,0.96);
+  --card-border:     rgba(0,180,200,0.22);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(0,200,220,0.15);
+  --card-gloss:      linear-gradient(180deg, rgba(0,220,200,0.08) 0%, rgba(0,180,200,0.02) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: rgba(0,200,220,0.04);
+  --panel-divider:   rgba(0,160,200,0.16);
+
+  --text-primary:    #c8f0f0;
+  --text-secondary:  #6ab8c0;
+  --text-muted:      #3a7888;
+  --text-label:      #2e6878;
+  --text-title:      #80e0e0;
+
+  --rail-icon:       rgba(0, 200, 220, 0.45);
+  --rail-icon-hover: rgba(0, 220, 240, 0.85);
+  --rail-bg-idle:    rgba(0, 200, 220, 0.07);
+  --rail-bg-hover:   rgba(0, 200, 220, 0.16);
+  --rail-border:     rgba(0, 200, 220, 0.12);
+
+  --input-bg:        rgba(0,200,220,0.06);
+  --input-border:    rgba(0,180,200,0.25);
+  --input-text:      #c8f0f0;
+  --input-placeholder: rgba(106,184,192,0.50);
+  --input-focus-border: rgba(0,220,200,0.55);
+  --input-focus-ring:   rgba(0,220,200,0.15);
+
+  --hover-bg:        rgba(0,200,220,0.08);
+  --hover-bg-btn:    rgba(0,200,220,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(0,200,220,0.08) 0%, rgba(0,140,180,0.12) 100%);
+  --recv-border:     rgba(0,180,200,0.25);
+  --recv-text:       #c8f0f0;
+  --recv-time:       rgba(106,184,192,0.55);
+
+  --badge-bg:        #00c8d4;
+  --badge-text:      #021520;
+
+  --switcher-bg:     rgba(4,30,48,0.88);
+  --switcher-border: rgba(0,180,200,0.28);
+
+  --popup-bg:           rgba(4,30,48,0.95);
+  --popup-border:       rgba(0,180,200,0.20);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(0,200,220,0.12);
+  --popup-text:         rgba(200,240,240,0.90);
+  --popup-text-secondary: rgba(200,240,240,0.65);
+  --popup-text-muted:   rgba(200,240,240,0.35);
+  --popup-text-label:   rgba(200,240,240,0.42);
+  --popup-divider:      rgba(0,200,220,0.10);
+  --popup-hover:        rgba(0,200,220,0.08);
+  --popup-icon:         rgba(0,220,200,0.80);
+  --popup-item-bg:      rgba(0,200,220,0.05);
+  --popup-select-bg:    rgba(0,200,220,0.06);
+  --popup-select-border: rgba(0,200,220,0.15);
+  --popup-select-text:  rgba(200,240,240,0.85);
+
+  --btn-ghost-bg:       rgba(0,200,220,0.08);
+  --btn-ghost-border:   rgba(0,200,220,0.14);
+  --reaction-idle-bg:   rgba(0,200,220,0.06);
+  --reaction-idle-border: rgba(0,200,220,0.12);
+  --separator-dot:      rgba(0,200,220,0.28);
+  --slider-track:       rgba(0,200,220,0.15);
+  --game-activity-color: #00dcc8;
+
+  --game-tile-empty-bg:          rgba(0,200,220,0.03);
+  --game-tile-empty-border:      rgba(0,200,220,0.09);
+  --game-tile-tbd-bg:            rgba(0,200,220,0.08);
+  --game-tile-tbd-border:        rgba(0,200,220,0.40);
+  --game-tile-absent-bg:         rgba(0,200,220,0.05);
+  --game-tile-absent-border:     rgba(0,200,220,0.10);
+  --game-tile-absent-color:      rgba(200,240,240,0.28);
+  --game-key-bg:                 rgba(0,200,220,0.10);
+  --game-key-border:             rgba(0,200,220,0.17);
+  --game-key-absent-bg:          rgba(0,200,220,0.04);
+  --game-key-absent-border:      rgba(0,200,220,0.06);
+  --game-key-absent-color:       rgba(200,240,240,0.25);
+  --typing-word-future:          rgba(200,240,240,0.18);
+  --typing-word-active-pending:  rgba(200,240,240,0.22);
+  --typing-word-done-correct:    rgba(200,240,240,0.55);
+  --typing-surface-bg:           rgba(0,200,220,0.025);
+  --typing-surface-border:       rgba(0,200,220,0.07);
+
+  --aura-online:        rgba(0,220,200,0.70);
+  --aura-gaming:        rgba(79,201,122,0.70);
+  --aura-incall:        rgba(255,180,0,0.75);
+  --aura-busy:          rgba(255,80,50,0.65);
+  --aura-away:          rgba(0,180,200,0.35);
+  --aura-glow-online:   rgba(0,220,200,0.40);
+  --aura-glow-gaming:   rgba(50,180,80,0.35);
+  --aura-glow-incall:   rgba(220,140,0,0.40);
+  --aura-glow-busy:     rgba(220,60,20,0.35);
+  --date-sep-line:      rgba(0,180,200,0.12);
+  --date-sep-text:      rgba(106,184,192,0.40);
+}
+
+[data-theme="sunset"] {
+  /* Warm Sunset — amber, coral, warm pink with golden glow */
+  --body-bg:
+    radial-gradient(ellipse 480px 420px at 85% 20%, rgba(255,120,50,0.30)  0%, transparent 55%),
+    radial-gradient(ellipse 420px 420px at 10% 75%, rgba(200,60,100,0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 360px 360px at 50% 45%, rgba(255,180,60,0.20) 0%, transparent 52%),
+    radial-gradient(ellipse 280px 280px at 80% 85%, rgba(180,40,80,0.15)  0%, transparent 50%),
+    linear-gradient(165deg, #3a1a0e 0%, #2a1008 55%, #1e0a04 100%);
+
+  --sidebar-bg:      rgba(42,16,8,0.94);
+  --sidebar-border:  rgba(255,140,60,0.20);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,160,80,0.12);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,160,80,0.08) 0%, rgba(255,120,50,0.02) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(30,10,4,0.80);
+  --chat-border:     rgba(255,120,50,0.16);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,140,60,0.10);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,160,80,0.06) 0%, rgba(255,120,50,0.02) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(42,16,8,0.96);
+  --card-border:     rgba(255,140,60,0.22);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,160,80,0.15);
+  --card-gloss:      linear-gradient(180deg, rgba(255,160,80,0.08) 0%, rgba(255,120,50,0.02) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: rgba(255,140,60,0.04);
+  --panel-divider:   rgba(255,120,50,0.16);
+
+  --text-primary:    #ffe0c8;
+  --text-secondary:  #c89070;
+  --text-muted:      #8a5c40;
+  --text-label:      #7a5038;
+  --text-title:      #ffb880;
+
+  --rail-icon:       rgba(255, 160, 80, 0.45);
+  --rail-icon-hover: rgba(255, 180, 100, 0.85);
+  --rail-bg-idle:    rgba(255, 140, 60, 0.07);
+  --rail-bg-hover:   rgba(255, 140, 60, 0.16);
+  --rail-border:     rgba(255, 140, 60, 0.12);
+
+  --input-bg:        rgba(255,140,60,0.06);
+  --input-border:    rgba(255,120,50,0.25);
+  --input-text:      #ffe0c8;
+  --input-placeholder: rgba(200,144,112,0.50);
+  --input-focus-border: rgba(255,160,60,0.55);
+  --input-focus-ring:   rgba(255,140,60,0.15);
+
+  --hover-bg:        rgba(255,140,60,0.08);
+  --hover-bg-btn:    rgba(255,140,60,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,140,60,0.08) 0%, rgba(200,80,40,0.10) 100%);
+  --recv-border:     rgba(255,120,50,0.22);
+  --recv-text:       #ffe0c8;
+  --recv-time:       rgba(200,144,112,0.55);
+
+  --badge-bg:        #ff8c30;
+  --badge-text:      #1e0a04;
+
+  --switcher-bg:     rgba(42,16,8,0.88);
+  --switcher-border: rgba(255,140,60,0.28);
+
+  --popup-bg:           rgba(42,16,8,0.95);
+  --popup-border:       rgba(255,140,60,0.20);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,160,80,0.12);
+  --popup-text:         rgba(255,224,200,0.90);
+  --popup-text-secondary: rgba(255,224,200,0.65);
+  --popup-text-muted:   rgba(255,224,200,0.35);
+  --popup-text-label:   rgba(255,224,200,0.42);
+  --popup-divider:      rgba(255,140,60,0.10);
+  --popup-hover:        rgba(255,140,60,0.08);
+  --popup-icon:         rgba(255,160,80,0.80);
+  --popup-item-bg:      rgba(255,140,60,0.05);
+  --popup-select-bg:    rgba(255,140,60,0.06);
+  --popup-select-border: rgba(255,140,60,0.15);
+  --popup-select-text:  rgba(255,224,200,0.85);
+
+  --btn-ghost-bg:       rgba(255,140,60,0.08);
+  --btn-ghost-border:   rgba(255,140,60,0.14);
+  --reaction-idle-bg:   rgba(255,140,60,0.06);
+  --reaction-idle-border: rgba(255,140,60,0.12);
+  --separator-dot:      rgba(255,140,60,0.28);
+  --slider-track:       rgba(255,140,60,0.15);
+  --game-activity-color: #ffb060;
+
+  --game-tile-empty-bg:          rgba(255,140,60,0.03);
+  --game-tile-empty-border:      rgba(255,140,60,0.09);
+  --game-tile-tbd-bg:            rgba(255,140,60,0.08);
+  --game-tile-tbd-border:        rgba(255,140,60,0.40);
+  --game-tile-absent-bg:         rgba(255,140,60,0.05);
+  --game-tile-absent-border:     rgba(255,140,60,0.10);
+  --game-tile-absent-color:      rgba(255,224,200,0.28);
+  --game-key-bg:                 rgba(255,140,60,0.10);
+  --game-key-border:             rgba(255,140,60,0.17);
+  --game-key-absent-bg:          rgba(255,140,60,0.04);
+  --game-key-absent-border:      rgba(255,140,60,0.06);
+  --game-key-absent-color:       rgba(255,224,200,0.25);
+  --typing-word-future:          rgba(255,224,200,0.18);
+  --typing-word-active-pending:  rgba(255,224,200,0.22);
+  --typing-word-done-correct:    rgba(255,224,200,0.55);
+  --typing-surface-bg:           rgba(255,140,60,0.025);
+  --typing-surface-border:       rgba(255,140,60,0.07);
+
+  --aura-online:        rgba(0,212,255,0.65);
+  --aura-gaming:        rgba(79,201,122,0.65);
+  --aura-incall:        rgba(255,200,60,0.80);
+  --aura-busy:          rgba(255,80,50,0.70);
+  --aura-away:          rgba(200,120,60,0.35);
+  --aura-glow-online:   rgba(0,180,255,0.35);
+  --aura-glow-gaming:   rgba(50,180,80,0.35);
+  --aura-glow-incall:   rgba(240,160,20,0.45);
+  --aura-glow-busy:     rgba(220,60,20,0.35);
+  --date-sep-line:      rgba(255,140,60,0.12);
+  --date-sep-text:      rgba(200,144,112,0.40);
+}
+
+[data-theme="aurora"] {
+  /* Northern Aurora — deep violet, emerald green, electric cyan */
+  --body-bg:
+    radial-gradient(ellipse 500px 440px at 88% 18%, rgba(0,255,140,0.22)  0%, transparent 55%),
+    radial-gradient(ellipse 420px 420px at  6% 80%, rgba(140,0,255,0.22)  0%, transparent 55%),
+    radial-gradient(ellipse 380px 360px at 50% 50%, rgba(0,180,255,0.16)  0%, transparent 52%),
+    radial-gradient(ellipse 300px 300px at 30% 15%, rgba(80,0,200,0.18)   0%, transparent 50%),
+    linear-gradient(165deg, #0e0a2a 0%, #080620 55%, #04031a 100%);
+
+  --sidebar-bg:      rgba(8,6,32,0.94);
+  --sidebar-border:  rgba(120,60,255,0.22);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(140,80,255,0.12);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(120,60,255,0.08) 0%, rgba(80,0,200,0.02) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(4,3,26,0.80);
+  --chat-border:     rgba(100,40,255,0.18);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(120,60,255,0.10);
+  --chat-gloss:      linear-gradient(180deg, rgba(120,60,255,0.06) 0%, rgba(80,0,200,0.02) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(8,6,32,0.96);
+  --card-border:     rgba(120,60,255,0.25);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(140,80,255,0.15);
+  --card-gloss:      linear-gradient(180deg, rgba(120,60,255,0.08) 0%, rgba(80,0,200,0.02) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: rgba(120,60,255,0.04);
+  --panel-divider:   rgba(100,40,255,0.16);
+
+  --text-primary:    #e0d8ff;
+  --text-secondary:  #9a88cc;
+  --text-muted:      #5a4888;
+  --text-label:      #4a3878;
+  --text-title:      #c0a8ff;
+
+  --rail-icon:       rgba(160, 100, 255, 0.45);
+  --rail-icon-hover: rgba(180, 120, 255, 0.85);
+  --rail-bg-idle:    rgba(120, 60, 255, 0.07);
+  --rail-bg-hover:   rgba(120, 60, 255, 0.16);
+  --rail-border:     rgba(120, 60, 255, 0.12);
+
+  --input-bg:        rgba(120,60,255,0.06);
+  --input-border:    rgba(100,40,255,0.25);
+  --input-text:      #e0d8ff;
+  --input-placeholder: rgba(154,136,204,0.50);
+  --input-focus-border: rgba(140,80,255,0.55);
+  --input-focus-ring:   rgba(120,60,255,0.15);
+
+  --hover-bg:        rgba(120,60,255,0.08);
+  --hover-bg-btn:    rgba(120,60,255,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(120,60,255,0.08) 0%, rgba(0,200,140,0.08) 100%);
+  --recv-border:     rgba(100,40,255,0.22);
+  --recv-text:       #e0d8ff;
+  --recv-time:       rgba(154,136,204,0.55);
+
+  --badge-bg:        #8040ff;
+  --badge-text:      #ffffff;
+
+  --switcher-bg:     rgba(8,6,32,0.88);
+  --switcher-border: rgba(120,60,255,0.28);
+
+  --popup-bg:           rgba(8,6,32,0.95);
+  --popup-border:       rgba(120,60,255,0.22);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(140,80,255,0.12);
+  --popup-text:         rgba(224,216,255,0.90);
+  --popup-text-secondary: rgba(224,216,255,0.65);
+  --popup-text-muted:   rgba(224,216,255,0.35);
+  --popup-text-label:   rgba(224,216,255,0.42);
+  --popup-divider:      rgba(120,60,255,0.10);
+  --popup-hover:        rgba(120,60,255,0.08);
+  --popup-icon:         rgba(0,220,160,0.80);
+  --popup-item-bg:      rgba(120,60,255,0.05);
+  --popup-select-bg:    rgba(120,60,255,0.06);
+  --popup-select-border: rgba(120,60,255,0.15);
+  --popup-select-text:  rgba(224,216,255,0.85);
+
+  --btn-ghost-bg:       rgba(120,60,255,0.08);
+  --btn-ghost-border:   rgba(120,60,255,0.14);
+  --reaction-idle-bg:   rgba(120,60,255,0.06);
+  --reaction-idle-border: rgba(120,60,255,0.12);
+  --separator-dot:      rgba(120,60,255,0.28);
+  --slider-track:       rgba(120,60,255,0.15);
+  --game-activity-color: #a080ff;
+
+  --game-tile-empty-bg:          rgba(120,60,255,0.03);
+  --game-tile-empty-border:      rgba(120,60,255,0.09);
+  --game-tile-tbd-bg:            rgba(120,60,255,0.08);
+  --game-tile-tbd-border:        rgba(120,60,255,0.40);
+  --game-tile-absent-bg:         rgba(120,60,255,0.05);
+  --game-tile-absent-border:     rgba(120,60,255,0.10);
+  --game-tile-absent-color:      rgba(224,216,255,0.28);
+  --game-key-bg:                 rgba(120,60,255,0.10);
+  --game-key-border:             rgba(120,60,255,0.17);
+  --game-key-absent-bg:          rgba(120,60,255,0.04);
+  --game-key-absent-border:      rgba(120,60,255,0.06);
+  --game-key-absent-color:       rgba(224,216,255,0.25);
+  --typing-word-future:          rgba(224,216,255,0.18);
+  --typing-word-active-pending:  rgba(224,216,255,0.22);
+  --typing-word-done-correct:    rgba(224,216,255,0.55);
+  --typing-surface-bg:           rgba(120,60,255,0.025);
+  --typing-surface-border:       rgba(120,60,255,0.07);
+
+  --aura-online:        rgba(0,240,180,0.70);
+  --aura-gaming:        rgba(79,201,122,0.70);
+  --aura-incall:        rgba(255,160,0,0.80);
+  --aura-busy:          rgba(255,80,50,0.70);
+  --aura-away:          rgba(120,80,200,0.35);
+  --aura-glow-online:   rgba(0,220,160,0.40);
+  --aura-glow-gaming:   rgba(50,180,80,0.40);
+  --aura-glow-incall:   rgba(200,120,0,0.45);
+  --aura-glow-busy:     rgba(220,60,20,0.40);
+  --date-sep-line:      rgba(120,60,255,0.12);
+  --date-sep-text:      rgba(154,136,204,0.40);
+}
+
+[data-theme="sakura"] {
+  /* Cherry Blossom — soft pink, rose, warm lavender */
+  --body-bg:
+    radial-gradient(ellipse 480px 420px at 88% 15%, rgba(255,140,180,0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 400px 400px at  8% 78%, rgba(200,100,220,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 380px 360px at 48% 50%, rgba(255,180,200,0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 280px 280px at 22% 18%, rgba(220,140,200,0.15) 0%, transparent 50%),
+    linear-gradient(165deg, #2a0e22 0%, #1e081a 55%, #140512 100%);
+
+  --sidebar-bg:      rgba(30,8,26,0.94);
+  --sidebar-border:  rgba(255,120,180,0.20);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,140,200,0.12);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,140,200,0.08) 0%, rgba(220,100,180,0.02) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(20,5,18,0.80);
+  --chat-border:     rgba(255,100,160,0.16);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,120,180,0.10);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,140,200,0.06) 0%, rgba(220,100,180,0.02) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(30,8,26,0.96);
+  --card-border:     rgba(255,120,180,0.22);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,140,200,0.15);
+  --card-gloss:      linear-gradient(180deg, rgba(255,140,200,0.08) 0%, rgba(220,100,180,0.02) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: rgba(255,120,180,0.04);
+  --panel-divider:   rgba(255,100,160,0.16);
+
+  --text-primary:    #ffe0ee;
+  --text-secondary:  #c888a8;
+  --text-muted:      #885870;
+  --text-label:      #784862;
+  --text-title:      #ffb0d0;
+
+  --rail-icon:       rgba(255, 140, 200, 0.45);
+  --rail-icon-hover: rgba(255, 160, 220, 0.85);
+  --rail-bg-idle:    rgba(255, 120, 180, 0.07);
+  --rail-bg-hover:   rgba(255, 120, 180, 0.16);
+  --rail-border:     rgba(255, 120, 180, 0.12);
+
+  --input-bg:        rgba(255,120,180,0.06);
+  --input-border:    rgba(255,100,160,0.25);
+  --input-text:      #ffe0ee;
+  --input-placeholder: rgba(200,136,168,0.50);
+  --input-focus-border: rgba(255,140,200,0.55);
+  --input-focus-ring:   rgba(255,120,180,0.15);
+
+  --hover-bg:        rgba(255,120,180,0.08);
+  --hover-bg-btn:    rgba(255,120,180,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,120,180,0.08) 0%, rgba(220,80,160,0.10) 100%);
+  --recv-border:     rgba(255,100,160,0.22);
+  --recv-text:       #ffe0ee;
+  --recv-time:       rgba(200,136,168,0.55);
+
+  --badge-bg:        #ff70b0;
+  --badge-text:      #140512;
+
+  --switcher-bg:     rgba(30,8,26,0.88);
+  --switcher-border: rgba(255,120,180,0.28);
+
+  --popup-bg:           rgba(30,8,26,0.95);
+  --popup-border:       rgba(255,120,180,0.20);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,140,200,0.12);
+  --popup-text:         rgba(255,224,238,0.90);
+  --popup-text-secondary: rgba(255,224,238,0.65);
+  --popup-text-muted:   rgba(255,224,238,0.35);
+  --popup-text-label:   rgba(255,224,238,0.42);
+  --popup-divider:      rgba(255,120,180,0.10);
+  --popup-hover:        rgba(255,120,180,0.08);
+  --popup-icon:         rgba(255,140,200,0.80);
+  --popup-item-bg:      rgba(255,120,180,0.05);
+  --popup-select-bg:    rgba(255,120,180,0.06);
+  --popup-select-border: rgba(255,120,180,0.15);
+  --popup-select-text:  rgba(255,224,238,0.85);
+
+  --btn-ghost-bg:       rgba(255,120,180,0.08);
+  --btn-ghost-border:   rgba(255,120,180,0.14);
+  --reaction-idle-bg:   rgba(255,120,180,0.06);
+  --reaction-idle-border: rgba(255,120,180,0.12);
+  --separator-dot:      rgba(255,120,180,0.28);
+  --slider-track:       rgba(255,120,180,0.15);
+  --game-activity-color: #ff90c0;
+
+  --game-tile-empty-bg:          rgba(255,120,180,0.03);
+  --game-tile-empty-border:      rgba(255,120,180,0.09);
+  --game-tile-tbd-bg:            rgba(255,120,180,0.08);
+  --game-tile-tbd-border:        rgba(255,120,180,0.40);
+  --game-tile-absent-bg:         rgba(255,120,180,0.05);
+  --game-tile-absent-border:     rgba(255,120,180,0.10);
+  --game-tile-absent-color:      rgba(255,224,238,0.28);
+  --game-key-bg:                 rgba(255,120,180,0.10);
+  --game-key-border:             rgba(255,120,180,0.17);
+  --game-key-absent-bg:          rgba(255,120,180,0.04);
+  --game-key-absent-border:      rgba(255,120,180,0.06);
+  --game-key-absent-color:       rgba(255,224,238,0.25);
+  --typing-word-future:          rgba(255,224,238,0.18);
+  --typing-word-active-pending:  rgba(255,224,238,0.22);
+  --typing-word-done-correct:    rgba(255,224,238,0.55);
+  --typing-surface-bg:           rgba(255,120,180,0.025);
+  --typing-surface-border:       rgba(255,120,180,0.07);
+
+  --aura-online:        rgba(0,212,255,0.65);
+  --aura-gaming:        rgba(79,201,122,0.65);
+  --aura-incall:        rgba(255,180,60,0.75);
+  --aura-busy:          rgba(255,80,50,0.65);
+  --aura-away:          rgba(200,100,160,0.35);
+  --aura-glow-online:   rgba(0,180,255,0.35);
+  --aura-glow-gaming:   rgba(50,180,80,0.35);
+  --aura-glow-incall:   rgba(220,140,0,0.40);
+  --aura-glow-busy:     rgba(220,60,20,0.35);
+  --date-sep-line:      rgba(255,120,180,0.12);
+  --date-sep-text:      rgba(200,136,168,0.40);
+}
+
+/* ═══════════════════════════════════════════════
    BASE
 ═══════════════════════════════════════════════ */
 @layer base {
@@ -619,6 +1079,48 @@
 @keyframes card-shimmer {
   0%   { left: -50%; }
   100% { left: 150%; }
+}
+
+/* ── Splash screen ── */
+@keyframes splash-circle-out {
+  from { clip-path: circle(125%); }
+  to   { clip-path: circle(0%); }
+}
+.splash-reveal {
+  animation: 1.2s cubic-bezier(.25, 1, .30, 1) splash-circle-out forwards;
+}
+
+@keyframes splash-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(15px, -20px) scale(1.05); }
+}
+
+@keyframes splash-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 24px rgba(0,212,255,0.35)); }
+  50%      { transform: scale(1.06); filter: drop-shadow(0 0 36px rgba(0,212,255,0.55)); }
+}
+.splash-logo-pulse {
+  animation: splash-pulse 2s ease-in-out infinite;
+}
+
+@keyframes splash-progress-slide {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+.splash-progress {
+  animation: splash-progress-slide 1.8s ease-in-out infinite;
+}
+
+/* ── XP Mini Bar animations ── */
+@keyframes xp-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes xp-float-up {
+  0%   { opacity: 1; transform: translateY(0); }
+  60%  { opacity: 1; transform: translateY(-16px); }
+  100% { opacity: 0; transform: translateY(-24px); }
 }
 
 @keyframes bubble-notify-in {

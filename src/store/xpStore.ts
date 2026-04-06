@@ -3,6 +3,12 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { type XpBar, DAILY_XP_CAP, deriveLevel, getRank } from '../lib/xpConfig';
 
+export interface XpGain {
+  bar: XpBar;
+  amount: number;
+  ts: number; // Date.now() — lets UI detect new gains
+}
+
 interface XpState {
   chatter_xp: number;
   gamer_xp: number;
@@ -15,6 +21,7 @@ interface XpState {
   streak_days: number;
   streak_date: string | null;
   loaded: boolean;
+  lastGain: XpGain | null; // most recent XP award — drives UI animation
 }
 
 interface XpActions {
@@ -46,6 +53,7 @@ export const useXpStore = create<XpStore>()((set, get) => ({
   streak_days: 0,
   streak_date: null,
   loaded: false,
+  lastGain: null,
 
   loadXp: async (userId: string) => {
     const { data } = await supabase
@@ -129,6 +137,9 @@ export const useXpStore = create<XpStore>()((set, get) => ({
       updates.writer_daily = bar === 'writer' ? effectiveAmount : 0;
     }
     set(updates);
+
+    // Emit gain event for UI animation (separate set so React sees a new object ref)
+    set({ lastGain: { bar, amount: effectiveAmount, ts: now } });
 
     // ── Persist to Supabase ──
     const dbUpdates: Record<string, unknown> = {
