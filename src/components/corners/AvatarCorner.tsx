@@ -129,15 +129,15 @@ const IconBtn = React.memo(function IconBtn({ icon: Icon, label, color, bg, bord
       }}
     >
       <div style={{
-        width: 42, height: 42, borderRadius: '50%',
+        width: 52, height: 52, borderRadius: '50%',
         background: bg,
         border: `1.5px solid ${border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: `0 0 8px ${border}`,
       }}>
-        <Icon style={{ width: 18, height: 18, color }} />
+        <Icon style={{ width: 22, height: 22, color }} />
       </div>
-      <span style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: '0.02em' }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.02em' }}>
         {label}
       </span>
     </button>
@@ -208,7 +208,7 @@ export function AvatarCorner() {
             overflow: 'visible',
           }}>
             <div style={{
-              width: 2400,
+              width: 900,
               flexShrink: 0,
               position: 'relative',
               zIndex: 2,
