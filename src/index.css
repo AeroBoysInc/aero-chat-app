@@ -26,6 +26,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0) 55%);
 
   --card-bg:         rgba(255,255,255,0.80);
+  --card-bg-solid:   #ffffff;
   --card-border:     rgba(150,200,235,0.75);
   --card-shadow:     0 12px 48px rgba(0,80,160,0.24), inset 0 1px 0 rgba(255,255,255,1);
   --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.30) 42%, rgba(255,255,255,0) 65%);
@@ -148,6 +149,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 50%);
 
   --card-bg:         rgba(12,25,58,0.94);
+  --card-bg-solid:   #0c193a;
   --card-border:     rgba(80,145,255,0.25);
   --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(100,160,255,0.18);
   --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0) 62%);
@@ -273,6 +275,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(0,220,200,0.06) 0%, rgba(0,180,200,0.02) 30%, rgba(0,0,0,0) 50%);
 
   --card-bg:         rgba(4,30,48,0.96);
+  --card-bg-solid:   #041e30;
   --card-border:     rgba(0,180,200,0.22);
   --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(0,200,220,0.15);
   --card-gloss:      linear-gradient(180deg, rgba(0,220,200,0.08) 0%, rgba(0,180,200,0.02) 40%, rgba(0,0,0,0) 62%);
@@ -387,6 +390,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(255,160,80,0.06) 0%, rgba(255,120,50,0.02) 30%, rgba(0,0,0,0) 50%);
 
   --card-bg:         rgba(42,16,8,0.96);
+  --card-bg-solid:   #2a1008;
   --card-border:     rgba(255,140,60,0.22);
   --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,160,80,0.15);
   --card-gloss:      linear-gradient(180deg, rgba(255,160,80,0.08) 0%, rgba(255,120,50,0.02) 40%, rgba(0,0,0,0) 62%);
@@ -501,6 +505,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(120,60,255,0.06) 0%, rgba(80,0,200,0.02) 30%, rgba(0,0,0,0) 50%);
 
   --card-bg:         rgba(8,6,32,0.96);
+  --card-bg-solid:   #080620;
   --card-border:     rgba(120,60,255,0.25);
   --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(140,80,255,0.15);
   --card-gloss:      linear-gradient(180deg, rgba(120,60,255,0.08) 0%, rgba(80,0,200,0.02) 40%, rgba(0,0,0,0) 62%);
@@ -615,6 +620,7 @@
   --chat-gloss:      linear-gradient(180deg, rgba(255,140,200,0.06) 0%, rgba(220,100,180,0.02) 30%, rgba(0,0,0,0) 50%);
 
   --card-bg:         rgba(30,8,26,0.96);
+  --card-bg-solid:   #1e081a;
   --card-border:     rgba(255,120,180,0.22);
   --card-shadow:     0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,140,200,0.15);
   --card-gloss:      linear-gradient(180deg, rgba(255,140,200,0.08) 0%, rgba(220,100,180,0.02) 40%, rgba(0,0,0,0) 62%);

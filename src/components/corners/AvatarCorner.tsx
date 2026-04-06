@@ -46,7 +46,7 @@ const StatBar = React.memo(function StatBar({ bar, isPremium }: { bar: XpBar; is
         {/* Circular icon — overlaps left edge of bar */}
         <div style={{
           width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-          background: `var(--card-bg)`,
+          background: 'var(--card-bg-solid)',
           border: `2px solid ${meta.color}50`,
           boxShadow: `0 0 10px ${meta.color}20`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -322,7 +322,7 @@ export function AvatarCorner() {
           }}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
-              background: 'var(--card-bg)',
+              background: 'var(--card-bg-solid)',
               border: '3px solid var(--card-border)',
               boxShadow: 'var(--chat-shadow)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
