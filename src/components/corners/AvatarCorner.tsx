@@ -186,15 +186,14 @@ export function AvatarCorner() {
         {/* ── LEFT PANEL: Character + Buttons ── */}
         <div style={{
           flex: '0 0 42%',
-          display: 'flex',
           position: 'relative',
-          padding: '0 0 0 20px',
           background: 'linear-gradient(145deg, rgba(0,150,255,0.08), rgba(0,80,200,0.04), rgba(120,0,200,0.03))',
           border: '1px solid rgba(255,255,255,0.10)',
           borderRadius: 20,
           boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
           backdropFilter: 'blur(20px)',
-          overflow: 'visible',
+          overflow: 'hidden',
+          minHeight: 420,
         }}>
           {/* Gloss */}
           <div style={{
@@ -202,19 +201,17 @@ export function AvatarCorner() {
             background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)',
             pointerEvents: 'none', borderRadius: 'inherit', zIndex: 10,
           }} />
-          {/* Character — fills most of the panel, bottom-aligned */}
+          {/* Character — fills entire panel, centered vertically */}
           <div style={{
-            flex: 1,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'flex-end',
-            position: 'relative',
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'visible',
           }}>
-            {/* Agent display — oversized, anchored to bottom */}
             <div style={{
-              width: '300%', maxWidth: 700,
+              width: 1200,
               position: 'relative',
               zIndex: 2,
-              marginTop: '-20%',
+              marginLeft: -80,
             }}>
               <AeroAgent
                 base={avatarBase.src}
@@ -224,30 +221,13 @@ export function AvatarCorner() {
                 wings={equipped.wings}
               />
             </div>
-
-            {/* Agent label — at the bottom */}
-            <div style={{ textAlign: 'center', marginTop: 4, marginBottom: 12, position: 'relative', zIndex: 2 }}>
-              <div style={{
-                fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
-                color: 'var(--text-muted)', textTransform: 'uppercase',
-              }}>
-                {isPremium ? 'Premium User' : 'Free User'}
-              </div>
-              <div style={{
-                fontSize: 14, fontWeight: 800, color: 'var(--text-primary)',
-                marginTop: 2, fontFamily: 'Inter, system-ui, sans-serif',
-              }}>
-                AGENT: {avatarBase.label.toUpperCase()}
-              </div>
-            </div>
           </div>
 
-          {/* Icon buttons — vertical column to the right of character */}
+          {/* Icon buttons — absolutely positioned, right side */}
           <div style={{
+            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
             display: 'flex', flexDirection: 'column',
-            justifyContent: 'center', gap: 14,
-            paddingLeft: 8, paddingRight: 8,
-            position: 'relative', zIndex: 2,
+            gap: 14, zIndex: 12,
           }}>
             <IconBtn
               icon={Palette}
@@ -270,6 +250,25 @@ export function AvatarCorner() {
               bg="rgba(61,216,122,0.10)"
               border="rgba(61,216,122,0.25)"
             />
+          </div>
+
+          {/* Agent label — absolutely positioned at bottom */}
+          <div style={{
+            position: 'absolute', bottom: 14, left: 0, right: 0,
+            textAlign: 'center', zIndex: 12,
+          }}>
+            <div style={{
+              fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
+              color: 'var(--text-muted)', textTransform: 'uppercase',
+            }}>
+              {isPremium ? 'Premium User' : 'Free User'}
+            </div>
+            <div style={{
+              fontSize: 14, fontWeight: 800, color: 'var(--text-primary)',
+              marginTop: 2, fontFamily: 'Inter, system-ui, sans-serif',
+            }}>
+              AGENT: {avatarBase.label.toUpperCase()}
+            </div>
           </div>
         </div>
 
