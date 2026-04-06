@@ -1,6 +1,6 @@
 // src/components/corners/CornerRail.tsx
 import { useState } from 'react';
-import { Gamepad2, Terminal, PenTool, CalendarDays, Globe } from 'lucide-react';
+import { Gamepad2, Terminal, PenTool, CalendarDays, Globe, User } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 
@@ -84,6 +84,7 @@ export function CornerRail() {
     devViewActive, openDevView, closeDevView,
     writerViewActive, openWriterHub, closeWriterView,
     calendarViewActive, openCalendarView, closeCalendarView,
+    avatarViewActive, openAvatarView, closeAvatarView,
     serverView, openServerOverlay, closeServerOverlay,
   } = useCornerStore();
 
@@ -123,6 +124,13 @@ export function CornerRail() {
           color="#3dd87a"
           tooltip={calendarViewActive ? 'Back to Chat' : 'Calendar & Tasks'}
           onClick={() => calendarViewActive ? closeCalendarView() : openCalendarView()}
+        />
+        <RailBtn
+          icon={User}
+          isActive={avatarViewActive}
+          color="#f59e0b"
+          tooltip={avatarViewActive ? 'Back to Chat' : 'Avatar Corner'}
+          onClick={() => avatarViewActive ? closeAvatarView() : openAvatarView()}
         />
 
       </div>
