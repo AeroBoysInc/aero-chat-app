@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useFriendStore } from './store/friendStore';
@@ -10,6 +10,7 @@ import { usePresenceStore } from './store/presenceStore';
 import { useCallStore } from './store/callStore';
 import { useGroupCallStore } from './store/groupCallStore';
 import { useServerStore } from './store/serverStore';
+import { useXpStore } from './store/xpStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
@@ -18,6 +19,9 @@ import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
 import { GameNotification } from './components/ui/GameNotification';
 import { MentionNotification } from './components/ui/MentionNotification';
+import { SplashScreen } from './components/ui/SplashScreen';
+
+const SPLASH_MIN_MS = 1800; // minimum splash display time
 
 export default function App() {
   const { user, loading, setUser } = useAuthStore();
@@ -28,6 +32,28 @@ export default function App() {
   const pendingPresenceSync = useRef(false);
   const selectedGame       = useCornerStore(s => s.selectedGame);
   const { showGameActivity } = useStatusStore();
+
+  // ── Splash screen state ──
+  const [splashReady, setSplashReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
+  const splashStart = useRef(0);
+
+  // Track when user becomes available — start the minimum timer
+  useEffect(() => {
+    if (!user) {
+      setSplashReady(false);
+      setSplashDone(false);
+      splashStart.current = 0;
+      return;
+    }
+    if (!splashStart.current) splashStart.current = Date.now();
+    const elapsed = Date.now() - splashStart.current;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+    const t = setTimeout(() => setSplashReady(true), remaining);
+    return () => clearTimeout(t);
+  }, [user]);
+
+  const handleSplashRevealed = useCallback(() => setSplashDone(true), []);
 
   useEffect(() => {
     // Idle = tab hidden OR another window/app has OS focus (e.g. gaming on primary monitor
@@ -167,6 +193,7 @@ export default function App() {
     if (!user) return;
     const unsub = subscribeToRequests(user.id);
     loadFriends(user.id);
+    useXpStore.getState().loadXp(user.id);
     return unsub;
   }, [user?.id]);
 
@@ -343,6 +370,9 @@ export default function App() {
       {user ? <ChatLayout /> : <AuthPage />}
       {user && <GameNotification />}
       {user && <MentionNotification />}
+      {user && !splashDone && (
+        <SplashScreen ready={splashReady} onRevealed={handleSplashRevealed} />
+      )}
     </>
   );
 }
