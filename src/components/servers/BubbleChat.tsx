@@ -1,6 +1,6 @@
 // src/components/servers/BubbleChat.tsx
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Mic, Paperclip, Play, Pause, Download, File as FileIcon, Smile } from 'lucide-react';
+import { Send, Mic, Paperclip, Play, Pause, Download, File as FileIcon, Smile, Trash2 } from 'lucide-react';
 import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -406,6 +406,13 @@ export const BubbleChat = memo(function BubbleChat() {
     await sendContentRef.current(JSON.stringify({ _gif: true, ...gif }));
   }, []);
 
+  // ── Delete message ───────────────────────────────────────────────────────────
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!user || !selectedBubbleId) return;
+    setBubble(selectedBubbleId, messages.filter(m => m.id !== messageId));
+    await supabase.from('bubble_messages').delete().eq('id', messageId).eq('sender_id', user.id);
+  }, [user, selectedBubbleId, messages, setBubble]);
+
   // ── Reactions ───────────────────────────────────────────────────────────────
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
@@ -615,6 +622,7 @@ export const BubbleChat = memo(function BubbleChat() {
               outputVolume={outputVolume}
               outputDeviceId={outputDeviceId}
               toggleReaction={toggleReaction}
+              deleteMessage={deleteMessage}
               setLightboxImage={setLightboxImage}
               setPendingLinkUrl={setPendingLinkUrl}
             />
@@ -736,7 +744,7 @@ export const BubbleChat = memo(function BubbleChat() {
 const BubbleMessageItem = memo(function BubbleMessageItem({
   msg, username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams,
   isMine: _isMine, msgReactions, memberUsernames, userId,
-  outputVolume, outputDeviceId, toggleReaction, setLightboxImage, setPendingLinkUrl,
+  outputVolume, outputDeviceId, toggleReaction, deleteMessage, setLightboxImage, setPendingLinkUrl,
 }: {
   msg: BubbleMessage;
   username: string;
@@ -752,6 +760,7 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
   outputVolume: number;
   outputDeviceId: string;
   toggleReaction: (msgId: string, emoji: string) => void;
+  deleteMessage: (msgId: string) => void;
   setLightboxImage: (img: { url: string; name: string; size: number } | null) => void;
   setPendingLinkUrl: (url: string | null) => void;
 }) {
@@ -849,9 +858,25 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
         )}
       </div>
 
-      {/* Reaction picker — appears on hover */}
+      {/* Hover actions — reaction picker + delete */}
       {hovered && (
-        <div className="absolute -top-1 right-0" style={{ zIndex: 10 }}>
+        <div className="absolute -top-1 right-0 flex items-center gap-1" style={{ zIndex: 10 }}>
+          {_isMine && (
+            <button
+              onClick={() => deleteMessage(msg.id)}
+              className="flex items-center justify-center rounded-full transition-all hover:scale-110"
+              style={{
+                width: 28, height: 28,
+                background: 'rgba(220,50,50,0.12)',
+                border: '1px solid rgba(220,50,50,0.25)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                color: '#d03030',
+              }}
+              title="Delete message"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
           {pickerOpen ? (
             <div className="flex gap-0.5 rounded-full px-1.5 py-1" style={{ background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
               {REACTION_EMOJIS.map(emoji => (

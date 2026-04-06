@@ -350,6 +350,7 @@ interface MessageItemProps {
   outputVolume: number;
   outputDeviceId: string;
   toggleReaction: (msgId: string, emoji: string) => void;
+  deleteMessage: (msgId: string) => void;
   setLightboxImage: (img: { url: string; name: string; size: number } | null) => void;
   setPendingLinkUrl: (url: string | null) => void;
 }
@@ -357,7 +358,7 @@ interface MessageItemProps {
 const MessageItem = memo(function MessageItem({
   msg, isMine, showDate, msgReactions, isLastMessage, historyLoaded,
   contact, user, outputVolume, outputDeviceId,
-  toggleReaction, setLightboxImage, setPendingLinkUrl,
+  toggleReaction, deleteMessage, setLightboxImage, setPendingLinkUrl,
 }: MessageItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -630,7 +631,17 @@ const MessageItem = memo(function MessageItem({
         </div>
 
         {isHovered && (
-          <div className="relative flex-shrink-0" style={{ order: isMine ? -1 : 1 }}>
+          <div className="relative flex-shrink-0 flex items-center gap-1" style={{ order: isMine ? -1 : 1 }}>
+            {isMine && (
+              <button
+                onClick={() => deleteMessage(msg.id)}
+                className="flex h-6 w-6 items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+                style={{ background: 'rgba(220,50,50,0.12)', border: '1px solid rgba(220,50,50,0.25)', color: '#d03030' }}
+                title="Delete message"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
             <button
               onClick={() => setPickerOpen(prev => !prev)}
               className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-all hover:scale-110 active:scale-95"
@@ -1200,6 +1211,19 @@ export function ChatWindow({ contact, onBack }: Props) {
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
+  // ── Delete message ───────────────────────────────────────────────────────────
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!user) return;
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    const { error } = await supabase.from('messages').delete().eq('id', messageId).eq('sender_id', user.id);
+    if (error) {
+      // Refetch to restore if delete failed
+      setSendError('Failed to delete message.');
+    } else if (contact) {
+      saveChatCache(user.id, contact.id, messages.filter(m => m.id !== messageId));
+    }
+  }, [user, contact, messages]);
+
   // ── Reactions ────────────────────────────────────────────────────────────────
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return;
@@ -1635,6 +1659,7 @@ export function ChatWindow({ contact, onBack }: Props) {
                     outputVolume={outputVolume}
                     outputDeviceId={outputDeviceId}
                     toggleReaction={toggleReaction}
+                    deleteMessage={deleteMessage}
                     setLightboxImage={setLightboxImage}
                     setPendingLinkUrl={setPendingLinkUrl}
                   />
