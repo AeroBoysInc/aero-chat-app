@@ -38,6 +38,14 @@ export function deriveLevel(totalXp: number): { level: number; currentXp: number
   return { level: 100, currentXp: 0, nextXp: 0 }; // max level
 }
 
+/** Overall agent level = average of the three bar levels. */
+export function deriveOverallLevel(chatterXp: number, gamerXp: number, writerXp: number): number {
+  const c = deriveLevel(chatterXp).level;
+  const g = deriveLevel(gamerXp).level;
+  const w = deriveLevel(writerXp).level;
+  return Math.floor((c + g + w) / 3);
+}
+
 // ── Rank tables ──
 
 interface RankEntry {
@@ -95,7 +103,7 @@ export function getRank(bar: XpBar, level: number): string {
 // ── Bar display metadata ──
 
 export const BAR_META: Record<XpBar, { label: string; color: string; icon: string }> = {
-  chatter: { label: 'Chatter', color: '#00d4ff', icon: 'MessageCircle' },
-  gamer:   { label: 'Gamer',   color: '#3dd87a', icon: 'Gamepad2' },
-  writer:  { label: 'Writer',  color: '#a855f7', icon: 'PenTool' },
+  chatter: { label: 'Communication Skill', color: '#00d4ff', icon: 'MessageCircle' },
+  gamer:   { label: 'System Knowledge',    color: '#3dd87a', icon: 'Gamepad2' },
+  writer:  { label: 'Creative Talent',     color: '#a855f7', icon: 'PenTool' },
 };
