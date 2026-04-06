@@ -96,10 +96,10 @@ export const useXpStore = create<XpStore>()((set, get) => ({
     const s = get();
     if (!s.loaded) return;
 
-    // ── Anti-abuse: rate limit (1 award per bar per 5s) ──
+    // ── Anti-abuse: rate limit (1 award per bar per 5s, skip for chatter) ──
     const key = bar;
     const now = Date.now();
-    if (lastAwardTime[key] && now - lastAwardTime[key] < RATE_LIMIT_MS) return;
+    if (bar !== 'chatter' && lastAwardTime[key] && now - lastAwardTime[key] < RATE_LIMIT_MS) return;
 
     // ── Anti-abuse: duplicate message detection ──
     if (bar === 'chatter' && messageHash) {

@@ -385,11 +385,10 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               {statusLabel[myStatus]}
               <ChevronUp className="h-3 w-3" style={{ transform: statusMenuOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
             </button>
-            {/* Premium XP bars — Chatter + Writer under profile card */}
+            {/* Premium Chatter XP bar under profile card */}
             {user?.is_premium && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+              <div style={{ marginTop: 6 }}>
                 <XpMiniBar bar="chatter" />
-                <XpMiniBar bar="writer" />
               </div>
             )}
           </div>
