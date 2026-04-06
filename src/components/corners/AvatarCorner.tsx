@@ -214,6 +214,7 @@ export function AvatarCorner() {
               width: '300%', maxWidth: 700,
               position: 'relative',
               zIndex: 2,
+              marginTop: '-20%',
             }}>
               <AeroAgent
                 base={avatarBase.src}
