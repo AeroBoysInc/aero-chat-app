@@ -27,89 +27,105 @@ const StatBar = React.memo(function StatBar({ bar, isPremium }: { bar: XpBar; is
   const dailyProgress = isPremium ? 0 : Math.min(dailyUsed / DAILY_XP_CAP, 1);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-      {/* Circular icon badge */}
-      <div style={{
-        width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-        background: `${meta.color}15`,
-        border: `1.5px solid ${meta.color}35`,
-        boxShadow: `0 0 10px ${meta.color}18`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon style={{ width: 16, height: 16, color: meta.color }} />
+    <div style={{ marginBottom: 16 }}>
+      {/* Label row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+          color: 'var(--text-secondary)', textTransform: 'uppercase',
+        }}>
+          {meta.label}
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: meta.color }}>
+          LEVEL {level}
+        </span>
       </div>
 
-      {/* Bar content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Label row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-          <span style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
-            color: 'var(--text-secondary)', textTransform: 'uppercase',
-          }}>
-            {meta.label}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: meta.color }}>
-            LEVEL {level}
-          </span>
+      {/* Bar row — circle icon connected to glass tube */}
+      <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+        {/* Circular icon — overlaps left edge of bar */}
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+          background: `${meta.color}18`,
+          border: `2px solid ${meta.color}50`,
+          boxShadow: `0 0 10px ${meta.color}20`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', zIndex: 3,
+        }}>
+          <Icon style={{ width: 16, height: 16, color: meta.color }} />
         </div>
 
-        {/* Glass tube progress bar */}
+        {/* Glass tube — extends from behind the circle */}
         <div style={{
-          height: 16, borderRadius: 8,
+          flex: 1, height: 24, borderRadius: 12,
           background: 'var(--slider-track)',
-          overflow: 'hidden',
           position: 'relative',
+          marginLeft: -14,
           border: '1px solid var(--card-border)',
-          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.15)',
+          overflow: 'visible',
         }}>
+          {/* Fill */}
           <div style={{
-            height: '100%', borderRadius: 8,
+            height: '100%', borderRadius: 12,
             background: `linear-gradient(90deg, ${meta.color}55, ${meta.color}bb, ${meta.color})`,
             width: `${progress}%`,
             transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: `0 0 14px ${meta.color}40, inset 0 1px 0 rgba(255,255,255,0.30)`,
             position: 'relative',
+            minWidth: progress > 0 ? 20 : 0,
           }}>
-            {/* Gloss highlight on fill */}
+            {/* Gloss highlight */}
             <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+              position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
               background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%)',
               borderRadius: 'inherit',
             }} />
-          </div>
-        </div>
-
-        {/* EXP counter */}
-        <div style={{
-          fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4,
-          fontWeight: 600, letterSpacing: '0.02em',
-        }}>
-          {level >= 100
-            ? 'MAX LEVEL'
-            : `EXP ${currentXp.toLocaleString()} / ${nextXp.toLocaleString()}`}
-        </div>
-
-        {/* Daily cap (free users only) */}
-        {!isPremium && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-            <div style={{
-              flex: 1, height: 3, borderRadius: 2,
-              background: 'var(--slider-track)', overflow: 'hidden',
-            }}>
+            {/* Diamond/crystal tip at the end of the fill */}
+            {progress > 0 && (
               <div style={{
-                height: '100%', borderRadius: 2,
-                background: dailyProgress >= 1 ? 'rgba(255,80,50,0.6)' : `${meta.color}44`,
-                width: `${Math.round(dailyProgress * 100)}%`,
-                transition: 'width 0.3s ease',
+                position: 'absolute', right: -8, top: '50%', transform: 'translateY(-50%)',
+                width: 0, height: 0,
+                borderTop: '12px solid transparent',
+                borderBottom: '12px solid transparent',
+                borderLeft: `12px solid ${meta.color}`,
+                filter: `drop-shadow(0 0 4px ${meta.color}80)`,
+                zIndex: 2,
               }} />
-            </div>
-            <span style={{ fontSize: 8, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {dailyUsed}/{DAILY_XP_CAP} daily
-            </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* EXP counter */}
+      <div style={{
+        fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4,
+        fontWeight: 600, letterSpacing: '0.02em',
+      }}>
+        {level >= 100
+          ? 'MAX LEVEL'
+          : `EXP ${currentXp.toLocaleString()} / ${nextXp.toLocaleString()}`}
+      </div>
+
+      {/* Daily cap (free users only) */}
+      {!isPremium && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, paddingLeft: 22 }}>
+          <div style={{
+            flex: 1, height: 3, borderRadius: 2,
+            background: 'var(--slider-track)', overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              background: dailyProgress >= 1 ? 'rgba(255,80,50,0.6)' : `${meta.color}44`,
+              width: `${Math.round(dailyProgress * 100)}%`,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+          <span style={{ fontSize: 8, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {dailyUsed}/{DAILY_XP_CAP} daily
+          </span>
+        </div>
+      )}
     </div>
   );
 });
@@ -289,61 +305,66 @@ export function AvatarCorner() {
           border: '1px solid var(--card-border)',
           borderRadius: 20,
           boxShadow: 'var(--chat-shadow)',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}>
           {/* Gloss */}
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
             background: 'var(--card-gloss)',
-            pointerEvents: 'none', borderRadius: 'inherit', zIndex: 10,
+            pointerEvents: 'none', borderRadius: 20, zIndex: 10,
+            overflow: 'hidden',
           }} />
 
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20, position: 'relative', zIndex: 2 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                color: 'var(--text-muted)', textTransform: 'uppercase',
-              }}>
-                Current Level:
-              </div>
-              <h2 style={{
-                fontSize: 22, fontWeight: 800, color: 'var(--text-title)',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                margin: '4px 0 0',
-                letterSpacing: '-0.3px',
-              }}>
-                AERO AGENT STATUS
-              </h2>
-              {isPremium && (
-                <span style={{
-                  display: 'inline-block', marginTop: 8,
-                  padding: '3px 10px', borderRadius: 10,
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                  background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10))',
-                  color: '#FFD700',
-                  border: '1px solid rgba(255,215,0,0.28)',
-                }}>
-                  Aero Chat+
-                </span>
-              )}
-            </div>
-
-            {/* Overall level circle */}
+          {/* Overall level circle — large, overlapping top-right edge */}
+          <div style={{
+            position: 'absolute', top: -20, right: -20, zIndex: 15,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+          }}>
             <div style={{
-              width: 58, height: 58, borderRadius: '50%', flexShrink: 0,
+              width: 80, height: 80, borderRadius: '50%',
               background: 'var(--card-bg)',
-              border: '2.5px solid var(--card-border)',
+              border: '3px solid var(--card-border)',
               boxShadow: 'var(--chat-shadow)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{
-                fontSize: 24, fontWeight: 800, color: 'var(--text-title)',
+                fontSize: 32, fontWeight: 800, color: 'var(--text-title)',
                 fontFamily: 'Inter, system-ui, sans-serif',
               }}>
                 {overallLevel}
               </span>
             </div>
+            <span style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: '0.08em',
+              color: 'var(--text-muted)', textTransform: 'uppercase',
+              marginTop: 4,
+            }}>
+              Current Level
+            </span>
+          </div>
+
+          {/* Header */}
+          <div style={{ marginBottom: 20, position: 'relative', zIndex: 2, paddingRight: 70 }}>
+            <h2 style={{
+              fontSize: 22, fontWeight: 800, color: 'var(--text-title)',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              margin: 0,
+              letterSpacing: '-0.3px',
+            }}>
+              AERO AGENT STATUS
+            </h2>
+            {isPremium && (
+              <span style={{
+                display: 'inline-block', marginTop: 8,
+                padding: '3px 10px', borderRadius: 10,
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10))',
+                color: '#FFD700',
+                border: '1px solid rgba(255,215,0,0.28)',
+              }}>
+                Aero Chat+
+              </span>
+            )}
           </div>
 
           {/* XP Bars */}
