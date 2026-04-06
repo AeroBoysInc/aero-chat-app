@@ -175,26 +175,13 @@ export function AvatarCorner() {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>
-      {/* ── Glass card ── */}
+      {/* ── Two-panel layout ── */}
       <div style={{
-        display: 'flex',
-        width: '100%', maxWidth: 960,
-        height: 'auto', maxHeight: 520,
-        background: 'linear-gradient(145deg, rgba(0,150,255,0.08), rgba(0,80,200,0.04), rgba(120,0,200,0.03))',
-        border: '1px solid rgba(255,255,255,0.10)',
-        borderRadius: 20,
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
-        overflow: 'visible',
+        display: 'flex', gap: 14,
+        width: '100%', maxWidth: 1060,
+        height: '100%', maxHeight: 580,
         position: 'relative',
-        backdropFilter: 'blur(20px)',
       }}>
-        {/* Gloss overlay */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)',
-          pointerEvents: 'none', borderRadius: 'inherit',
-          zIndex: 10,
-        }} />
 
         {/* ── LEFT PANEL: Character + Buttons ── */}
         <div style={{
@@ -202,7 +189,19 @@ export function AvatarCorner() {
           display: 'flex',
           position: 'relative',
           padding: '0 0 0 20px',
+          background: 'linear-gradient(145deg, rgba(0,150,255,0.08), rgba(0,80,200,0.04), rgba(120,0,200,0.03))',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: 20,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          overflow: 'visible',
         }}>
+          {/* Gloss */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)',
+            pointerEvents: 'none', borderRadius: 'inherit', zIndex: 10,
+          }} />
           {/* Character — fills most of the panel, bottom-aligned */}
           <div style={{
             flex: 1,
@@ -212,7 +211,7 @@ export function AvatarCorner() {
           }}>
             {/* Agent display — oversized, anchored to bottom */}
             <div style={{
-              width: '150%', maxWidth: 500,
+              width: '300%', maxWidth: 700,
               position: 'relative',
               zIndex: 2,
             }}>
@@ -277,10 +276,21 @@ export function AvatarCorner() {
         <div style={{
           flex: 1,
           display: 'flex', flexDirection: 'column',
-          padding: '20px 24px 20px 16px',
+          padding: '20px 24px 20px 20px',
           position: 'relative',
-          borderLeft: '1px solid rgba(255,255,255,0.06)',
+          background: 'linear-gradient(145deg, rgba(0,150,255,0.08), rgba(0,80,200,0.04), rgba(120,0,200,0.03))',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: 20,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          overflow: 'hidden',
         }}>
+          {/* Gloss */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)',
+            pointerEvents: 'none', borderRadius: 'inherit', zIndex: 10,
+          }} />
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16, position: 'relative', zIndex: 2 }}>
             <div style={{ flex: 1 }}>
