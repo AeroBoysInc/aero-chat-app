@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useXpStore } from './xpStore';
+import { useAuthStore } from './authStore';
 import {
   type Story,
   type StoryCategory,
@@ -155,6 +157,15 @@ export const useWriterStore = create<WriterStore>()((set, get) => ({
       .single();
     if (error || !data) return null;
     get().fetchMyStories(storyData.author_id);
+
+    // Award writer XP: +30 base, +10 per 500 words (min 50 words)
+    const wordCount = (storyData.content ?? '').split(/\s+/).filter(Boolean).length;
+    if (wordCount >= 50) {
+      const user = useAuthStore.getState().user;
+      const bonus = Math.floor(wordCount / 500) * 10;
+      useXpStore.getState().awardXp('writer', 30 + bonus, storyData.author_id, user?.is_premium === true);
+    }
+
     return data.id;
   },
 
