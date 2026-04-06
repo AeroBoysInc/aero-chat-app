@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays, Smile } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays, Smile, Paintbrush } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -13,6 +13,7 @@ import { AeroLogo } from '../ui/AeroLogo';
 import { getExpiresAt } from '../../store/securityStore';
 import { useAudioStore } from '../../store/audioStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useXpStore } from '../../store/xpStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useCallStore } from '../../store/callStore';
 import { useGroupCallStore } from '../../store/groupCallStore';
@@ -27,6 +28,8 @@ import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { ExternalLinkModal } from './ExternalLinkModal';
 import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
 import { EmojiGifPicker } from '../ui/EmojiGifPicker';
+import { BubbleStylePicker } from '../ui/BubbleStylePicker';
+import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStore';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
@@ -349,6 +352,7 @@ interface MessageItemProps {
   user: Profile;
   outputVolume: number;
   outputDeviceId: string;
+  bubbleStyleId: string;
   toggleReaction: (msgId: string, emoji: string) => void;
   deleteMessage: (msgId: string) => void;
   setLightboxImage: (img: { url: string; name: string; size: number } | null) => void;
@@ -357,12 +361,13 @@ interface MessageItemProps {
 
 const MessageItem = memo(function MessageItem({
   msg, isMine, showDate, msgReactions, isLastMessage, historyLoaded,
-  contact, user, outputVolume, outputDeviceId,
+  contact, user, outputVolume, outputDeviceId, bubbleStyleId,
   toggleReaction, deleteMessage, setLightboxImage, setPendingLinkUrl,
 }: MessageItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const hasReactions = Object.values(msgReactions).some(users => users.length > 0);
+  const activeBubble = getBubbleStyle(bubbleStyleId);
 
   return (
     <div>
@@ -527,12 +532,13 @@ const MessageItem = memo(function MessageItem({
         {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
 
         <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
-          <div className={`selectable rounded-aero-lg px-4 py-2.5${isMine ? ' sent-bubble-gloss' : ''}`}
+          <div className={`selectable rounded-aero-lg px-4 py-2.5${isMine && activeBubble.gloss ? ' sent-bubble-gloss' : ''}`}
             style={isMine ? {
-              background: 'linear-gradient(165deg, #72e472 0%, #28b828 100%)',
-              boxShadow: '0 3px 14px rgba(30,160,30,0.35), inset 0 1px 0 rgba(255,255,255,0.50)',
-              border: '1px solid rgba(80,210,80,0.55)',
+              background: activeBubble.bg,
+              boxShadow: activeBubble.shadow,
+              border: activeBubble.border,
               borderBottomRightRadius: 4,
+              backdropFilter: activeBubble.id === 'frosted-glass' ? 'blur(12px)' : undefined,
             } : {
               background: 'var(--recv-bg)',
               boxShadow: '0 2px 10px rgba(0,80,160,0.10), inset 0 1px 0 rgba(255,255,255,0.50)',
@@ -578,7 +584,7 @@ const MessageItem = memo(function MessageItem({
                 </p>
               : msg.content === '[decryption failed]'
               ? (
-                <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? '#fff' : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+                <p className="text-sm leading-relaxed break-words" style={{ color: isMine ? activeBubble.textColor : 'var(--recv-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
                   <span style={{ opacity: 0.55, fontStyle: 'italic', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Lock style={{ width: 11, height: 11 }} />Encrypted with a previous key</span>
                 </p>
               )
@@ -586,12 +592,12 @@ const MessageItem = memo(function MessageItem({
                 <MessageContent
                   content={msg.content}
                   isMine={isMine}
-                  textColor={isMine ? '#fff' : 'var(--recv-text)'}
+                  textColor={isMine ? activeBubble.textColor : 'var(--recv-text)'}
                   onClickLink={setPendingLinkUrl}
                 />
               )
             }
-            <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.62)' : 'var(--recv-time)' }}>
+            <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: isMine ? activeBubble.timeColor : 'var(--recv-time)' }}>
               {msg.expires_at && (
                 <span title={`Expires ${new Date(msg.expires_at).toLocaleString()}`} style={{ display: 'flex', alignItems: 'center' }}>
                   <Timer style={{ width: 9, height: 9, opacity: 0.7 }} />
@@ -599,7 +605,7 @@ const MessageItem = memo(function MessageItem({
               )}
               {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {isMine && (
-                <span style={{ fontSize: 10, letterSpacing: '-1px', color: msg.read_at ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.50)' }}>
+                <span style={{ fontSize: 10, letterSpacing: '-1px', color: activeBubble.textColor, opacity: msg.read_at ? 0.9 : 0.5 }}>
                   {msg.read_at ? ' ✓✓' : ' ✓'}
                 </span>
               )}
@@ -846,8 +852,12 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [lightboxImage,     setLightboxImage]     = useState<{ url: string; name: string; size: number } | null>(null);
   const [pendingLinkUrl,    setPendingLinkUrl]    = useState<string | null>(null);
   const [pickerOpen,        setPickerOpen]        = useState(false);
+  const [bubblePickerOpen,  setBubblePickerOpen]  = useState(false);
+  const bubbleStyle = useBubbleStyleStore(s => s.styleId);
+  const activeBubble = getBubbleStyle(bubbleStyle);
 
   const pickerAnchorRef = useRef<HTMLDivElement>(null);
+  const bubblePickerAnchorRef = useRef<HTMLButtonElement>(null);
   const reactionsRef = useRef<ReactionsMap>({});
   reactionsRef.current = reactions;
 
@@ -1208,6 +1218,14 @@ export function ChatWindow({ contact, onBack }: Props) {
       });
     }
     setSending(false);
+
+    // Award chatter XP — anti-abuse: 3+ char, not duplicate
+    if (text.length >= 3) {
+      const hash = text.slice(0, 50);
+      const isPrem = user?.is_premium === true;
+      useXpStore.getState().awardXp('chatter', 2, user!.id, isPrem, hash);
+    }
+
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
@@ -1658,6 +1676,7 @@ export function ChatWindow({ contact, onBack }: Props) {
                     user={user!}
                     outputVolume={outputVolume}
                     outputDeviceId={outputDeviceId}
+                    bubbleStyleId={bubbleStyle}
                     toggleReaction={toggleReaction}
                     deleteMessage={deleteMessage}
                     setLightboxImage={setLightboxImage}
@@ -1740,10 +1759,24 @@ export function ChatWindow({ contact, onBack }: Props) {
                 onClick={() => setPickerOpen(p => !p)}
                 disabled={!hasPrivateKey}
                 className="flex items-center justify-center rounded-lg transition-all hover:scale-110 disabled:opacity-40"
-                style={{ width: 28, height: 28, marginRight: 6, background: 'rgba(0,212,255,0.10)', border: '1px solid rgba(0,212,255,0.20)', flexShrink: 0 }}
+                style={{ width: 28, height: 28, background: 'rgba(0,212,255,0.10)', border: '1px solid rgba(0,212,255,0.20)', flexShrink: 0 }}
                 title="Emoji & GIF"
               >
                 <Smile className="h-4 w-4" style={{ color: '#00d4ff' }} />
+              </button>
+              <button
+                ref={bubblePickerAnchorRef}
+                type="button"
+                onClick={() => setBubblePickerOpen(p => !p)}
+                disabled={!hasPrivateKey}
+                className="flex items-center justify-center rounded-lg transition-all hover:scale-110 disabled:opacity-40"
+                style={{ width: 28, height: 28, marginRight: 6, flexShrink: 0, background: activeBubble.bg, border: activeBubble.border, position: 'relative', overflow: 'hidden' }}
+                title="Bubble Style"
+              >
+                {activeBubble.gloss && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40%', background: 'linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%)', borderRadius: 'inherit', pointerEvents: 'none' }} />
+                )}
+                <Paintbrush className="h-3.5 w-3.5" style={{ color: activeBubble.textColor, position: 'relative', opacity: 0.8 }} />
               </button>
             </div>
             <button
@@ -1785,6 +1818,11 @@ export function ChatWindow({ contact, onBack }: Props) {
           onGifSelect={handleGifSelect}
           userId={user?.id ?? ''}
           anchorRef={pickerAnchorRef}
+        />
+        <BubbleStylePicker
+          open={bubblePickerOpen}
+          onClose={() => setBubblePickerOpen(false)}
+          anchorRef={bubblePickerAnchorRef}
         />
       </form>
       <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
