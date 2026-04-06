@@ -1,6 +1,7 @@
 // src/components/corners/AvatarCorner.tsx
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { MessageCircle, Gamepad2, PenTool, Palette, Award } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '../../store/authStore';
 import { useXpStore } from '../../store/xpStore';
 import { useAvatarStore } from '../../store/avatarStore';
@@ -16,7 +17,7 @@ const BAR_ICONS: Record<XpBar, React.ComponentType<{ className?: string; style?:
 
 // ── XP Bar (upgraded style) ─────────────────────────────────────────────────
 
-function StatBar({ bar, isPremium }: { bar: XpBar; isPremium: boolean }) {
+const StatBar = React.memo(function StatBar({ bar, isPremium }: { bar: XpBar; isPremium: boolean }) {
   const totalXp = useXpStore(s => s[`${bar}_xp`]);
   const dailyUsed = useXpStore(s => s[`${bar}_daily`]);
   const { level, currentXp, nextXp } = deriveLevel(totalXp);
@@ -90,19 +91,20 @@ function StatBar({ bar, isPremium }: { bar: XpBar; isPremium: boolean }) {
       )}
     </div>
   );
-}
+});
 
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function AvatarCorner() {
   const user = useAuthStore(s => s.user);
+  const isPremium = useAuthStore(s => s.user?.is_premium === true);
   const loadXp = useXpStore(s => s.loadXp);
   const loaded = useXpStore(s => s.loaded);
   const chatterXp = useXpStore(s => s.chatter_xp);
   const gamerXp = useXpStore(s => s.gamer_xp);
   const writerXp = useXpStore(s => s.writer_xp);
-  const { selectedBase, equipped } = useAvatarStore();
-  const isPremium = user?.is_premium === true;
+  const selectedBase = useAvatarStore(s => s.selectedBase);
+  const equipped = useAvatarStore(useShallow(s => s.equipped));
 
   const avatarBase = getAvatarBase(selectedBase);
   const overallLevel = deriveOverallLevel(chatterXp, gamerXp, writerXp);
@@ -147,8 +149,7 @@ export function AvatarCorner() {
         <div className="pointer-events-none absolute" style={{
           width: 100, height: 100, top: -30, left: -30,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%)',
-          filter: 'blur(16px)',
+          background: 'radial-gradient(circle, rgba(0,212,255,0.10) 0%, transparent 65%)',
         }} />
 
         {/* Character display */}
