@@ -399,8 +399,11 @@ export const BubbleChat = memo(function BubbleChat() {
     inputRef.current?.focus();
   }, []);
 
+  const sendContentRef = useRef(sendContent);
+  sendContentRef.current = sendContent;
+
   const handleGifSelect = useCallback(async (gif: { url: string; width: number; height: number; previewUrl: string }) => {
-    await sendContent(JSON.stringify({ _gif: true, ...gif }));
+    await sendContentRef.current(JSON.stringify({ _gif: true, ...gif }));
   }, []);
 
   // ── Reactions ───────────────────────────────────────────────────────────────

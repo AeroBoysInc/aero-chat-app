@@ -65,7 +65,7 @@ function isServerInvite(content: string): boolean {
   try { return JSON.parse(content)._serverInvite === true; } catch { return false; }
 }
 
-// GIF helpers — will be wired up when EmojiGifPicker is integrated into DM ChatWindow
+// GIF message helpers
 export function isGifMessage(content: string): boolean {
   try { return JSON.parse(content)._gif === true; } catch { return false; }
 }
@@ -834,7 +834,9 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [isUploading,       setIsUploading]       = useState(false);
   const [lightboxImage,     setLightboxImage]     = useState<{ url: string; name: string; size: number } | null>(null);
   const [pendingLinkUrl,    setPendingLinkUrl]    = useState<string | null>(null);
+  const [pickerOpen,        setPickerOpen]        = useState(false);
 
+  const pickerAnchorRef = useRef<HTMLDivElement>(null);
   const reactionsRef = useRef<ReactionsMap>({});
   reactionsRef.current = reactions;
 
@@ -1139,8 +1141,10 @@ export function ChatWindow({ contact, onBack }: Props) {
     inputRef.current?.focus();
   }, []);
 
+  const sendEncryptedContentRef = useRef(sendEncryptedContent);
+
   const handleGifSelect = useCallback(async (gif: { url: string; width: number; height: number; previewUrl: string }) => {
-    await sendEncryptedContent(JSON.stringify({ _gif: true, ...gif }));
+    await sendEncryptedContentRef.current(JSON.stringify({ _gif: true, ...gif }));
   }, []);
 
   async function sendMessage(e: React.FormEvent) {
@@ -1351,6 +1355,7 @@ export function ChatWindow({ contact, onBack }: Props) {
     }
     setSending(false);
   }
+  sendEncryptedContentRef.current = sendEncryptedContent;
 
   // ── File / image sharing ──────────────────────────────────────────────────────
   async function uploadAndSendFile(file: File) {
