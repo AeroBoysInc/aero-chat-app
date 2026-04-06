@@ -209,6 +209,7 @@ export function AvatarCorner() {
           }}>
             <div style={{
               width: 2400,
+              flexShrink: 0,
               position: 'relative',
               zIndex: 2,
               marginLeft: -80,
