@@ -223,6 +223,16 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
               AeroChat
             </span>
+            {user?.is_premium && (
+              <span style={{
+                fontWeight: 900, fontSize: 20,
+                background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                marginLeft: -4,
+              }}>
+                +
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-0.5">
             <ThemeSwitcher />

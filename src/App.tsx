@@ -84,7 +84,7 @@ export default function App() {
       // registration before RegisterForm has finished inserting the profile.
       const { data: row } = await supabase
         .from('profiles')
-        .select('id, username, public_key, avatar_url, status, encrypted_private_key, card_gradient, card_image_url, card_image_params')
+        .select('id, username, public_key, avatar_url, status, encrypted_private_key, card_gradient, card_image_url, card_image_params, is_premium')
         .eq('id', userId)
         .maybeSingle();
 

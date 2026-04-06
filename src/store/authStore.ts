@@ -14,6 +14,7 @@ export interface Profile {
     x: number;
     y: number;
   } | null;
+  is_premium?: boolean;
 }
 
 interface AuthState {
@@ -33,7 +34,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, public_key, avatar_url, status, card_gradient, card_image_url, card_image_params')
+      .select('id, username, public_key, avatar_url, status, card_gradient, card_image_url, card_image_params, is_premium')
       .eq('id', user.id)
       .single();
     if (data) set({ user: data });

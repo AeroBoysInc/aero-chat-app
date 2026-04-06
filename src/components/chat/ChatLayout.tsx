@@ -18,6 +18,7 @@ import { ServerOverlay } from '../servers/ServerOverlay';
 import { ServerView } from '../servers/ServerView';
 import { CreateServerWizard } from '../servers/CreateServerWizard';
 import { JoinServerModal } from '../servers/JoinServerModal';
+import { PremiumModal } from '../ui/PremiumModal';
 import { playSwoosh } from '../../lib/swooshSound';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
@@ -53,9 +54,11 @@ export function ChatLayout() {
   const groupCallStatus = useGroupCallStore(s => s.status);
   const groupCallActive = groupCallStatus !== 'idle' && groupCallStatus !== 'ringing';
   const anyCallActive = callActive || groupCallActive;
-  const { signOut } = useAuthStore();
+  const { user, signOut } = useAuthStore();
+  const isPremium = user?.is_premium === true;
   const { pendingIncoming } = useFriendStore();
   const [requestsOpen, setRequestsOpen] = useState(false);
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(getSavedWidth);
@@ -159,6 +162,27 @@ export function ChatLayout() {
           WebkitBackdropFilter: 'blur(24px)',
           boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
         }}>
+          {/* Left side — Unlock Aero+ button for free users */}
+          {!isPremium && (
+            <button
+              onClick={() => setPremiumModalOpen(true)}
+              className="no-drag flex items-center gap-1.5 rounded-full transition-all hover:scale-[1.03] active:scale-[0.97]"
+              style={{
+                position: 'relative', zIndex: 1,
+                padding: '5px 12px',
+                fontSize: 11, fontWeight: 700,
+                fontFamily: 'Inter, system-ui, sans-serif',
+                letterSpacing: '0.01em',
+                background: 'linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,165,0,0.08))',
+                border: '1px solid rgba(255,215,0,0.25)',
+                color: '#FFD700',
+                cursor: 'pointer',
+              }}
+            >
+              Unlock Aero<span style={{ fontWeight: 900 }}>+</span>
+            </button>
+          )}
+
           {/* Logo + title — absolutely centered */}
           <div style={{
             position: 'absolute', left: 0, right: 0,
@@ -169,6 +193,16 @@ export function ChatLayout() {
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 15, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
               AeroChat
             </span>
+            {isPremium && (
+              <span style={{
+                fontWeight: 900, fontSize: 18,
+                background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                marginLeft: -4,
+              }}>
+                +
+              </span>
+            )}
           </div>
 
           {/* Actions — right side */}
@@ -204,6 +238,7 @@ export function ChatLayout() {
         </div>
 
         {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
+        <PremiumModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />
       </div>
 
       <div className="relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2">
