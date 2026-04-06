@@ -1,6 +1,7 @@
 // src/components/servers/BubbleChat.tsx
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Mic, Paperclip, Play, Pause, Download, File as FileIcon } from 'lucide-react';
+import { Send, Mic, Paperclip, Play, Pause, Download, File as FileIcon, Smile } from 'lucide-react';
+import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useServerStore } from '../../store/serverStore';
@@ -26,6 +27,16 @@ function isVoiceMessage(content: string): boolean {
 }
 function isFileMessage(content: string): boolean {
   try { return JSON.parse(content)._file === true; } catch { return false; }
+}
+function isGifMessage(content: string): boolean {
+  try { return JSON.parse(content)._gif === true; } catch { return false; }
+}
+function parseGifMessage(content: string): { url: string; width: number; height: number; previewUrl: string } | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._gif) return { url: p.url, width: p.width, height: p.height, previewUrl: p.previewUrl };
+    return null;
+  } catch { return null; }
 }
 
 function fmtDuration(s: number): string {
@@ -243,6 +254,7 @@ export const BubbleChat = memo(function BubbleChat() {
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; size: number } | null>(null);
   const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null);
   const [sendError, setSendError] = useState('');
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -261,6 +273,7 @@ export const BubbleChat = memo(function BubbleChat() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pickerAnchorRef = useRef<HTMLDivElement>(null);
   const reactionsRef = useRef(reactions);
   reactionsRef.current = reactions;
 
@@ -380,6 +393,15 @@ export const BubbleChat = memo(function BubbleChat() {
       handleSend();
     }
   }, [handleSend]);
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setInput(prev => prev + emoji);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleGifSelect = useCallback(async (gif: { url: string; width: number; height: number; previewUrl: string }) => {
+    await sendContent(JSON.stringify({ _gif: true, ...gif }));
+  }, []);
 
   // ── Reactions ───────────────────────────────────────────────────────────────
 
@@ -629,6 +651,7 @@ export const BubbleChat = memo(function BubbleChat() {
           </div>
         ) : (
           <div
+            ref={pickerAnchorRef}
             className="flex items-center gap-2 rounded-aero-lg px-3"
             style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
           >
@@ -642,6 +665,14 @@ export const BubbleChat = memo(function BubbleChat() {
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
             />
+            <button
+              onClick={() => setEmojiPickerOpen(p => !p)}
+              className="transition-opacity hover:opacity-70"
+              style={{ color: 'var(--text-muted)' }}
+              title="Emoji & GIF"
+            >
+              <Smile className="h-4 w-4" />
+            </button>
             <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.txt,.doc,.docx,.zip,.csv" onChange={handleFileSelect} />
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -684,6 +715,15 @@ export const BubbleChat = memo(function BubbleChat() {
           onCancel={() => setPendingLinkUrl(null)}
         />
       )}
+
+      <EmojiGifPicker
+        open={emojiPickerOpen}
+        onClose={() => setEmojiPickerOpen(false)}
+        onEmojiSelect={handleEmojiSelect}
+        onGifSelect={handleGifSelect}
+        userId={user?.id ?? ''}
+        anchorRef={pickerAnchorRef}
+      />
     </div>
   );
 });
@@ -717,6 +757,7 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
 
   const isVoice = isVoiceMessage(msg.content);
   const isFile = isFileMessage(msg.content);
+  const isGif = isGifMessage(msg.content);
 
   return (
     <div
@@ -753,7 +794,28 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
 
         {/* Content */}
         <div className="selectable" style={{ marginTop: 2 }}>
-          {isVoice ? (
+          {isGif ? (() => {
+            const gif = parseGifMessage(msg.content);
+            if (!gif) return null;
+            return (
+              <div style={{ position: 'relative', maxWidth: 280, borderRadius: 12, overflow: 'hidden' }}>
+                <img src={gif.url} alt="GIF" loading="lazy" style={{
+                  width: '100%', display: 'block',
+                  aspectRatio: `${gif.width} / ${gif.height}`,
+                  objectFit: 'cover', background: 'rgba(255,255,255,0.04)',
+                }} />
+                <div style={{
+                  position: 'absolute', top: 6, left: 6,
+                  padding: '2px 6px', borderRadius: 4,
+                  background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+                  fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
+                  letterSpacing: '0.05em',
+                }}>
+                  GIF
+                </div>
+              </div>
+            );
+          })() : isVoice ? (
             <VoicePlayer content={msg.content} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
           ) : isFile ? (
             <BubbleFileMessage content={msg.content} onImageClick={setLightboxImage} />

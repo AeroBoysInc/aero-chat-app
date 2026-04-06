@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays, Smile } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -26,6 +26,7 @@ import { MessageContent } from './MessageContent';
 import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { ExternalLinkModal } from './ExternalLinkModal';
 import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
+import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
@@ -62,6 +63,19 @@ function isCalendarInvite(content: string): boolean {
 
 function isServerInvite(content: string): boolean {
   try { return JSON.parse(content)._serverInvite === true; } catch { return false; }
+}
+
+// GIF helpers — will be wired up when EmojiGifPicker is integrated into DM ChatWindow
+export function isGifMessage(content: string): boolean {
+  try { return JSON.parse(content)._gif === true; } catch { return false; }
+}
+
+export function parseGifMessage(content: string): { url: string; width: number; height: number; previewUrl: string } | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._gif) return { url: p.url, width: p.width, height: p.height, previewUrl: p.previewUrl };
+    return null;
+  } catch { return null; }
 }
 
 interface ServerInviteData {
@@ -524,7 +538,29 @@ const MessageItem = memo(function MessageItem({
               border: '1px solid var(--recv-border)',
               borderBottomLeftRadius: 4,
             }}>
-            {isVoiceMessage(msg.content)
+            {isGifMessage(msg.content) ? (() => {
+              const gif = parseGifMessage(msg.content);
+              if (!gif) return null;
+              return (
+                <div style={{ position: 'relative', maxWidth: 280, borderRadius: 12, overflow: 'hidden' }}>
+                  <img src={gif.url} alt="GIF" loading="lazy" style={{
+                    width: '100%', display: 'block',
+                    aspectRatio: `${gif.width} / ${gif.height}`,
+                    objectFit: 'cover', background: 'rgba(255,255,255,0.04)',
+                  }} />
+                  <div style={{
+                    position: 'absolute', top: 6, left: 6,
+                    padding: '2px 6px', borderRadius: 4,
+                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+                    fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
+                    letterSpacing: '0.05em',
+                  }}>
+                    GIF
+                  </div>
+                </div>
+              );
+            })()
+            : isVoiceMessage(msg.content)
               ? <VoicePlayer content={msg.content} isMine={isMine} outputVolume={outputVolume} outputDeviceId={outputDeviceId} />
               : isFileMessage(msg.content)
               ? <FileMessage content={msg.content} isMine={isMine} onImageClick={setLightboxImage} />
@@ -1098,6 +1134,15 @@ export function ChatWindow({ contact, onBack }: Props) {
     }, 2500);
   }, []);
 
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setInput(prev => prev + emoji);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleGifSelect = useCallback(async (gif: { url: string; width: number; height: number; previewUrl: string }) => {
+    await sendEncryptedContent(JSON.stringify({ _gif: true, ...gif }));
+  }, []);
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
@@ -1648,16 +1693,29 @@ export function ChatWindow({ contact, onBack }: Props) {
               accept="image/*,.pdf,.txt,.doc,.docx,.zip,.csv"
               onChange={handleFileSelect}
             />
-            <input
-              ref={inputRef}
-              className="aero-input flex-1 py-2.5 text-sm"
-              placeholder={`Message ${contact.username}…`}
-              value={input}
-              onChange={handleInputChange}
-              onPaste={handlePaste}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }}
-              disabled={!hasPrivateKey}
-            />
+            <div ref={pickerAnchorRef} className="aero-input flex-1 flex items-center" style={{ padding: 0 }}>
+              <input
+                ref={inputRef}
+                className="flex-1 bg-transparent py-2.5 px-3 text-sm outline-none"
+                style={{ color: 'var(--text-primary)' }}
+                placeholder={`Message ${contact.username}…`}
+                value={input}
+                onChange={handleInputChange}
+                onPaste={handlePaste}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }}
+                disabled={!hasPrivateKey}
+              />
+              <button
+                type="button"
+                onClick={() => setPickerOpen(p => !p)}
+                disabled={!hasPrivateKey}
+                className="flex items-center justify-center rounded-lg transition-all hover:scale-110 disabled:opacity-40"
+                style={{ width: 28, height: 28, marginRight: 6, background: 'rgba(0,212,255,0.10)', border: '1px solid rgba(0,212,255,0.20)', flexShrink: 0 }}
+                title="Emoji & GIF"
+              >
+                <Smile className="h-4 w-4" style={{ color: '#00d4ff' }} />
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -1690,6 +1748,14 @@ export function ChatWindow({ contact, onBack }: Props) {
             </button>
           </div>
         )}
+        <EmojiGifPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onEmojiSelect={handleEmojiSelect}
+          onGifSelect={handleGifSelect}
+          userId={user?.id ?? ''}
+          anchorRef={pickerAnchorRef}
+        />
       </form>
       <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       {pendingLinkUrl && (
