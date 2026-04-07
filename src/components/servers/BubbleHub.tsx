@@ -120,6 +120,97 @@ function BubbleCircle({ bubble, x, y, index, unread, onClick }: {
   );
 }
 
+const BubbleSky = memo(function BubbleSky({ bubbles, server, onBubbleClick, isFrutiger, unreadMap }: {
+  bubbles: Bubble[];
+  server: { name: string; icon_url?: string | null } | undefined;
+  onBubbleClick: (bubble: Bubble) => void;
+  isFrutiger: boolean;
+  unreadMap: Record<string, number>;
+}) {
+  const W = 600, H = 400;
+  const positions = useMemo(() => getBubblePositions(bubbles.length, W, H), [bubbles.length]);
+
+  return (
+    <div className="relative h-full w-full overflow-hidden">
+      {/* Floating breadcrumb */}
+      <div style={{
+        position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+        padding: '5px 16px', borderRadius: 10, zIndex: 2,
+        background: isFrutiger ? 'rgba(255,255,255,0.14)' : 'rgba(60,30,10,0.50)',
+        border: `1px solid ${isFrutiger ? 'rgba(255,255,255,0.22)' : 'rgba(255,180,80,0.20)'}`,
+        backdropFilter: 'blur(12px)',
+        fontSize: 11, fontWeight: 600,
+        color: isFrutiger ? 'rgba(255,255,255,0.70)' : 'rgba(255,220,150,0.70)',
+        whiteSpace: 'nowrap',
+      }}>
+        {server?.name ?? 'Server'} — {bubbles.length} channel{bubbles.length !== 1 ? 's' : ''}
+      </div>
+
+      {/* Bubble area */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div style={{ position: 'relative', width: W, height: H, maxWidth: '95%', maxHeight: '85%' }}>
+          {bubbles.map((bubble, i) => {
+            const pos = positions[i];
+            if (!pos) return null;
+            const unread = unreadMap[bubble.id] ?? 0;
+
+            return (
+              <div
+                key={bubble.id}
+                onClick={() => onBubbleClick(bubble)}
+                className="absolute cursor-pointer"
+                style={{
+                  width: 75, height: 75, borderRadius: '50%',
+                  left: pos.x - 37.5, top: pos.y - 37.5,
+                  background: isFrutiger
+                    ? 'rgba(255,255,255,0.12)'
+                    : 'rgba(255,200,100,0.08)',
+                  border: `1.5px solid ${bubble.color}50`,
+                  backdropFilter: 'blur(6px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexDirection: 'column', gap: 2,
+                  boxShadow: isFrutiger
+                    ? '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 1px rgba(255,255,255,0.30)'
+                    : '0 4px 16px rgba(0,0,0,0.10), inset 0 1px 1px rgba(255,220,150,0.12)',
+                  animation: `orb-drift ${6 + (i % 3)}s ease-in-out ${i * 0.5}s infinite`,
+                  transition: 'box-shadow 0.2s, transform 0.2s',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 0 20px ${bubble.color}30`;
+                  (e.currentTarget as HTMLElement).style.transform = 'scale(1.08)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.boxShadow = '';
+                  (e.currentTarget as HTMLElement).style.transform = '';
+                }}
+              >
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: bubble.color,
+                  textShadow: `0 1px 4px ${bubble.color}40`,
+                  textAlign: 'center', lineHeight: 1.2,
+                  maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {bubble.name}
+                </span>
+                {unread > 0 && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 700, color: '#fff',
+                    background: '#ff2e63', borderRadius: 6,
+                    padding: '0 4px', lineHeight: '14px',
+                  }}>
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export const BubbleHub = memo(function BubbleHub() {
   const { selectBubble, selectedServerId, loadServerData, bubbleUnreads } = useServerStore();
   const { enterBubble } = useCornerStore();
@@ -132,6 +223,10 @@ export const BubbleHub = memo(function BubbleHub() {
   const canManageBubbles = user && server
     ? hasPermission(server.id, user.id, members, 'manage_bubbles')
     : false;
+
+  const activeTheme = useThemeStore(s => s.theme);
+  const isUltra = activeTheme === 'john-frutiger' || activeTheme === 'golden-hour';
+  const isFrutiger = activeTheme === 'john-frutiger';
 
   // Inline create-bubble state
   const [showCreate, setShowCreate] = useState(false);
@@ -163,6 +258,18 @@ export const BubbleHub = memo(function BubbleHub() {
   const positions = useMemo(() => getBubblePositions(bubbles.length, W, H), [bubbles.length]);
 
   const initial = server?.name.charAt(0).toUpperCase() ?? '?';
+
+  if (isUltra) {
+    return (
+      <BubbleSky
+        bubbles={bubbles}
+        server={server}
+        onBubbleClick={handleBubbleClick}
+        isFrutiger={isFrutiger}
+        unreadMap={bubbleUnreads}
+      />
+    );
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden">
