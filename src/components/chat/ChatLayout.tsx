@@ -5,6 +5,7 @@ import { ChatWindow } from './ChatWindow';
 import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { CornerRail } from '../corners/CornerRail';
+import { TransitionWipe } from '../ui/TransitionWipe';
 import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { DevCorner } from '../corners/DevCorner';
@@ -85,6 +86,8 @@ export function ChatLayout() {
   const startWidth = useRef(0);
   const isMobile = useIsMobile();
   const [mobilePaneShowChat, setMobilePaneShowChat] = useState(false);
+  const [cornerWipeActive, setCornerWipeActive] = useState(false);
+  const pendingCornerAction = useRef<(() => void) | null>(null);
 
   // Track theme changes for orb colour switching
   useEffect(() => {
@@ -121,6 +124,15 @@ export function ChatLayout() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [sidebarWidth]);
+
+  const triggerCornerTransition = useCallback((action: () => void) => {
+    if (isUltraTheme(activeTheme)) {
+      pendingCornerAction.current = action;
+      setCornerWipeActive(true);
+    } else {
+      action();
+    }
+  }, [activeTheme]);
 
   // ── Mobile layout — single-pane slide navigation ──────────────────────────
   if (isMobile) {
@@ -262,7 +274,7 @@ export function ChatLayout() {
       <div className="relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2">
 
       {/* ── Corner Rail — always visible ── */}
-      <CornerRail />
+      <CornerRail onCornerTransition={triggerCornerTransition} />
 
       {/* ── Layer host — chat and game views stacked ── */}
       <div className="relative flex-1 min-w-0 overflow-hidden" style={{ borderRadius: 18 }}>
@@ -484,6 +496,15 @@ export function ChatLayout() {
       )}
       {showCreateWizard && <CreateServerWizard onClose={() => setShowCreateWizard(false)} />}
       {showJoinModal && <JoinServerModal onClose={() => setShowJoinModal(false)} />}
+
+      <TransitionWipe
+        active={cornerWipeActive}
+        onMidpoint={() => {
+          pendingCornerAction.current?.();
+          pendingCornerAction.current = null;
+        }}
+        onComplete={() => setCornerWipeActive(false)}
+      />
 
       </div>
     </div>

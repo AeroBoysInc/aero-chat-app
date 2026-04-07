@@ -78,7 +78,7 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
   );
 }
 
-export function CornerRail() {
+export function CornerRail({ onCornerTransition }: { onCornerTransition?: (action: () => void) => void }) {
   const {
     gameViewActive, openGameHub, closeGameView,
     devViewActive, openDevView, closeDevView,
@@ -87,6 +87,8 @@ export function CornerRail() {
     avatarViewActive, openAvatarView, closeAvatarView,
     serverView, openServerOverlay, closeServerOverlay,
   } = useCornerStore();
+
+  const transition = (action: () => void) => onCornerTransition ? onCornerTransition(action) : action();
 
   const serverUnreads = useServerStore(s => s.serverUnreads);
   const totalUnread = Object.values(serverUnreads).reduce((a, b) => a + b, 0);
@@ -109,28 +111,28 @@ export function CornerRail() {
           isActive={gameViewActive}
           color="#00d4ff"
           tooltip={gameViewActive ? 'Back to Chat' : 'Games Corner'}
-          onClick={() => gameViewActive ? closeGameView() : openGameHub()}
+          onClick={() => transition(gameViewActive ? closeGameView : openGameHub)}
         />
         <RailBtn
           icon={PenTool}
           isActive={writerViewActive}
           color="#a855f7"
           tooltip={writerViewActive ? 'Back to Chat' : 'Writers Corner'}
-          onClick={() => writerViewActive ? closeWriterView() : openWriterHub()}
+          onClick={() => transition(writerViewActive ? closeWriterView : openWriterHub)}
         />
         <RailBtn
           icon={CalendarDays}
           isActive={calendarViewActive}
           color="#3dd87a"
           tooltip={calendarViewActive ? 'Back to Chat' : 'Calendar & Tasks'}
-          onClick={() => calendarViewActive ? closeCalendarView() : openCalendarView()}
+          onClick={() => transition(calendarViewActive ? closeCalendarView : openCalendarView)}
         />
         <RailBtn
           icon={User}
           isActive={avatarViewActive}
           color="#f59e0b"
           tooltip={avatarViewActive ? 'Back to Chat' : 'Avatar Corner'}
-          onClick={() => avatarViewActive ? closeAvatarView() : openAvatarView()}
+          onClick={() => transition(avatarViewActive ? closeAvatarView : openAvatarView)}
         />
 
       </div>
@@ -143,7 +145,7 @@ export function CornerRail() {
             isActive={devViewActive}
             color="#ff9d3d"
             tooltip={devViewActive ? 'Back to Chat' : 'Dev Board'}
-            onClick={() => devViewActive ? closeDevView() : openDevView()}
+            onClick={() => transition(devViewActive ? closeDevView : openDevView)}
           />
         )}
 
@@ -157,7 +159,7 @@ export function CornerRail() {
             isActive={serverView === 'overlay' || serverView === 'server' || serverView === 'bubble'}
             color="#00d4ff"
             tooltip={serverView ? 'Close Servers' : 'Servers'}
-            onClick={() => serverView ? closeServerOverlay() : openServerOverlay()}
+            onClick={() => transition(serverView ? closeServerOverlay : openServerOverlay)}
           />
           {/* Persistent glow ring */}
           <div
