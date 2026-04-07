@@ -2,24 +2,30 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 
-export type Theme = 'day' | 'night' | 'ocean' | 'sunset' | 'aurora' | 'sakura' | 'john-frutiger' | 'golden-hour';
+export type Theme = 'day' | 'night' | 'ocean' | 'sunset' | 'aurora' | 'sakura' | 'john-frutiger' | 'golden-hour' | 'master';
 
 export const FREE_THEMES: Theme[] = ['day', 'night'];
 export const PREMIUM_THEMES: Theme[] = ['ocean', 'sunset', 'aurora', 'sakura'];
 export const ULTRA_THEMES: Theme[] = ['john-frutiger', 'golden-hour'];
-export const ALL_THEMES: Theme[] = [...FREE_THEMES, ...PREMIUM_THEMES, ...ULTRA_THEMES];
+export const MASTER_THEMES: Theme[] = ['master'];
+export const ALL_THEMES: Theme[] = [...FREE_THEMES, ...PREMIUM_THEMES, ...ULTRA_THEMES, ...MASTER_THEMES];
 
 export function isUltraTheme(t: Theme): boolean {
   return ULTRA_THEMES.includes(t);
+}
+
+export function isMasterTheme(t: Theme): boolean {
+  return MASTER_THEMES.includes(t);
 }
 
 interface ThemeStore {
   theme: Theme;
   ownsJohnFrutiger: boolean;
   ownsGoldenHour: boolean;
+  ownsMaster: boolean;
   setTheme: (t: Theme) => void;
   loadOwnership: (userId: string) => Promise<void>;
-  purchaseTheme: (theme: 'john-frutiger' | 'golden-hour', userId: string) => Promise<boolean>;
+  purchaseTheme: (theme: 'john-frutiger' | 'golden-hour' | 'master', userId: string) => Promise<boolean>;
 }
 
 export const useThemeStore = create<ThemeStore>()(
@@ -28,6 +34,7 @@ export const useThemeStore = create<ThemeStore>()(
       theme: 'day',
       ownsJohnFrutiger: false,
       ownsGoldenHour: false,
+      ownsMaster: false,
 
       setTheme: (theme) => {
         set({ theme });
@@ -37,28 +44,32 @@ export const useThemeStore = create<ThemeStore>()(
       loadOwnership: async (userId) => {
         const { data } = await supabase
           .from('profiles')
-          .select('owns_john_frutiger, owns_golden_hour')
+          .select('owns_john_frutiger, owns_golden_hour, owns_master')
           .eq('id', userId)
           .single();
         if (data) {
           set({
             ownsJohnFrutiger: data.owns_john_frutiger ?? false,
             ownsGoldenHour: data.owns_golden_hour ?? false,
+            ownsMaster: data.owns_master ?? false,
           });
         }
       },
 
       purchaseTheme: async (theme, userId) => {
-        const col = theme === 'john-frutiger' ? 'owns_john_frutiger' : 'owns_golden_hour';
+        const col = theme === 'john-frutiger' ? 'owns_john_frutiger' : theme === 'golden-hour' ? 'owns_golden_hour' : 'owns_master';
         const { error } = await supabase
           .from('profiles')
           .update({ [col]: true })
           .eq('id', userId);
         if (error) return false;
-        set(theme === 'john-frutiger'
-          ? { ownsJohnFrutiger: true }
-          : { ownsGoldenHour: true }
-        );
+        if (theme === 'john-frutiger') {
+          set({ ownsJohnFrutiger: true });
+        } else if (theme === 'golden-hour') {
+          set({ ownsGoldenHour: true });
+        } else {
+          set({ ownsMaster: true });
+        }
         return true;
       },
     }),

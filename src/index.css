@@ -945,6 +945,90 @@
   --date-sep-text:      rgba(200,140,80,0.38);
 }
 
+/* ═══ MASTER THEME — Emerald Hacker Glass ═══ */
+[data-theme="master"] {
+  --body-bg: #050505;
+
+  --sidebar-bg:      rgba(0,230,118,0.06);
+  --sidebar-border:  rgba(0,230,118,0.14);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.08);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(0,230,118,0.06) 0%, transparent 50%);
+
+  --chat-bg:         rgba(0,230,118,0.04);
+  --chat-border:     rgba(0,230,118,0.12);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,230,118,0.06);
+  --chat-gloss:      linear-gradient(180deg, rgba(0,230,118,0.05) 0%, transparent 45%);
+
+  --card-bg:         rgba(0,230,118,0.08);
+  --card-bg-solid:   #0a1a10;
+  --card-border:     rgba(0,230,118,0.18);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.10);
+  --card-gloss:      linear-gradient(180deg, rgba(0,230,118,0.08) 0%, transparent 50%);
+
+  --panel-header-bg: rgba(0,230,118,0.04);
+  --panel-divider:   rgba(0,230,118,0.10);
+
+  --text-primary:    rgba(255,255,255,0.70);
+  --text-secondary:  rgba(255,255,255,0.45);
+  --text-muted:      rgba(255,255,255,0.22);
+  --text-label:      rgba(0,230,118,0.40);
+  --text-title:      #00e676;
+
+  --rail-icon:       rgba(0,230,118,0.40);
+  --rail-icon-hover: rgba(0,230,118,0.70);
+  --rail-bg-idle:    rgba(0,230,118,0.06);
+  --rail-bg-hover:   rgba(0,230,118,0.12);
+  --rail-border:     rgba(0,230,118,0.12);
+
+  --input-bg:        rgba(0,230,118,0.04);
+  --input-border:    rgba(0,230,118,0.12);
+  --input-focus-border: rgba(0,230,118,0.35);
+  --input-placeholder: rgba(255,255,255,0.18);
+
+  --sent-bg:         linear-gradient(135deg, rgba(0,230,118,0.18), rgba(0,200,83,0.12));
+  --sent-border:     rgba(0,230,118,0.22);
+  --sent-text:       rgba(255,255,255,0.75);
+  --recv-bg:         rgba(0,230,118,0.06);
+  --recv-border:     rgba(0,230,118,0.10);
+  --recv-text:       rgba(255,255,255,0.55);
+
+  --badge-bg:        rgba(0,230,118,0.22);
+  --badge-text:      #00e676;
+  --hover-bg:        rgba(0,230,118,0.06);
+  --active-bg:       rgba(0,230,118,0.10);
+
+  --popup-bg:        rgba(8,20,12,0.95);
+  --popup-border:    rgba(0,230,118,0.15);
+  --popup-shadow:    0 24px 80px rgba(0,0,0,0.6);
+  --popup-divider:   rgba(0,230,118,0.08);
+  --popup-text:      rgba(255,255,255,0.70);
+  --popup-text-muted: rgba(255,255,255,0.30);
+  --popup-icon:      rgba(0,230,118,0.50);
+  --popup-hover:     rgba(0,230,118,0.06);
+
+  --accent:          #00e676;
+  --accent-secondary: #00c853;
+
+  --switcher-bg:     rgba(0,230,118,0.06);
+  --switcher-border: rgba(0,230,118,0.14);
+
+  --game-tile-bg:    rgba(0,230,118,0.06);
+  --game-tile-border: rgba(0,230,118,0.14);
+  --game-tile-glow:  rgba(0,230,118,0.08);
+
+  --aura-online:     rgba(0,230,118,0.60);
+  --aura-gaming:     rgba(0,230,118,0.60);
+  --aura-incall:     rgba(255,160,0,0.70);
+  --aura-busy:       rgba(255,80,50,0.60);
+  --aura-away:       rgba(0,230,118,0.25);
+  --aura-glow-online:  rgba(0,230,118,0.30);
+  --aura-glow-gaming:  rgba(0,230,118,0.30);
+  --aura-glow-incall:  rgba(200,120,0,0.35);
+  --aura-glow-busy:    rgba(220,60,20,0.30);
+  --date-sep-line:   rgba(0,230,118,0.10);
+  --date-sep-text:   rgba(0,230,118,0.30);
+}
+
 /* ═══ ULTRA THEME KEYFRAMES ═══ */
 @keyframes cloud-float {
   0%, 100% { transform: translate(0px, 0px); }
@@ -1070,6 +1154,15 @@
 }
 [data-theme="golden-hour"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(255,180,80,0.25);
+}
+
+[data-theme="master"] ::-webkit-scrollbar { width: 6px; }
+[data-theme="master"] ::-webkit-scrollbar-track { background: transparent; }
+[data-theme="master"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,230,118,0.15); border-radius: 3px;
+}
+[data-theme="master"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,230,118,0.25);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1601,3 +1694,24 @@
 .paused .animate-slide-up {
   animation: none !important;
 }
+
+/* Master theme — freeze tile preview animations */
+.tile-paused,
+.tile-paused * {
+  animation-play-state: paused !important;
+}
+
+/* Master theme — compact layout overrides */
+.master-compact .glass-sidebar,
+.master-compact .glass-chat {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+.master-compact input,
+.master-compact textarea {
+  height: 28px;
+  font-size: 12px;
+}
+.master-compact .rounded-aero { border-radius: 10px; }
+.master-compact .rounded-aero-lg { border-radius: 12px; }
