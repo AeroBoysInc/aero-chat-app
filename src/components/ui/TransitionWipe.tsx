@@ -154,20 +154,20 @@ function HazeWipe() {
         }
         .haze-wipe-wall {
           background:
-            radial-gradient(ellipse 40% 90% at 30% 50%, rgba(255,200,80,0.90) 0%, rgba(255,200,80,0.40) 40%, transparent 65%),
-            radial-gradient(ellipse 35% 80% at 60% 40%, rgba(255,140,40,0.70) 0%, rgba(255,140,40,0.25) 45%, transparent 65%),
-            radial-gradient(ellipse 30% 85% at 75% 55%, rgba(255,100,120,0.45) 0%, rgba(255,100,120,0.15) 40%, transparent 65%),
-            radial-gradient(ellipse 45% 70% at 45% 60%, rgba(255,180,60,0.55) 0%, rgba(255,180,60,0.20) 50%, transparent 70%),
-            linear-gradient(90deg, transparent 10%, rgba(255,200,80,0.55) 30%, rgba(255,220,100,0.75) 50%, rgba(255,180,60,0.55) 70%, transparent 90%);
-          filter: blur(50px);
+            radial-gradient(ellipse 40% 90% at 30% 50%, rgba(255,200,80,0.40) 0%, rgba(255,200,80,0.18) 40%, transparent 65%),
+            radial-gradient(ellipse 35% 80% at 60% 40%, rgba(255,140,40,0.30) 0%, rgba(255,140,40,0.12) 45%, transparent 65%),
+            radial-gradient(ellipse 30% 85% at 75% 55%, rgba(255,100,120,0.18) 0%, rgba(255,100,120,0.06) 40%, transparent 65%),
+            radial-gradient(ellipse 45% 70% at 45% 60%, rgba(255,180,60,0.25) 0%, rgba(255,180,60,0.10) 50%, transparent 70%),
+            linear-gradient(90deg, transparent 10%, rgba(255,200,80,0.22) 30%, rgba(255,220,100,0.32) 50%, rgba(255,180,60,0.22) 70%, transparent 90%);
+          filter: blur(60px);
           z-index: 3;
           animation: haze-roll 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
         .haze-wipe-flare {
           background:
-            radial-gradient(ellipse 30% 95% at 45% 50%, rgba(255,255,200,0.80) 0%, rgba(255,255,200,0.30) 40%, transparent 65%),
-            radial-gradient(ellipse 35% 80% at 55% 45%, rgba(255,200,80,0.50) 0%, rgba(255,200,80,0.15) 50%, transparent 70%);
-          filter: blur(35px);
+            radial-gradient(ellipse 30% 95% at 45% 50%, rgba(255,255,200,0.30) 0%, rgba(255,255,200,0.10) 40%, transparent 65%),
+            radial-gradient(ellipse 35% 80% at 55% 45%, rgba(255,200,80,0.20) 0%, rgba(255,200,80,0.06) 50%, transparent 70%);
+          filter: blur(45px);
           z-index: 4;
           animation: haze-roll 1.4s cubic-bezier(0.4, 0, 0.2, 1) 0.06s forwards;
         }
@@ -175,7 +175,7 @@ function HazeWipe() {
           background: repeating-linear-gradient(
             90deg,
             transparent 0px,
-            rgba(255,200,80,0.08) 3px,
+            rgba(255,200,80,0.04) 3px,
             transparent 6px,
             transparent 18px
           );
@@ -195,10 +195,10 @@ function HazeWipe() {
 
         .haze-wipe-spark {
           position: absolute;
-          width: 6px; height: 6px;
+          width: 4px; height: 4px;
           border-radius: 50%;
-          background: #ffe080;
-          box-shadow: 0 0 12px rgba(255,200,80,0.80), 0 0 24px rgba(255,140,40,0.40);
+          background: rgba(255,224,128,0.60);
+          box-shadow: 0 0 6px rgba(255,200,80,0.35), 0 0 12px rgba(255,140,40,0.15);
           z-index: 6;
           opacity: 0;
           left: -5%;
@@ -206,8 +206,8 @@ function HazeWipe() {
         }
         @keyframes haze-spark-fly {
           0%   { left: -5%; opacity: 0; }
-          15%  { opacity: 1; }
-          50%  { opacity: 0.8; }
+          15%  { opacity: 0.5; }
+          50%  { opacity: 0.35; }
           100% { left: 110%; opacity: 0; }
         }
       `}</style>
