@@ -27,6 +27,7 @@ import { useCallStore } from '../../store/callStore';
 import { useGroupCallStore } from '../../store/groupCallStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
+import { useThemeStore, isUltraTheme } from '../../store/themeStore';
 import { useIsMobile } from '../../lib/useIsMobile';
 
 const SIDEBAR_MIN = 200;
@@ -57,6 +58,20 @@ export function ChatLayout() {
   const anyCallActive = callActive || groupCallActive;
   const { user, signOut } = useAuthStore();
   const isPremium = user?.is_premium === true;
+  const activeTheme = useThemeStore(s => s.theme);
+
+  // Load ultra theme ownership on mount
+  useEffect(() => {
+    if (user?.id) useThemeStore.getState().loadOwnership(user.id);
+  }, [user?.id]);
+
+  // If user loses premium, fall back from ultra theme
+  useEffect(() => {
+    if (!isPremium && isUltraTheme(activeTheme)) {
+      useThemeStore.getState().setTheme('day');
+    }
+  }, [isPremium, activeTheme]);
+
   const { pendingIncoming } = useFriendStore();
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
