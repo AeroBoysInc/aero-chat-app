@@ -10,7 +10,7 @@ interface ParallaxResult {
 
 export function useParallax(
   ref: RefObject<HTMLElement | null>,
-  maxRotate = 15,
+  maxRotate = 3,
 ): ParallaxResult {
   const mouseX = useRef(0);
   const mouseY = useRef(0);

@@ -1,32 +1,40 @@
 import { memo, useRef, useCallback, forwardRef, type ReactNode } from 'react';
-import { Gamepad2, PenTool, CalendarDays, User, Globe, MessageSquare } from 'lucide-react';
+import { Gamepad2, PenTool, CalendarDays, User, Globe } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useParallax } from '../../hooks/useParallax';
-import { useFriendStore } from '../../store/friendStore';
-import { usePresenceStore } from '../../store/presenceStore';
-import { useUnreadStore } from '../../store/unreadStore';
 import { useServerStore } from '../../store/serverStore';
 import { useAuthStore } from '../../store/authStore';
-import { AvatarImage, type Status } from '../ui/AvatarImage';
+import { GlassBannerProfile } from './GlassBannerProfile';
+import { CompactSidebar } from './CompactSidebar';
+import { ChatWindow } from '../chat/ChatWindow';
+import { CallView } from '../call/CallView';
+import { GroupCallView } from '../call/GroupCallView';
+import { useChatStore } from '../../store/chatStore';
+import { useCallStore } from '../../store/callStore';
+import { useGroupCallStore } from '../../store/groupCallStore';
 
 export type TileId = 'home' | 'games' | 'writers' | 'calendar' | 'avatar' | 'servers';
 
-interface TileGridProps {
-  onTileClick: (id: TileId, el: HTMLElement) => void;
-  tileRefs: React.MutableRefObject<Record<TileId, HTMLElement | null>>;
-  visible: boolean;
-}
+/* ── Shared glass tile styles ── */
+const GLASS_TILE: React.CSSProperties = {
+  borderRadius: 18,
+  position: 'relative',
+  overflow: 'hidden',
+  background: 'linear-gradient(145deg, rgba(0,230,118,0.08), rgba(0,30,18,0.92))',
+  border: '1px solid rgba(0,230,118,0.18)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.08)',
+};
 
-/* ── Individual parallax tile wrapper ── */
+/* ── Decorative parallax tile (info panels) ── */
 const ParallaxTile = forwardRef<HTMLDivElement, {
   children: ReactNode;
-  onClick: () => void;
+  onClick?: () => void;
   style?: React.CSSProperties;
 }>(function ParallaxTile({ children, onClick, style }, fwdRef) {
   const localRef = useRef<HTMLDivElement>(null);
-  const { onMouseMove, onMouseEnter, onMouseLeave } = useParallax(localRef, 12);
+  const { onMouseMove, onMouseEnter, onMouseLeave } = useParallax(localRef);
 
-  // Merge the forwarded ref (callback) with our local ref
   const mergedRef = useCallback((el: HTMLDivElement | null) => {
     localRef.current = el;
     if (typeof fwdRef === 'function') fwdRef(el);
@@ -40,29 +48,22 @@ const ParallaxTile = forwardRef<HTMLDivElement, {
       onMouseMove={onMouseMove}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="tile-paused"
       style={{
-        borderRadius: 18,
-        position: 'relative',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        background: 'linear-gradient(145deg, rgba(0,230,118,0.08), rgba(0,30,18,0.92))',
-        border: '1px solid rgba(0,230,118,0.18)',
-        backdropFilter: 'blur(16px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.08)',
+        ...GLASS_TILE,
+        cursor: onClick ? 'pointer' : 'default',
         transition: 'box-shadow 0.3s ease',
         ...style,
       }}
       onMouseOver={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow =
+        e.currentTarget.style.boxShadow =
           '0 12px 40px rgba(0,230,118,0.10), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,230,118,0.12)';
       }}
       onMouseOut={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow =
+        e.currentTarget.style.boxShadow =
           '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.08)';
       }}
     >
-      {/* Gloss highlight (convex bubble) */}
+      {/* Gloss highlight */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
         background: 'linear-gradient(180deg, rgba(0,230,118,0.06) 0%, transparent 100%)',
@@ -75,7 +76,6 @@ const ParallaxTile = forwardRef<HTMLDivElement, {
         boxShadow: 'inset 0 0 40px rgba(0,230,118,0.04)',
         pointerEvents: 'none', zIndex: 1,
       }} />
-      {/* Content */}
       <div style={{ position: 'relative', zIndex: 2, height: '100%' }}>
         {children}
       </div>
@@ -88,78 +88,72 @@ function TileLabel({ title, sub, icon: Icon }: { title: string; sub?: string; ic
   return (
     <>
       <div style={{
-        position: 'absolute', bottom: 12, left: 14, zIndex: 3,
+        position: 'absolute', bottom: 10, left: 12, zIndex: 3,
         textShadow: '0 2px 8px rgba(0,0,0,0.8)',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#00e676' }}>{title}</div>
-        {sub && <div style={{ fontSize: 10, fontWeight: 400, color: 'rgba(0,230,118,0.40)', marginTop: 2 }}>{sub}</div>}
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#00e676' }}>{title}</div>
+        {sub && <div style={{ fontSize: 9, fontWeight: 400, color: 'rgba(0,230,118,0.40)', marginTop: 1 }}>{sub}</div>}
       </div>
-      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 3, opacity: 0.25 }}>
-        <Icon style={{ width: 18, height: 18, color: '#00e676' }} />
+      <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, opacity: 0.20 }}>
+        <Icon style={{ width: 14, height: 14, color: '#00e676' }} />
       </div>
     </>
   );
 }
 
-/* ── Home tile preview ── */
-const HomeTilePreview = memo(function HomeTilePreview() {
-  const friends = useFriendStore(useShallow(s => s.friends));
-  const onlineIds = usePresenceStore(s => s.onlineIds);
-  const presenceReady = usePresenceStore(s => s.presenceReady);
-  const unreads = useUnreadStore(s => s.counts);
-  const totalUnread = Object.values(unreads).reduce((a, b) => a + b, 0);
-
-  const displayed = friends.slice(0, 7);
+/* ── Home panel (interactive chat — no parallax) ── */
+const HomePanel = memo(function HomePanel() {
+  const { selectedContact, setSelectedContact } = useChatStore();
+  const callStatus = useCallStore(s => s.status);
+  const callActive = callStatus !== 'idle';
+  const groupCallStatus = useGroupCallStore(s => s.status);
+  const groupCallActive = groupCallStatus !== 'idle' && groupCallStatus !== 'ringing';
 
   return (
-    <div style={{ paddingTop: 14, height: '100%', position: 'relative' }}>
-      {displayed.map(f => {
-        const isOnline = presenceReady ? onlineIds.has(f.id) : true;
-        const effective: Status = isOnline ? ((f.status as Status) ?? 'online') : 'offline';
-        const unread = unreads[f.id] ?? 0;
-        return (
-          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px' }}>
-            <AvatarImage username={f.username} avatarUrl={f.avatar_url} size="sm" status={effective} />
+    <div style={{ ...GLASS_TILE, gridRow: '1 / 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <GlassBannerProfile />
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <CompactSidebar
+          selectedUserId={selectedContact?.id ?? null}
+          onSelectUser={setSelectedContact}
+        />
+        <div className="master-compact" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {callActive ? (
+            <CallView />
+          ) : groupCallActive ? (
+            <GroupCallView />
+          ) : selectedContact ? (
+            <ChatWindow contact={selectedContact} />
+          ) : (
             <div style={{
-              flex: 1, fontSize: 10, fontWeight: 600,
-              color: 'rgba(255,255,255,0.50)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(0,230,118,0.20)', fontSize: 11,
             }}>
-              {f.username}
+              Select a conversation
             </div>
-            {unread > 0 && (
-              <span style={{
-                fontSize: 7, fontWeight: 700,
-                background: 'rgba(0,230,118,0.22)', color: '#00e676',
-                padding: '1px 5px', borderRadius: 6,
-              }}>
-                {unread}
-              </span>
-            )}
-          </div>
-        );
-      })}
-      <TileLabel title="Home" sub={totalUnread > 0 ? `${totalUnread} unread` : `${friends.length} friends`} icon={MessageSquare} />
+          )}
+        </div>
+      </div>
     </div>
   );
 });
 
-/* ── Games tile preview ── */
-const GamesTilePreview = memo(function GamesTilePreview() {
+/* ── Games tile ── */
+const GamesTile = memo(function GamesTile() {
   const games = [
     { icon: '🎯', name: 'Bubble Pop' },
     { icon: '♟', name: 'Chess' },
     { icon: '🧩', name: '2048' },
   ];
   return (
-    <div style={{ padding: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ padding: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {games.map((g, i) => (
         <div key={i} style={{
-          width: 34, height: 34, borderRadius: 10,
+          width: 30, height: 30, borderRadius: 8,
           background: `rgba(0,230,118,${0.10 - i * 0.02})`,
           border: `1px solid rgba(0,230,118,${0.15 - i * 0.03})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14,
+          fontSize: 12,
         }}>
           {g.icon}
         </div>
@@ -169,13 +163,13 @@ const GamesTilePreview = memo(function GamesTilePreview() {
   );
 });
 
-/* ── Writers tile preview ── */
-const WritersTilePreview = memo(function WritersTilePreview() {
+/* ── Writers tile ── */
+const WritersTile = memo(function WritersTile() {
   return (
-    <div style={{ padding: 14 }}>
+    <div style={{ padding: 12 }}>
       {[75, 90, 60, 82, 45].map((w, i) => (
         <div key={i} style={{
-          height: 5, borderRadius: 3, marginBottom: 5,
+          height: 4, borderRadius: 2, marginBottom: 4,
           width: `${w}%`, background: 'rgba(0,230,118,0.10)',
         }} />
       ))}
@@ -184,16 +178,16 @@ const WritersTilePreview = memo(function WritersTilePreview() {
   );
 });
 
-/* ── Calendar tile preview ── */
-const CalendarTilePreview = memo(function CalendarTilePreview() {
+/* ── Calendar tile ── */
+const CalendarTile = memo(function CalendarTile() {
   const now = new Date();
   return (
-    <div style={{ padding: 14, textAlign: 'center' }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(0,230,118,0.40)', letterSpacing: 1 }}>TODAY</div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: 'rgba(0,230,118,0.60)', lineHeight: 1.1 }}>
+    <div style={{ padding: 12, textAlign: 'center' }}>
+      <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(0,230,118,0.40)', letterSpacing: 1 }}>TODAY</div>
+      <div style={{ fontSize: 30, fontWeight: 800, color: 'rgba(0,230,118,0.60)', lineHeight: 1.1 }}>
         {String(now.getDate()).padStart(2, '0')}
       </div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,230,118,0.35)' }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(0,230,118,0.35)' }}>
         {now.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
       </div>
       <TileLabel title="Calendar" sub="2 events" icon={CalendarDays} />
@@ -201,23 +195,23 @@ const CalendarTilePreview = memo(function CalendarTilePreview() {
   );
 });
 
-/* ── Avatar tile preview ── */
-const AvatarTilePreview = memo(function AvatarTilePreview() {
+/* ── Avatar tile ── */
+const AvatarTile = memo(function AvatarTile() {
   const user = useAuthStore(s => s.user);
   return (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <div style={{
-        width: 48, height: 48, borderRadius: '50%',
+        width: 40, height: 40, borderRadius: '50%',
         background: 'rgba(0,230,118,0.10)',
         border: '2px solid rgba(0,230,118,0.25)',
-        boxShadow: '0 0 16px rgba(0,230,118,0.10)',
+        boxShadow: '0 0 12px rgba(0,230,118,0.10)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         overflow: 'hidden',
       }}>
         {user?.avatar_url ? (
           <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(0,230,118,0.50)' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(0,230,118,0.50)' }}>
             {(user?.username ?? '?')[0].toUpperCase()}
           </span>
         )}
@@ -227,22 +221,22 @@ const AvatarTilePreview = memo(function AvatarTilePreview() {
   );
 });
 
-/* ── Servers tile preview ── */
-const ServersTilePreview = memo(function ServersTilePreview() {
+/* ── Servers tile ── */
+const ServersTile = memo(function ServersTile() {
   const servers = useServerStore(useShallow(s => s.servers));
   const serverUnreads = useServerStore(s => s.serverUnreads);
   const totalUnread = Object.values(serverUnreads).reduce((a, b) => a + b, 0);
   const displayed = servers.slice(0, 4);
 
   return (
-    <div style={{ padding: '10px 14px', display: 'flex', gap: 12, alignItems: 'center', height: '100%' }}>
+    <div style={{ padding: '8px 14px', display: 'flex', gap: 10, alignItems: 'center', height: '100%' }}>
       {displayed.map(s => (
         <div key={s.id} style={{
-          width: 34, height: 34, borderRadius: 10,
+          width: 32, height: 32, borderRadius: 8,
           background: 'rgba(0,230,118,0.08)',
           border: '1px solid rgba(0,230,118,0.14)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, color: 'rgba(0,230,118,0.45)',
+          fontSize: 10, fontWeight: 700, color: 'rgba(0,230,118,0.45)',
         }}>
           {s.name.slice(0, 2).toUpperCase()}
         </div>
@@ -263,8 +257,14 @@ const ServersTilePreview = memo(function ServersTilePreview() {
 });
 
 /* ── Main TileGrid ── */
-export const TileGrid = memo(function TileGrid({ onTileClick, tileRefs, visible }: TileGridProps) {
-  const setRef = (id: TileId) => (el: HTMLDivElement | null) => { tileRefs.current[id] = el; };
+interface TileGridProps {
+  onServersClick: (el: HTMLElement) => void;
+  serversRef: React.MutableRefObject<HTMLElement | null>;
+  visible: boolean;
+}
+
+export const TileGrid = memo(function TileGrid({ onServersClick, serversRef, visible }: TileGridProps) {
+  const setServersRef = useCallback((el: HTMLDivElement | null) => { serversRef.current = el; }, [serversRef]);
 
   return (
     <div style={{
@@ -287,26 +287,20 @@ export const TileGrid = memo(function TileGrid({ onTileClick, tileRefs, visible 
         flex: 1,
         minHeight: 0,
       }}>
-        <ParallaxTile ref={setRef('home')} onClick={() => onTileClick('home', tileRefs.current.home!)} style={{ gridRow: '1 / 3' }}>
-          <HomeTilePreview />
-        </ParallaxTile>
-        <ParallaxTile ref={setRef('games')} onClick={() => onTileClick('games', tileRefs.current.games!)}>
-          <GamesTilePreview />
-        </ParallaxTile>
-        <ParallaxTile ref={setRef('writers')} onClick={() => onTileClick('writers', tileRefs.current.writers!)}>
-          <WritersTilePreview />
-        </ParallaxTile>
-        <ParallaxTile ref={setRef('calendar')} onClick={() => onTileClick('calendar', tileRefs.current.calendar!)}>
-          <CalendarTilePreview />
-        </ParallaxTile>
-        <ParallaxTile ref={setRef('avatar')} onClick={() => onTileClick('avatar', tileRefs.current.avatar!)}>
-          <AvatarTilePreview />
-        </ParallaxTile>
+        <HomePanel />
+        <ParallaxTile><GamesTile /></ParallaxTile>
+        <ParallaxTile><WritersTile /></ParallaxTile>
+        <ParallaxTile><CalendarTile /></ParallaxTile>
+        <ParallaxTile><AvatarTile /></ParallaxTile>
       </div>
 
-      {/* Servers wide bar */}
-      <ParallaxTile ref={setRef('servers')} onClick={() => onTileClick('servers', tileRefs.current.servers!)} style={{ height: 62, flexShrink: 0 }}>
-        <ServersTilePreview />
+      {/* Servers wide bar — only clickable tile */}
+      <ParallaxTile
+        ref={setServersRef}
+        onClick={() => serversRef.current && onServersClick(serversRef.current)}
+        style={{ height: 62, flexShrink: 0 }}
+      >
+        <ServersTile />
       </ParallaxTile>
     </div>
   );

@@ -5,7 +5,7 @@ import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { FriendRequestModal } from '../chat/FriendRequestModal';
 import { PremiumModal } from '../ui/PremiumModal';
 import { MiniCallWidget } from '../call/MiniCallWidget';
-import { TileGrid, type TileId } from './TileGrid';
+import { TileGrid } from './TileGrid';
 import { FullscreenView } from './FullscreenView';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -21,52 +21,31 @@ export const MasterThemeDashboard = memo(function MasterThemeDashboard() {
   const groupCallStatus = useGroupCallStore(s => s.status);
   const anyCallActive = callStatus !== 'idle' || (groupCallStatus !== 'idle' && groupCallStatus !== 'ringing');
 
-  const [expandedTile, setExpandedTile] = useState<TileId | null>(null);
+  const [serversExpanded, setServersExpanded] = useState(false);
   const [flipRect, setFlipRect] = useState<DOMRect | null>(null);
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
 
-  const tileRefs = useRef<Record<TileId, HTMLElement | null>>({
-    home: null, games: null, writers: null, calendar: null, avatar: null, servers: null,
-  });
+  const serversRef = useRef<HTMLElement | null>(null);
+  const { openServerOverlay, closeServerOverlay } = useCornerStore();
 
-  // Open corner store state when expanding tiles that map to corners
-  const { openGameHub, openWriterHub, openCalendarView, openAvatarView, openServerOverlay } = useCornerStore();
-
-  const handleTileClick = useCallback((id: TileId, el: HTMLElement) => {
-    const rect = el.getBoundingClientRect();
-    setFlipRect(rect);
-    setExpandedTile(id);
-
-    // Sync corner store so existing components work
-    if (id === 'games') openGameHub();
-    else if (id === 'writers') openWriterHub();
-    else if (id === 'calendar') openCalendarView();
-    else if (id === 'avatar') openAvatarView();
-    else if (id === 'servers') openServerOverlay();
-  }, [openGameHub, openWriterHub, openCalendarView, openAvatarView, openServerOverlay]);
-
-  const { closeGameView, closeWriterView, closeCalendarView, closeAvatarView, closeServerOverlay } = useCornerStore();
+  const handleServersClick = useCallback((el: HTMLElement) => {
+    setFlipRect(el.getBoundingClientRect());
+    setServersExpanded(true);
+    openServerOverlay();
+  }, [openServerOverlay]);
 
   const handleCollapse = useCallback(() => {
-    const tile = expandedTile;
-    setExpandedTile(null);
+    setServersExpanded(false);
     setFlipRect(null);
-
-    // Reset corner store
-    if (tile === 'games') closeGameView();
-    else if (tile === 'writers') closeWriterView();
-    else if (tile === 'calendar') closeCalendarView();
-    else if (tile === 'avatar') closeAvatarView();
-    else if (tile === 'servers') closeServerOverlay();
-  }, [expandedTile, closeGameView, closeWriterView, closeCalendarView, closeAvatarView, closeServerOverlay]);
+    closeServerOverlay();
+  }, [closeServerOverlay]);
 
   const getTargetTileRect = useCallback(() => {
-    if (!expandedTile) return null;
-    return tileRefs.current[expandedTile]?.getBoundingClientRect() ?? null;
-  }, [expandedTile]);
+    return serversRef.current?.getBoundingClientRect() ?? null;
+  }, []);
 
-  const dashboardVisible = expandedTile === null;
+  const dashboardVisible = !serversExpanded;
 
   return (
     <div style={{
@@ -77,7 +56,7 @@ export const MasterThemeDashboard = memo(function MasterThemeDashboard() {
       overflow: 'hidden',
       position: 'relative',
     }}>
-      {/* ── Header bar — only on dashboard ── */}
+      {/* ── Header bar ── */}
       <div style={{
         padding: '12px 16px',
         display: 'flex',
@@ -148,24 +127,24 @@ export const MasterThemeDashboard = memo(function MasterThemeDashboard() {
 
       {/* ── Tile Grid ── */}
       <TileGrid
-        onTileClick={handleTileClick}
-        tileRefs={tileRefs}
+        onServersClick={handleServersClick}
+        serversRef={serversRef}
         visible={dashboardVisible}
       />
 
-      {/* ── Fullscreen expanded tile ── */}
-      {expandedTile && flipRect && (
+      {/* ── Fullscreen servers view ── */}
+      {serversExpanded && flipRect && (
         <FullscreenView
-          key={expandedTile}
-          tileId={expandedTile}
+          key="servers"
+          tileId="servers"
           firstRect={flipRect}
           onCollapse={handleCollapse}
           targetTileRect={getTargetTileRect}
         />
       )}
 
-      {/* ── Mini call widget — always visible ── */}
-      {anyCallActive && !expandedTile && <MiniCallWidget />}
+      {/* ── Mini call widget ── */}
+      {anyCallActive && dashboardVisible && <MiniCallWidget />}
 
       {/* ── Modals ── */}
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
