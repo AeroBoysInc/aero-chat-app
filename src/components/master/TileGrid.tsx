@@ -1,4 +1,4 @@
-import { memo, useRef, forwardRef, type ReactNode } from 'react';
+import { memo, useRef, useCallback, forwardRef, type ReactNode } from 'react';
 import { Gamepad2, PenTool, CalendarDays, User, Globe, MessageSquare } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useParallax } from '../../hooks/useParallax';
@@ -24,12 +24,18 @@ const ParallaxTile = forwardRef<HTMLDivElement, {
   style?: React.CSSProperties;
 }>(function ParallaxTile({ children, onClick, style }, fwdRef) {
   const localRef = useRef<HTMLDivElement>(null);
-  const ref = (fwdRef ?? localRef) as React.RefObject<HTMLDivElement>;
-  const { onMouseMove, onMouseEnter, onMouseLeave } = useParallax(ref, 12);
+  const { onMouseMove, onMouseEnter, onMouseLeave } = useParallax(localRef, 12);
+
+  // Merge the forwarded ref (callback) with our local ref
+  const mergedRef = useCallback((el: HTMLDivElement | null) => {
+    localRef.current = el;
+    if (typeof fwdRef === 'function') fwdRef(el);
+    else if (fwdRef) fwdRef.current = el;
+  }, [fwdRef]);
 
   return (
     <div
-      ref={ref as React.Ref<HTMLDivElement>}
+      ref={mergedRef}
       onClick={onClick}
       onMouseMove={onMouseMove}
       onMouseEnter={onMouseEnter}
