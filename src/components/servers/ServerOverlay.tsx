@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useThemeStore } from '../../store/themeStore';
 import type { Server } from '../../lib/serverTypes';
 
 function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }: {
@@ -104,6 +105,129 @@ function ServerCard({ server, onlineCount, unread, isOwner, onClick, onDelete }:
   );
 }
 
+function UltraServerPicker({ servers, onlineCounts, serverUnreads, userId, onSelect, onClose, onCreateClick, onJoinClick }: {
+  servers: Server[];
+  onlineCounts: Record<string, number>;
+  serverUnreads: Record<string, number>;
+  userId: string;
+  onSelect: (server: Server) => void;
+  onClose: () => void;
+  onCreateClick: () => void;
+  onJoinClick: () => void;
+}) {
+  const theme = useThemeStore(s => s.theme);
+  const isFrutiger = theme === 'john-frutiger';
+
+  return (
+    <div
+      className="animate-fade-in"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.45)',
+        backdropFilter: 'blur(8px)',
+      }}
+      onClick={onClose}
+    >
+      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+        {/* Themed glow background */}
+        <div className="ultra-ambient" style={{
+          position: 'absolute', inset: -80, borderRadius: '50%',
+          background: isFrutiger
+            ? 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.10) 40%, transparent 65%)'
+            : 'radial-gradient(circle, rgba(255,220,100,0.35) 0%, rgba(255,180,50,0.15) 40%, transparent 65%)',
+          filter: 'blur(30px)',
+          animation: 'burst-breathe 4s ease-in-out infinite',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Picker title */}
+        <div style={{
+          textAlign: 'center', marginBottom: 16,
+          fontSize: 14, fontWeight: 700,
+          color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
+          textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        }}>
+          Choose a Server
+        </div>
+
+        {/* Server cards grid */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 14,
+          justifyContent: 'center', maxWidth: 480,
+          position: 'relative', zIndex: 2,
+        }}>
+          {servers.map((server, i) => (
+            <div
+              key={server.id}
+              className="animate-fade-in"
+              style={{
+                animationDelay: `${200 + i * 120}ms`,
+                animationFillMode: 'backwards',
+              }}
+            >
+              <ServerCard
+                server={server}
+                onlineCount={onlineCounts[server.id] ?? 0}
+                unread={serverUnreads[server.id] ?? 0}
+                isOwner={server.owner_id === userId}
+                onClick={() => onSelect(server)}
+                onDelete={() => {}}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 10, marginTop: 16,
+          position: 'relative', zIndex: 2,
+        }}>
+          <button
+            onClick={onCreateClick}
+            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{
+              background: isFrutiger ? 'rgba(255,255,255,0.15)' : 'rgba(255,180,80,0.15)',
+              border: `1px solid ${isFrutiger ? 'rgba(255,255,255,0.25)' : 'rgba(255,180,80,0.25)'}`,
+              color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            + Create
+          </button>
+          <button
+            onClick={onJoinClick}
+            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{
+              background: isFrutiger ? 'rgba(255,255,255,0.15)' : 'rgba(255,180,80,0.15)',
+              border: `1px solid ${isFrutiger ? 'rgba(255,255,255,0.25)' : 'rgba(255,180,80,0.25)'}`,
+              color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            Join
+          </button>
+        </div>
+
+        {/* Orbiting sparks for Golden Hour */}
+        {!isFrutiger && (
+          <div className="ultra-ambient" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {[0, -2, -4].map((d, i) => (
+              <div key={i} style={{
+                position: 'absolute', left: '50%', top: '50%',
+                width: 5, height: 5, borderRadius: '50%',
+                background: '#ffe080',
+                boxShadow: '0 0 10px rgba(255,200,80,0.7), 0 0 20px rgba(255,140,40,0.3)',
+                animation: `spark-orbit 6s linear ${d}s infinite`,
+              }} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const ServerOverlay = memo(function ServerOverlay({
   onCreateClick,
   onJoinClick,
@@ -117,6 +241,8 @@ export const ServerOverlay = memo(function ServerOverlay({
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const activeTheme = useThemeStore(s => s.theme);
+  const isUltra = activeTheme === 'john-frutiger' || activeTheme === 'golden-hour';
 
   useEffect(() => { loadServers().then(() => loadAllServerMembers()); }, []);
 
@@ -147,6 +273,19 @@ export const ServerOverlay = memo(function ServerOverlay({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') closeServerOverlay();
   }, []);
+
+  if (isUltra) return (
+    <UltraServerPicker
+      servers={servers}
+      onlineCounts={onlineCounts}
+      serverUnreads={serverUnreads}
+      userId={user?.id ?? ''}
+      onSelect={handleSelect}
+      onClose={closeServerOverlay}
+      onCreateClick={onCreateClick}
+      onJoinClick={onJoinClick}
+    />
+  );
 
   return (
     <div
