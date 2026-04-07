@@ -29,7 +29,9 @@ import { useCallStore } from '../../store/callStore';
 import { useGroupCallStore } from '../../store/groupCallStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
-import { useThemeStore, isUltraTheme } from '../../store/themeStore';
+import { useThemeStore, isUltraTheme, isMasterTheme } from '../../store/themeStore';
+
+const MasterThemeDashboard = lazy(() => import('../master/MasterThemeDashboard').then(m => ({ default: m.MasterThemeDashboard })));
 import { useIsMobile } from '../../lib/useIsMobile';
 
 const SIDEBAR_MIN = 200;
@@ -69,7 +71,7 @@ export function ChatLayout() {
 
   // If user loses premium, fall back from ultra theme
   useEffect(() => {
-    if (!isPremium && isUltraTheme(activeTheme)) {
+    if (!isPremium && (isUltraTheme(activeTheme) || isMasterTheme(activeTheme))) {
       useThemeStore.getState().setTheme('day');
     }
   }, [isPremium, activeTheme]);
@@ -170,6 +172,15 @@ export function ChatLayout() {
         </div>
 
       </div>
+    );
+  }
+
+  // ── Master Theme — completely different layout ──
+  if (isMasterTheme(activeTheme)) {
+    return (
+      <Suspense fallback={<div style={{ background: '#050505', height: '100vh' }} />}>
+        <MasterThemeDashboard />
+      </Suspense>
     );
   }
 

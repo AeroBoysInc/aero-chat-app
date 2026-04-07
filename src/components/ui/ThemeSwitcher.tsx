@@ -1,7 +1,7 @@
 import { useState, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Sun, Moon, Palette, X, Check, Waves, Sunset, Sparkles, Cherry } from 'lucide-react';
-import { useThemeStore, PREMIUM_THEMES, ULTRA_THEMES, type Theme } from '../../store/themeStore';
+import { useThemeStore, PREMIUM_THEMES, ULTRA_THEMES, MASTER_THEMES, type Theme } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
 
 /* ── Theme metadata ── */
@@ -114,6 +114,17 @@ const THEME_META: ThemeMeta[] = [
     panelBorder: 'rgba(255,180,80,0.22)', badgeBg: '#f5a623',
     inputBg: 'rgba(0,0,0,0.25)', recvBg: 'rgba(255,180,80,0.08)',
     hoverBg: 'rgba(255,180,80,0.08)',
+  },
+  {
+    id: 'master', label: 'Master', description: 'Emerald glass, parallax tile dashboard',
+    icon: <Sparkles className="h-4 w-4" />,
+    accent: '#00e676', accentSecondary: '#00c853', gradient: 'linear-gradient(135deg, #00e676, #00c853, #0a1a10)',
+    bodySnippet: '#050505',
+    sidebarBg: 'rgba(0,230,118,0.06)', chatBg: 'rgba(0,230,118,0.04)',
+    textPrimary: 'rgba(255,255,255,0.70)', textSecondary: 'rgba(255,255,255,0.45)', textMuted: 'rgba(255,255,255,0.22)',
+    panelBorder: 'rgba(0,230,118,0.18)', badgeBg: 'rgba(0,230,118,0.22)',
+    inputBg: 'rgba(0,230,118,0.04)', recvBg: 'rgba(0,230,118,0.06)',
+    hoverBg: 'rgba(0,230,118,0.06)',
   },
 ];
 
@@ -517,7 +528,7 @@ function PremiumPicker() {
                 }}>
                   Free
                 </div>
-                {THEME_META.filter(t => !PREMIUM_THEMES.includes(t.id) && !ULTRA_THEMES.includes(t.id)).map(meta => (
+                {THEME_META.filter(t => !PREMIUM_THEMES.includes(t.id) && !ULTRA_THEMES.includes(t.id) && !MASTER_THEMES.includes(t.id)).map(meta => (
                   <ThemeRow
                     key={meta.id}
                     meta={meta}
@@ -583,6 +594,42 @@ function PremiumPicker() {
                         const ok = await useThemeStore.getState().purchaseTheme(
                           meta.id as 'john-frutiger' | 'golden-hour', userId
                         );
+                        if (ok) setSelected(meta.id);
+                      }}
+                    />
+                  );
+                })}
+
+                {/* Divider */}
+                <div style={{ height: 1, background: 'var(--popup-divider)', margin: '8px 16px' }} />
+
+                {/* Section: Master Theme */}
+                <div style={{
+                  padding: '4px 16px 6px', fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  background: 'linear-gradient(90deg, #00e676, #00c853)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
+                  ✦ Master
+                </div>
+                {THEME_META.filter(t => MASTER_THEMES.includes(t.id)).map(meta => {
+                  const isOwned = useThemeStore.getState().ownsMaster;
+                  const isPrem = useAuthStore.getState().user?.is_premium === true;
+                  return (
+                    <UltraThemeRow
+                      key={meta.id}
+                      meta={meta}
+                      isActive={theme === meta.id}
+                      isSelected={selected === meta.id}
+                      isOwned={isOwned}
+                      isPremium={isPrem}
+                      onSelect={() => {
+                        if (isOwned && isPrem) setSelected(meta.id);
+                      }}
+                      onPurchase={async () => {
+                        const userId = useAuthStore.getState().user?.id;
+                        if (!userId || !isPrem) return;
+                        const ok = await useThemeStore.getState().purchaseTheme('master', userId);
                         if (ok) setSelected(meta.id);
                       }}
                     />
@@ -734,7 +781,7 @@ function UltraThemeRow({ meta, isActive, isSelected, isOwned, isPremium, onSelec
             whiteSpace: 'nowrap',
           }}
         >
-          Buy €2
+          Buy {MASTER_THEMES.includes(meta.id) ? '€5' : '€2'}
         </button>
       )}
       {locked && !isPremium && (
