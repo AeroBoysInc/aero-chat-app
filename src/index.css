@@ -715,6 +715,284 @@
   --date-sep-text:      rgba(200,136,168,0.40);
 }
 
+/* ═══ ULTRA: John Frutiger — bright sky, white glass, aqua accents ═══ */
+[data-theme="john-frutiger"] {
+  --body-bg:
+    radial-gradient(ellipse 480px 420px at 20% 15%, rgba(255,255,255,0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 420px 420px at 75% 60%, rgba(255,255,255,0.30) 0%, transparent 50%),
+    radial-gradient(ellipse 360px 360px at 50% 90%, rgba(0,180,255,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 280px 280px at 85% 20%, rgba(0,140,220,0.10) 0%, transparent 50%),
+    linear-gradient(170deg, #b8ecff 0%, #5ec8f5 20%, #0098e0 50%, #0068b8 80%, #004a90 100%);
+
+  --sidebar-bg:      rgba(255,255,255,0.18);
+  --sidebar-border:  rgba(255,255,255,0.30);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.50);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(255,255,255,0.12);
+  --chat-border:     rgba(255,255,255,0.22);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.50);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.04) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(255,255,255,0.22);
+  --card-bg-solid:   #d0ebff;
+  --card-border:     rgba(255,255,255,0.35);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.10), inset 0 1px 1px rgba(255,255,255,0.55);
+  --card-gloss:      linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.06) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: linear-gradient(180deg, rgba(0,120,255,0.08) 0%, transparent 100%);
+  --panel-divider:   rgba(255,255,255,0.18);
+
+  --text-primary:    rgba(0,40,80,0.90);
+  --text-secondary:  rgba(0,60,120,0.70);
+  --text-muted:      rgba(0,80,160,0.45);
+  --text-label:      rgba(0,60,120,0.40);
+  --text-title:      #0068b8;
+
+  --rail-icon:       rgba(255,255,255,0.55);
+  --rail-icon-hover: rgba(255,255,255,0.90);
+  --rail-bg-idle:    rgba(255,255,255,0.12);
+  --rail-bg-hover:   rgba(255,255,255,0.22);
+  --rail-border:     rgba(255,255,255,0.20);
+
+  --input-bg:        rgba(255,255,255,0.20);
+  --input-border:    rgba(255,255,255,0.30);
+  --input-text:      rgba(0,40,80,0.85);
+  --input-placeholder: rgba(0,80,160,0.35);
+  --input-focus-border: rgba(0,180,255,0.55);
+  --input-focus-ring:   rgba(0,180,255,0.15);
+
+  --hover-bg:        rgba(0,160,255,0.08);
+  --hover-bg-btn:    rgba(0,160,255,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,255,255,0.25) 0%, rgba(200,235,255,0.20) 100%);
+  --recv-border:     rgba(255,255,255,0.35);
+  --recv-text:       rgba(0,40,80,0.85);
+  --recv-time:       rgba(0,80,160,0.40);
+
+  --badge-bg:        #0098e0;
+  --badge-text:      #ffffff;
+
+  --switcher-bg:     rgba(255,255,255,0.25);
+  --switcher-border: rgba(255,255,255,0.35);
+
+  --popup-bg:           rgba(240,248,255,0.92);
+  --popup-border:       rgba(255,255,255,0.40);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.60);
+  --popup-text:         rgba(0,40,80,0.90);
+  --popup-text-secondary: rgba(0,40,80,0.65);
+  --popup-text-muted:   rgba(0,40,80,0.35);
+  --popup-text-label:   rgba(0,40,80,0.42);
+  --popup-divider:      rgba(0,120,200,0.10);
+  --popup-hover:        rgba(0,160,255,0.08);
+  --popup-icon:         rgba(0,120,200,0.70);
+  --popup-item-bg:      rgba(0,160,255,0.04);
+  --popup-select-bg:    rgba(0,160,255,0.06);
+  --popup-select-border: rgba(0,160,255,0.18);
+  --popup-select-text:  rgba(0,40,80,0.85);
+
+  --btn-ghost-bg:       rgba(0,160,255,0.06);
+  --btn-ghost-border:   rgba(0,160,255,0.14);
+  --reaction-idle-bg:   rgba(0,160,255,0.06);
+  --reaction-idle-border: rgba(0,160,255,0.14);
+  --separator-dot:      rgba(0,120,200,0.20);
+  --slider-track:       rgba(0,160,255,0.18);
+  --game-activity-color: #00d4ff;
+
+  --game-tile-empty-bg:          rgba(0,160,255,0.04);
+  --game-tile-empty-border:      rgba(0,160,255,0.10);
+  --game-tile-tbd-bg:            rgba(0,160,255,0.08);
+  --game-tile-tbd-border:        rgba(0,160,255,0.35);
+  --game-tile-absent-bg:         rgba(0,160,255,0.03);
+  --game-tile-absent-border:     rgba(0,160,255,0.08);
+  --game-tile-absent-color:      rgba(0,40,80,0.20);
+  --game-key-bg:                 rgba(0,160,255,0.08);
+  --game-key-border:             rgba(0,160,255,0.15);
+  --game-key-absent-bg:          rgba(0,160,255,0.03);
+  --game-key-absent-border:      rgba(0,160,255,0.05);
+  --game-key-absent-color:       rgba(0,40,80,0.18);
+  --typing-word-future:          rgba(0,40,80,0.15);
+  --typing-word-active-pending:  rgba(0,40,80,0.20);
+  --typing-word-done-correct:    rgba(0,40,80,0.55);
+  --typing-surface-bg:           rgba(0,160,255,0.03);
+  --typing-surface-border:       rgba(0,160,255,0.08);
+
+  --aura-online:        rgba(0,212,255,0.55);
+  --aura-gaming:        rgba(79,201,122,0.55);
+  --aura-incall:        rgba(255,160,0,0.65);
+  --aura-busy:          rgba(255,80,50,0.55);
+  --aura-away:          rgba(0,150,200,0.28);
+  --aura-glow-online:   rgba(0,180,255,0.30);
+  --aura-glow-gaming:   rgba(50,180,80,0.30);
+  --aura-glow-incall:   rgba(200,120,0,0.35);
+  --aura-glow-busy:     rgba(220,60,20,0.28);
+  --date-sep-line:      rgba(120,180,220,0.25);
+  --date-sep-text:      rgba(80,130,170,0.50);
+}
+
+/* ═══ ULTRA: Golden Hour — Vista sunset, dark glass, amber/gold ═══ */
+[data-theme="golden-hour"] {
+  --body-bg:
+    radial-gradient(ellipse 480px 300px at 50% 85%, rgba(255,180,50,0.45) 0%, transparent 55%),
+    radial-gradient(ellipse 420px 420px at 70% 40%, rgba(255,100,140,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 360px 360px at 30% 20%, rgba(255,120,60,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 280px 280px at 50% 50%, rgba(255,140,0,0.10) 0%, transparent 50%),
+    linear-gradient(180deg, #1a0a2e 0%, #2d1045 12%, #5c1a3a 25%, #8b3a2a 38%, #c45e1a 55%, #e88a20 68%, #f5a623 80%, #ffe680 100%);
+
+  --sidebar-bg:      rgba(60,30,10,0.55);
+  --sidebar-border:  rgba(255,180,80,0.22);
+  --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,220,150,0.20);
+  --sidebar-gloss:   linear-gradient(180deg, rgba(255,200,120,0.12) 0%, rgba(255,160,60,0.03) 38%, rgba(0,0,0,0) 60%);
+
+  --chat-bg:         rgba(40,20,8,0.55);
+  --chat-border:     rgba(255,180,80,0.18);
+  --chat-shadow:     0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,220,150,0.15);
+  --chat-gloss:      linear-gradient(180deg, rgba(255,200,100,0.10) 0%, rgba(255,160,60,0.03) 30%, rgba(0,0,0,0) 50%);
+
+  --card-bg:         rgba(60,30,10,0.65);
+  --card-bg-solid:   #3a1a0e;
+  --card-border:     rgba(255,180,80,0.25);
+  --card-shadow:     0 12px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,220,150,0.18);
+  --card-gloss:      linear-gradient(180deg, rgba(255,200,120,0.12) 0%, rgba(255,160,60,0.03) 40%, rgba(0,0,0,0) 62%);
+
+  --panel-header-bg: linear-gradient(180deg, rgba(255,200,120,0.10) 0%, transparent 100%);
+  --panel-divider:   rgba(255,180,80,0.14);
+
+  --text-primary:    #ffe0c0;
+  --text-secondary:  #c89060;
+  --text-muted:      #8a5c38;
+  --text-label:      #7a5030;
+  --text-title:      #ffe0a0;
+
+  --rail-icon:       rgba(255,200,100,0.50);
+  --rail-icon-hover: rgba(255,220,150,0.90);
+  --rail-bg-idle:    rgba(255,180,80,0.08);
+  --rail-bg-hover:   rgba(255,180,80,0.18);
+  --rail-border:     rgba(255,180,80,0.14);
+
+  --input-bg:        rgba(0,0,0,0.25);
+  --input-border:    rgba(255,180,80,0.20);
+  --input-text:      #ffe0c0;
+  --input-placeholder: rgba(200,140,80,0.40);
+  --input-focus-border: rgba(255,180,80,0.45);
+  --input-focus-ring:   rgba(255,180,50,0.15);
+
+  --hover-bg:        rgba(255,180,80,0.08);
+  --hover-bg-btn:    rgba(255,180,80,0.15);
+
+  --recv-bg:         linear-gradient(160deg, rgba(255,180,80,0.08) 0%, rgba(200,100,30,0.10) 100%);
+  --recv-border:     rgba(255,180,80,0.18);
+  --recv-text:       #ffe0c0;
+  --recv-time:       rgba(200,140,80,0.45);
+
+  --badge-bg:        #f5a623;
+  --badge-text:      #1a0a04;
+
+  --switcher-bg:     rgba(60,30,10,0.80);
+  --switcher-border: rgba(255,180,80,0.28);
+
+  --popup-bg:           rgba(50,25,10,0.94);
+  --popup-border:       rgba(255,180,80,0.22);
+  --popup-shadow:       0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,200,100,0.15);
+  --popup-text:         rgba(255,224,192,0.90);
+  --popup-text-secondary: rgba(255,224,192,0.60);
+  --popup-text-muted:   rgba(255,224,192,0.32);
+  --popup-text-label:   rgba(255,224,192,0.38);
+  --popup-divider:      rgba(255,180,80,0.10);
+  --popup-hover:        rgba(255,180,80,0.08);
+  --popup-icon:         rgba(255,200,100,0.75);
+  --popup-item-bg:      rgba(255,180,80,0.04);
+  --popup-select-bg:    rgba(255,180,80,0.06);
+  --popup-select-border: rgba(255,180,80,0.16);
+  --popup-select-text:  rgba(255,224,192,0.85);
+
+  --btn-ghost-bg:       rgba(255,180,80,0.08);
+  --btn-ghost-border:   rgba(255,180,80,0.14);
+  --reaction-idle-bg:   rgba(255,180,80,0.06);
+  --reaction-idle-border: rgba(255,180,80,0.12);
+  --separator-dot:      rgba(255,180,80,0.22);
+  --slider-track:       rgba(255,180,80,0.15);
+  --game-activity-color: #ffb060;
+
+  --game-tile-empty-bg:          rgba(255,180,80,0.03);
+  --game-tile-empty-border:      rgba(255,180,80,0.09);
+  --game-tile-tbd-bg:            rgba(255,180,80,0.08);
+  --game-tile-tbd-border:        rgba(255,180,80,0.35);
+  --game-tile-absent-bg:         rgba(255,180,80,0.04);
+  --game-tile-absent-border:     rgba(255,180,80,0.08);
+  --game-tile-absent-color:      rgba(255,224,192,0.22);
+  --game-key-bg:                 rgba(255,180,80,0.08);
+  --game-key-border:             rgba(255,180,80,0.14);
+  --game-key-absent-bg:          rgba(255,180,80,0.03);
+  --game-key-absent-border:      rgba(255,180,80,0.05);
+  --game-key-absent-color:       rgba(255,224,192,0.18);
+  --typing-word-future:          rgba(255,224,192,0.15);
+  --typing-word-active-pending:  rgba(255,224,192,0.20);
+  --typing-word-done-correct:    rgba(255,224,192,0.50);
+  --typing-surface-bg:           rgba(255,180,80,0.025);
+  --typing-surface-border:       rgba(255,180,80,0.07);
+
+  --aura-online:        rgba(255,200,80,0.55);
+  --aura-gaming:        rgba(128,224,64,0.55);
+  --aura-incall:        rgba(255,160,0,0.70);
+  --aura-busy:          rgba(255,80,50,0.60);
+  --aura-away:          rgba(200,140,60,0.30);
+  --aura-glow-online:   rgba(255,180,50,0.30);
+  --aura-glow-gaming:   rgba(100,200,50,0.30);
+  --aura-glow-incall:   rgba(240,140,20,0.40);
+  --aura-glow-busy:     rgba(220,60,20,0.30);
+  --date-sep-line:      rgba(255,180,80,0.14);
+  --date-sep-text:      rgba(200,140,80,0.38);
+}
+
+/* ═══ ULTRA THEME KEYFRAMES ═══ */
+@keyframes cloud-float {
+  0%, 100% { transform: translate(0px, 0px); }
+  25%      { transform: translate(15px, -8px); }
+  50%      { transform: translate(-10px, 5px); }
+  75%      { transform: translate(8px, -3px); }
+}
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+@keyframes ember-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  10%  { opacity: 0.7; }
+  80%  { opacity: 0.2; }
+  100% { opacity: 0; transform: translateY(-100vh) scale(0.2); }
+}
+@keyframes aurora-drift {
+  0%, 100% { transform: translateX(0) scaleY(1); }
+  33%      { transform: translateX(5%) scaleY(1.1); }
+  66%      { transform: translateX(-3%) scaleY(0.9); }
+}
+@keyframes ray-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+@keyframes burst-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+@keyframes ring-pulse-orbit {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.04); opacity: 0.8; }
+}
+@keyframes spark-orbit {
+  0%   { transform: rotate(0deg) translateX(200px) rotate(0deg); opacity: 0.7; }
+  25%  { opacity: 1; }
+  50%  { opacity: 0.4; }
+  75%  { opacity: 0.9; }
+  100% { transform: rotate(360deg) translateX(200px) rotate(-360deg); opacity: 0.7; }
+}
+
+/* Pause ultra animations when idle */
+.paused .ultra-ambient,
+.paused .ultra-ambient * {
+  animation-play-state: paused !important;
+}
+
 /* ═══════════════════════════════════════════════
    BASE
 ═══════════════════════════════════════════════ */
