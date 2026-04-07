@@ -20,6 +20,7 @@ import { ServerView } from '../servers/ServerView';
 import { CreateServerWizard } from '../servers/CreateServerWizard';
 import { JoinServerModal } from '../servers/JoinServerModal';
 import { PremiumModal } from '../ui/PremiumModal';
+import { AmbientBackground } from '../ui/AmbientBackground';
 import { playSwoosh } from '../../lib/swooshSound';
 import { useChatStore } from '../../store/chatStore';
 import { useCornerStore } from '../../store/cornerStore';
@@ -162,7 +163,8 @@ export function ChatLayout() {
 
   // ── Desktop layout ──────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden" style={{ position: 'relative' }}>
+      <AmbientBackground />
 
       {/* ── Glass top bar — AeroChat header + actions ── */}
       <div className="drag-region flex-shrink-0 px-3 pt-3 pb-2">
