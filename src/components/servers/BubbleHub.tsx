@@ -6,6 +6,7 @@ import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import type { Bubble } from '../../lib/serverTypes';
 
 // Distribute bubbles in a circle around center
