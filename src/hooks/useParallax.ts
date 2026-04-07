@@ -11,14 +11,13 @@ interface ParallaxResult {
 export function useParallax(
   ref: RefObject<HTMLElement | null>,
   maxRotate = 15,
-  bgShift = 20,
 ): ParallaxResult {
   const mouseX = useRef(0);
   const mouseY = useRef(0);
   const currentRX = useRef(0);
   const currentRY = useRef(0);
   const rafId = useRef(0);
-  const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const styleRef = useRef<CSSProperties>({
     transform: 'perspective(800px) rotateY(0deg) rotateX(0deg)',
     transition: 'transform 0.1s ease-out',

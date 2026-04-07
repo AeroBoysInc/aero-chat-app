@@ -100,7 +100,7 @@ const HomeTilePreview = memo(function HomeTilePreview() {
   const friends = useFriendStore(useShallow(s => s.friends));
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
-  const unreads = useUnreadStore(s => s.unreads);
+  const unreads = useUnreadStore(s => s.counts);
   const totalUnread = Object.values(unreads).reduce((a, b) => a + b, 0);
 
   const displayed = friends.slice(0, 7);
