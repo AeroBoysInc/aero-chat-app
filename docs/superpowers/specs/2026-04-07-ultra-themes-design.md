@@ -11,7 +11,7 @@ Two premium-only purchasable themes that completely transform the visual layout 
 - **Availability:** Only usable while `is_premium = true`. If the user downgrades, the themes are hidden but not lost — they reappear on re-subscription
 - **Storage:** New columns on `profiles` table: `owns_john_frutiger BOOLEAN DEFAULT false`, `owns_golden_hour BOOLEAN DEFAULT false`
 - **Purchase flow (temporary):** Mock purchase button that instantly sets the flag to `true` and shows a success toast. No real payment integration yet.
-- **Theme selector:** Ultra themes appear in the existing theme picker (settings) with a lock icon if not purchased, a "Buy €2" button if premium but not owned, or selectable if owned + premium
+- **Theme selector:** Ultra themes live in a dedicated "Ultra Themes" section in the theme picker, positioned below the Aero Chat+ area — more extravagant presentation than standard themes (larger cards, preview imagery, glow effects). Lock icon if not purchased, "Buy €2" button if premium but not owned, selectable if owned + premium
 
 ---
 
