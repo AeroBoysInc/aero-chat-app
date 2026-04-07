@@ -532,7 +532,7 @@ const MessageItem = memo(function MessageItem({
         {!isMine && <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />}
 
         <div className="flex flex-col" style={{ alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
-          <div className={`selectable rounded-aero-lg px-4 py-2.5${isMine && activeBubble.gloss ? ' sent-bubble-gloss' : ''}`}
+          <div className={`selectable rounded-aero-lg px-4 py-2.5${isMine && activeBubble.gloss ? ' sent-bubble-gloss' : ''}${isMine ? ' ultra-sent-gloss' : ''}`}
             style={isMine ? {
               background: activeBubble.bg,
               boxShadow: activeBubble.shadow,
@@ -1196,6 +1196,13 @@ export function ChatWindow({ contact, onBack }: Props) {
     setMessages(prev => [...prev, optimistic]);
     setInput('');
 
+    // Award chatter XP immediately (before network) — anti-abuse: 3+ char, not duplicate
+    if (text.length >= 3) {
+      const hash = text.slice(0, 50);
+      const isPrem = user?.is_premium === true;
+      useXpStore.getState().awardXp('chatter', 2, user!.id, isPrem, hash);
+    }
+
     // ── Encrypt & send in background ──
     const expiresAt = getExpiresAt();
     const ciphertext = encryptMessage(text, contactKeyRef.current!, privateKey);
@@ -1218,14 +1225,6 @@ export function ChatWindow({ contact, onBack }: Props) {
       });
     }
     setSending(false);
-
-    // Award chatter XP — anti-abuse: 3+ char, not duplicate
-    if (text.length >= 3) {
-      const hash = text.slice(0, 50);
-      const isPrem = user?.is_premium === true;
-      useXpStore.getState().awardXp('chatter', 2, user!.id, isPrem, hash);
-    }
-
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
@@ -1402,18 +1401,22 @@ export function ChatWindow({ contact, onBack }: Props) {
   // ── File / image sharing ──────────────────────────────────────────────────────
   async function uploadAndSendFile(file: File) {
     if (!user) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setSendError('File too large. Maximum size is 10 MB.');
+    const isPrem = user.is_premium === true;
+    const maxBytes = isPrem ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxLabel = isPrem ? '50 MB' : '10 MB';
+    if (file.size > maxBytes) {
+      setSendError(`File too large. Maximum size is ${maxLabel}.${!isPrem ? ' Upgrade to Aero Chat+ for 50 MB.' : ''}`);
       return;
     }
 
     setIsUploading(true);
     setSendError('');
 
+    const bucket = isPrem ? 'chat-files-premium' : 'chat-files';
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage
-      .from('chat-files').upload(path, file, { contentType: file.type });
+      .from(bucket).upload(path, file, { contentType: file.type });
 
     if (uploadError) {
       setSendError('Upload failed. Please try again.');
@@ -1421,7 +1424,7 @@ export function ChatWindow({ contact, onBack }: Props) {
       return;
     }
 
-    const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     await sendEncryptedContent(JSON.stringify({
       _file: true, url: publicUrl,
       name: file.name, size: file.size,
@@ -1739,7 +1742,7 @@ export function ChatWindow({ contact, onBack }: Props) {
         ) : (
           <div className="flex items-center gap-3">
             <input ref={fileInputRef} type="file" className="hidden"
-              accept="image/*,.pdf,.txt,.doc,.docx,.zip,.csv"
+              accept="image/*,video/*,.pdf,.txt,.doc,.docx,.zip,.csv,.mp4,.mov,.webm,.avi,.mkv"
               onChange={handleFileSelect}
             />
             <div ref={pickerAnchorRef} className="aero-input flex-1 flex items-center" style={{ padding: 0 }}>

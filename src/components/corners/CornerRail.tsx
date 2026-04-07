@@ -29,6 +29,7 @@ function RailBtn({ icon: Icon, isActive, color, tooltip, onClick }: RailBtnProps
 
       <button
         onClick={onClick}
+        className="corner-rail-icon"
         style={{
           width: 36, height: 36,
           borderRadius: isActive || hovered ? '30%' : '50%',

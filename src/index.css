@@ -993,6 +993,85 @@
   animation-play-state: paused !important;
 }
 
+/* Ultra theme sent bubble gloss */
+[data-theme="john-frutiger"] .ultra-sent-gloss,
+[data-theme="golden-hour"] .ultra-sent-gloss {
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="john-frutiger"] .ultra-sent-gloss::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+}
+[data-theme="golden-hour"] .ultra-sent-gloss::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 5%; right: 5%;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: 14px 14px 50% 50%;
+  z-index: 1;
+}
+
+/* Ultra theme server rail — glossy orbs */
+[data-theme="john-frutiger"] .corner-rail-icon {
+  border-radius: 14px !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1.5px solid rgba(255,255,255,0.30) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 1px rgba(255,255,255,0.40) !important;
+}
+[data-theme="john-frutiger"] .corner-rail-icon:hover {
+  box-shadow: 0 4px 16px rgba(0,180,255,0.25), inset 0 1px 1px rgba(255,255,255,0.40) !important;
+}
+
+[data-theme="golden-hour"] .corner-rail-icon {
+  border-radius: 50% !important;
+  background: linear-gradient(180deg, rgba(255,200,100,0.28) 0%, rgba(200,100,30,0.32) 50%, rgba(120,50,10,0.40) 100%) !important;
+  border: 1.5px solid rgba(255,180,80,0.28) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 -2px 4px rgba(0,0,0,0.10) !important;
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="golden-hour"] .corner-rail-icon::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+[data-theme="golden-hour"] .corner-rail-icon:hover {
+  box-shadow: 0 0 14px rgba(255,180,50,0.30), inset 0 -2px 4px rgba(0,0,0,0.10) !important;
+}
+
+/* Ultra theme scrollbars */
+[data-theme="john-frutiger"] ::-webkit-scrollbar { width: 6px; }
+[data-theme="john-frutiger"] ::-webkit-scrollbar-track { background: transparent; }
+[data-theme="john-frutiger"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,180,255,0.20);
+  border-radius: 3px;
+}
+[data-theme="john-frutiger"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,180,255,0.30);
+}
+
+[data-theme="golden-hour"] ::-webkit-scrollbar { width: 6px; }
+[data-theme="golden-hour"] ::-webkit-scrollbar-track { background: transparent; }
+[data-theme="golden-hour"] ::-webkit-scrollbar-thumb {
+  background: rgba(255,180,80,0.15);
+  border-radius: 3px;
+}
+[data-theme="golden-hour"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,180,80,0.25);
+}
+
 /* ═══════════════════════════════════════════════
    BASE
 ═══════════════════════════════════════════════ */
