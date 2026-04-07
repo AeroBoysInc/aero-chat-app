@@ -124,29 +124,100 @@ function UltraServerPicker({ servers, onlineCounts, serverUnreads, userId, onSel
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.45)',
+        background: isFrutiger ? 'rgba(0,80,180,0.25)' : 'rgba(0,0,0,0.45)',
         backdropFilter: 'blur(8px)',
       }}
       onClick={onClose}
     >
-      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-        {/* Themed glow background */}
-        <div className="ultra-ambient" style={{
-          position: 'absolute', inset: -80, borderRadius: '50%',
-          background: isFrutiger
-            ? 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.10) 40%, transparent 65%)'
-            : 'radial-gradient(circle, rgba(255,220,100,0.35) 0%, rgba(255,180,50,0.15) 40%, transparent 65%)',
-          filter: 'blur(30px)',
-          animation: 'burst-breathe 4s ease-in-out infinite',
-          pointerEvents: 'none',
-        }} />
+      <div
+        style={{ position: 'relative', width: 520, minHeight: 320 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {isFrutiger ? (
+          /* ── John Frutiger: Cloud Picker ── */
+          <>
+            {/* Cloud shape layers */}
+            <div className="ultra-ambient" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <div style={{
+                position: 'absolute', width: 520, height: 220, left: 0, top: 50, borderRadius: '50%',
+                background: 'radial-gradient(ellipse 100% 100%, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.70) 40%, rgba(220,245,255,0.50) 65%, transparent 85%)',
+                animation: 'burst-breathe 4s ease-in-out infinite',
+              }} />
+              <div style={{
+                position: 'absolute', width: 280, height: 200, left: 30, top: 10, borderRadius: '50%',
+                background: 'radial-gradient(ellipse 100% 100%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.65) 45%, rgba(220,245,255,0.35) 65%, transparent 85%)',
+                animation: 'burst-breathe 5s ease-in-out 0.5s infinite',
+              }} />
+              <div style={{
+                position: 'absolute', width: 300, height: 210, right: 20, top: 15, borderRadius: '50%',
+                background: 'radial-gradient(ellipse 100% 100%, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.60) 42%, rgba(220,245,255,0.30) 65%, transparent 85%)',
+                animation: 'burst-breathe 4.5s ease-in-out 1s infinite',
+              }} />
+              <div style={{
+                position: 'absolute', width: 200, height: 160, left: 160, top: -10, borderRadius: '50%',
+                background: 'radial-gradient(ellipse 100% 100%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.70) 40%, rgba(240,250,255,0.40) 60%, transparent 80%)',
+                animation: 'burst-breathe 3.5s ease-in-out 0.3s infinite',
+              }} />
+              {/* Wisps */}
+              <div style={{
+                position: 'absolute', width: 120, height: 50, left: -40, top: 100, borderRadius: '50%',
+                background: 'radial-gradient(ellipse, rgba(255,255,255,0.40) 0%, transparent 70%)',
+                animation: 'cloud-float 6s ease-in-out infinite',
+              }} />
+              <div style={{
+                position: 'absolute', width: 100, height: 40, right: -30, top: 80, borderRadius: '50%',
+                background: 'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, transparent 70%)',
+                animation: 'cloud-float 7s ease-in-out 2s infinite',
+              }} />
+            </div>
+          </>
+        ) : (
+          /* ── Golden Hour: Sun Burst Picker ── */
+          <>
+            {/* Burst glow */}
+            <div className="ultra-ambient" style={{
+              position: 'absolute', inset: -80, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,220,100,0.40) 0%, rgba(255,180,50,0.25) 25%, rgba(255,140,30,0.15) 45%, rgba(255,100,40,0.08) 60%, transparent 75%)',
+              filter: 'blur(30px)',
+              animation: 'burst-breathe 4s ease-in-out infinite',
+              pointerEvents: 'none',
+            }} />
+            {/* Ring */}
+            <div style={{
+              position: 'absolute', inset: -20, borderRadius: '50%',
+              border: '2px solid rgba(255,200,80,0.20)',
+              boxShadow: '0 0 30px rgba(255,180,50,0.12)',
+              animation: 'ring-pulse-orbit 3s ease-in-out infinite',
+              pointerEvents: 'none',
+            }} />
+            {/* Inner haze */}
+            <div style={{
+              position: 'absolute', inset: -40, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,200,80,0.18) 0%, rgba(255,140,40,0.10) 40%, transparent 65%)',
+              filter: 'blur(20px)',
+              pointerEvents: 'none',
+            }} />
+            {/* Orbiting sparks */}
+            <div className="ultra-ambient" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              {[0, -2, -4].map((d, i) => (
+                <div key={i} style={{
+                  position: 'absolute', left: '50%', top: '50%',
+                  width: 4, height: 4, borderRadius: '50%',
+                  background: '#ffe080',
+                  boxShadow: '0 0 8px rgba(255,200,80,0.70), 0 0 16px rgba(255,140,40,0.35)',
+                  animation: `spark-orbit 6s linear ${d}s infinite`,
+                }} />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Picker title */}
         <div style={{
-          textAlign: 'center', marginBottom: 16,
+          textAlign: 'center', marginBottom: 16, position: 'relative', zIndex: 10,
           fontSize: 14, fontWeight: 700,
-          color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
-          textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          color: isFrutiger ? 'rgba(0,40,80,0.85)' : '#ffe0a0',
+          textShadow: isFrutiger ? '0 1px 4px rgba(255,255,255,0.8)' : '0 2px 8px rgba(0,0,0,0.5)',
         }}>
           Choose a Server
         </div>
@@ -154,8 +225,9 @@ function UltraServerPicker({ servers, onlineCounts, serverUnreads, userId, onSel
         {/* Server cards grid */}
         <div style={{
           display: 'flex', flexWrap: 'wrap', gap: 14,
-          justifyContent: 'center', maxWidth: 480,
-          position: 'relative', zIndex: 2,
+          justifyContent: 'center', maxWidth: 520,
+          position: 'relative', zIndex: 10,
+          padding: '20px 40px',
         }}>
           {servers.map((server, i) => (
             <div
@@ -180,49 +252,46 @@ function UltraServerPicker({ servers, onlineCounts, serverUnreads, userId, onSel
 
         {/* Action buttons */}
         <div style={{
-          display: 'flex', justifyContent: 'center', gap: 10, marginTop: 16,
-          position: 'relative', zIndex: 2,
+          display: 'flex', justifyContent: 'center', gap: 10, marginTop: 12,
+          position: 'relative', zIndex: 10,
         }}>
           <button
             onClick={onCreateClick}
-            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-all hover:scale-105 active:scale-95"
             style={{
-              background: isFrutiger ? 'rgba(255,255,255,0.15)' : 'rgba(255,180,80,0.15)',
-              border: `1px solid ${isFrutiger ? 'rgba(255,255,255,0.25)' : 'rgba(255,180,80,0.25)'}`,
-              color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
-              backdropFilter: 'blur(8px)',
+              background: isFrutiger
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(235,248,255,0.85))'
+                : 'rgba(255,180,80,0.15)',
+              border: isFrutiger
+                ? '1.5px solid rgba(255,255,255,1)'
+                : '1px solid rgba(255,180,80,0.25)',
+              color: isFrutiger ? '#063a6a' : '#ffe0a0',
+              boxShadow: isFrutiger
+                ? '0 3px 10px rgba(0,60,140,0.12), inset 0 1px 0 rgba(255,255,255,1)'
+                : 'none',
             }}
           >
             + Create
           </button>
           <button
             onClick={onJoinClick}
-            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            className="rounded-aero px-3 py-1.5 text-xs font-medium transition-all hover:scale-105 active:scale-95"
             style={{
-              background: isFrutiger ? 'rgba(255,255,255,0.15)' : 'rgba(255,180,80,0.15)',
-              border: `1px solid ${isFrutiger ? 'rgba(255,255,255,0.25)' : 'rgba(255,180,80,0.25)'}`,
-              color: isFrutiger ? 'rgba(255,255,255,0.85)' : '#ffe0a0',
-              backdropFilter: 'blur(8px)',
+              background: isFrutiger
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(235,248,255,0.85))'
+                : 'rgba(255,180,80,0.15)',
+              border: isFrutiger
+                ? '1.5px solid rgba(255,255,255,1)'
+                : '1px solid rgba(255,180,80,0.25)',
+              color: isFrutiger ? '#063a6a' : '#ffe0a0',
+              boxShadow: isFrutiger
+                ? '0 3px 10px rgba(0,60,140,0.12), inset 0 1px 0 rgba(255,255,255,1)'
+                : 'none',
             }}
           >
             Join
           </button>
         </div>
-
-        {/* Orbiting sparks for Golden Hour */}
-        {!isFrutiger && (
-          <div className="ultra-ambient" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            {[0, -2, -4].map((d, i) => (
-              <div key={i} style={{
-                position: 'absolute', left: '50%', top: '50%',
-                width: 5, height: 5, borderRadius: '50%',
-                background: '#ffe080',
-                boxShadow: '0 0 10px rgba(255,200,80,0.7), 0 0 20px rgba(255,140,40,0.3)',
-                animation: `spark-orbit 6s linear ${d}s infinite`,
-              }} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
