@@ -48,8 +48,8 @@ export function useParallax(
 
   useEffect(() => {
     const animate = () => {
-      const targetRX = mouseX.current * maxRotate;
-      const targetRY = mouseY.current * -maxRotate;
+      const targetRX = mouseX.current * -maxRotate;
+      const targetRY = mouseY.current * maxRotate;
       currentRX.current += (targetRX - currentRX.current) * 0.12;
       currentRY.current += (targetRY - currentRY.current) * 0.12;
 
