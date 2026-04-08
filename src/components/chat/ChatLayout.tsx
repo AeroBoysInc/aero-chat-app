@@ -218,7 +218,7 @@ export function ChatLayout() {
         }}>
           {/* Logo circle — overlapping left edge, same pattern as AvatarCorner level badge */}
           <div style={{
-            position: 'absolute', left: -30, top: -12, zIndex: 15,
+            position: 'absolute', left: -30, top: -6, zIndex: 15,
           }}>
             <div style={{
               width: 52, height: 52, borderRadius: '50%',
@@ -227,7 +227,7 @@ export function ChatLayout() {
               boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <AeroLogo size={126} />
+              <AeroLogo size={252} />
             </div>
           </div>
 
