@@ -1,6 +1,8 @@
 // src/components/ui/PremiumModal.tsx
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { X, Check, Lock } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 
 interface PremiumModalProps {
   open: boolean;
@@ -41,6 +43,19 @@ const PLUS_FEATURES = [
 ];
 
 export const PremiumModal = memo(function PremiumModal({ open, onClose }: PremiumModalProps) {
+  const user = useAuthStore(s => s.user);
+  const refreshProfile = useAuthStore(s => s.refreshProfile);
+  const [activating, setActivating] = useState(false);
+
+  const handleActivate = async () => {
+    if (!user || activating) return;
+    setActivating(true);
+    await supabase.from('profiles').update({ is_premium: true }).eq('id', user.id);
+    await refreshProfile();
+    setActivating(false);
+    onClose();
+  };
+
   if (!open) return null;
 
   return (
@@ -149,6 +164,8 @@ export const PremiumModal = memo(function PremiumModal({ open, onClose }: Premiu
         {/* Subscribe button */}
         <div style={{ padding: '0 28px 28px', textAlign: 'center' }}>
           <button
+            onClick={handleActivate}
+            disabled={activating}
             className="transition-all hover:scale-[1.02] active:scale-[0.98]"
             style={{
               padding: '12px 40px',
@@ -160,14 +177,15 @@ export const PremiumModal = memo(function PremiumModal({ open, onClose }: Premiu
               fontWeight: 800,
               fontFamily: 'Inter, system-ui, sans-serif',
               letterSpacing: '-0.2px',
-              cursor: 'pointer',
+              cursor: activating ? 'wait' : 'pointer',
               boxShadow: '0 4px 20px rgba(255,165,0,0.25), inset 0 1px 0 rgba(255,255,255,0.30)',
+              opacity: activating ? 0.7 : 1,
             }}
           >
-            Subscribe Now
+            {activating ? 'Activating…' : 'Activate Premium'}
           </button>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, opacity: 0.5 }}>
-            Pricing coming soon
+            Free during testing
           </p>
         </div>
       </div>
