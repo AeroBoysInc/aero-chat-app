@@ -24,8 +24,8 @@ export function FreeAuthShell({ children }: Props) {
       <div className="glass-elevated w-full max-w-sm p-8 animate-fade-in">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center animate-float">
-            <AeroLogo size={58} />
+          <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center animate-float">
+            <AeroLogo size={120} />
           </div>
           <h1 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-title)', letterSpacing: '-0.5px' }}>
             Aero<span style={{ color: 'var(--input-focus-border, #1a6fd4)' }}>Chat</span>

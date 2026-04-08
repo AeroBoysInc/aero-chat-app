@@ -52,7 +52,7 @@ export function PremiumAuthShell({ children }: Props) {
         {/* Centered logo + text */}
         <div className="relative z-10 text-center">
           <div style={{ filter: 'drop-shadow(0 0 20px var(--input-focus-border))' }}>
-            <AeroLogo size={48} />
+            <AeroLogo size={100} />
           </div>
           <h1
             className="mt-3 text-2xl font-black tracking-tight"
@@ -98,8 +98,8 @@ export function PremiumAuthShell({ children }: Props) {
         <div className="w-full max-w-sm animate-fade-in relative z-10">
           {/* Mobile: show logo + title (left panel hidden on mobile) */}
           <div className="md:hidden mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center animate-float">
-              <AeroLogo size={58} />
+            <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center animate-float">
+              <AeroLogo size={120} />
             </div>
             <h1 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-title)', letterSpacing: '-0.5px' }}>
               Aero<span style={{ color: 'var(--input-focus-border, #1a6fd4)' }}>Chat</span>

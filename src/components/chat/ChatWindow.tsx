@@ -33,7 +33,7 @@ import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStor
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AccentName } from '../ui/AccentName';
 import { CustomStatusBadge } from '../ui/CustomStatusBadge';
-import { getBannerCss, DEFAULT_ACCENT } from '../../lib/identityConstants';
+import { DEFAULT_ACCENT } from '../../lib/identityConstants';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -844,7 +844,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   const contactProfile = useFriendStore(s => s.friends.find(f => f.id === contact?.id));
   const contactAccent = contactProfile?.accent_color || DEFAULT_ACCENT;
   const contactAccentSecondary = contactProfile?.accent_color_secondary || null;
-  const contactBannerCss = getBannerCss(contactProfile?.banner_gradient);
+  const contactCardGradientCss = CARD_GRADIENTS.find(g => g.id === contactProfile?.card_gradient)?.css;
   const contactCardImage = contactProfile?.card_image_url;
 
   // Read from localStorage synchronously — guaranteed to have data on refresh
@@ -1474,7 +1474,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           position: 'absolute', inset: 0,
           background: contactCardImage
             ? `url(${contactCardImage}) center/cover`
-            : contactBannerCss || `linear-gradient(135deg, ${contactAccent}20, transparent)`,
+            : contactCardGradientCss || `linear-gradient(135deg, ${contactAccent}20, transparent)`,
           opacity: contactCardImage ? 0.18 : 0.15,
           zIndex: 0,
           pointerEvents: 'none',
@@ -1616,7 +1616,7 @@ export function ChatWindow({ contact, onBack }: Props) {
               </button>
             </>
           )}
-          <AeroLogo size={16} className="opacity-20" />
+          <AeroLogo size={36} className="opacity-20" />
           <Lock className="h-2.5 w-2.5" style={{ color: 'var(--text-muted)' }} />
         </div>
         </div> {/* /header content */}

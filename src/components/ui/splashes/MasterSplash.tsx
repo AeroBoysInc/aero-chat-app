@@ -82,12 +82,12 @@ export function MasterSplash({ phase }: Props) {
           animation: 'opacity-in 0.4s ease 2.2s forwards',
         }}>
           <div style={{
-            width: 72, height: 72, borderRadius: '50%',
+            width: 100, height: 100, borderRadius: '50%',
             border: '2px solid rgba(0,230,118,0.3)',
             boxShadow: '0 0 16px rgba(0,230,118,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <AeroLogo size={40} />
+            <AeroLogo size={80} />
           </div>
         </div>
 

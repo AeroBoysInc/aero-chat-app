@@ -31,7 +31,7 @@ export function UltraSplash({ phase }: Props) {
         <div className="splash-logo-pulse" style={{
           filter: 'drop-shadow(0 0 32px var(--input-focus-border))',
         }}>
-          <AeroLogo size={72} />
+          <AeroLogo size={140} />
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{

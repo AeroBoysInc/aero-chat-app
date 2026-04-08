@@ -58,13 +58,13 @@ export function MasterAuthShell({ children }: Props) {
 
           {/* Logo in glowing ring */}
           <div style={{
-            width: 72, height: 72, borderRadius: '50%',
+            width: 100, height: 100, borderRadius: '50%',
             border: '2px solid rgba(0,230,118,0.3)',
             boxShadow: '0 0 16px rgba(0,230,118,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 12px',
           }}>
-            <AeroLogo size={40} />
+            <AeroLogo size={80} />
           </div>
 
           <div style={{
@@ -103,13 +103,13 @@ export function MasterAuthShell({ children }: Props) {
             {/* Mobile: show logo inside form on narrow screens */}
             <div className="md:hidden mb-6 text-center">
               <div style={{
-                width: 56, height: 56, borderRadius: '50%',
+                width: 80, height: 80, borderRadius: '50%',
                 border: '2px solid rgba(0,230,118,0.3)',
                 boxShadow: '0 0 16px rgba(0,230,118,0.15)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 8px',
               }}>
-                <AeroLogo size={32} />
+                <AeroLogo size={64} />
               </div>
               <div style={{
                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace",

@@ -43,7 +43,7 @@ export function FreeSplash({ phase }: Props) {
         transition: 'opacity 0.25s ease',
       }}>
         <div className="splash-logo-pulse" style={{ filter: 'drop-shadow(0 0 24px var(--input-focus-border))' }}>
-          <AeroLogo size={72} />
+          <AeroLogo size={140} />
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{

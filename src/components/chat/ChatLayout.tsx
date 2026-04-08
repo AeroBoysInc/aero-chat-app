@@ -47,7 +47,7 @@ function getSavedWidth(): number {
 
 export function ChatLayout() {
   const { selectedContact, setSelectedContact } = useChatStore();
-  const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, avatarViewActive, serverView } = useCornerStore();
+  const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, avatarViewActive, serverView, cornerPosition, rearrangeMode, setCornerPosition, setRearrangeMode } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive || avatarViewActive;
   const serverActive = serverView === 'server' || serverView === 'bubble';
   const prevServerActive = useRef(false);
@@ -90,6 +90,18 @@ export function ChatLayout() {
   const [mobilePaneShowChat, setMobilePaneShowChat] = useState(false);
   const [cornerWipeActive, setCornerWipeActive] = useState(false);
   const pendingCornerAction = useRef<(() => void) | null>(null);
+
+  // Compute off-screen transform for corner layers based on rail position
+  const cornerOffTransform =
+    cornerPosition === 'right'  ? 'translateX(-102%)' :
+    cornerPosition === 'bottom' ? 'translateY(102%)' :
+    cornerPosition === 'top'    ? 'translateY(-102%)' :
+                                  'translateX(102%)';
+  const chatDismissTransform =
+    cornerPosition === 'right'  ? 'translateX(3%) scale(0.97)' :
+    cornerPosition === 'bottom' ? 'translateY(-3%) scale(0.97)' :
+    cornerPosition === 'top'    ? 'translateY(3%) scale(0.97)' :
+                                  'translateX(-3%) scale(0.97)';
 
   // Track theme changes for orb colour switching
   useEffect(() => {
@@ -230,7 +242,7 @@ export function ChatLayout() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             pointerEvents: 'none',
           }}>
-            <AeroLogo size={26} />
+            <AeroLogo size={56} />
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 15, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
               AeroChat
             </span>
@@ -282,13 +294,15 @@ export function ChatLayout() {
         <PremiumModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />
       </div>
 
-      <div className="relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2">
+      <div
+        className={`relative flex flex-1 min-h-0 overflow-hidden px-3 pb-3 gap-2 ${cornerPosition === 'bottom' ? 'flex-col-reverse' : cornerPosition === 'top' ? 'flex-col' : cornerPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}
+      >
 
       {/* ── Corner Rail — always visible ── */}
       <CornerRail onCornerTransition={triggerCornerTransition} />
 
       {/* ── Layer host — chat and game views stacked ── */}
-      <div className="relative flex-1 min-w-0 overflow-hidden" style={{ borderRadius: 18 }}>
+      <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden" style={{ borderRadius: 18 }}>
 
         {/* CHAT LAYER */}
         <div
@@ -297,7 +311,7 @@ export function ChatLayout() {
             inset: 0,
             display: 'flex',
             gap: 0,
-            transform: serverActive ? 'scale(0.92) translateY(-15px)' : (anyViewActive ? 'translateX(-3%) scale(0.97)' : 'translateX(0) scale(1)'),
+            transform: serverActive ? 'scale(0.92) translateY(-15px)' : (anyViewActive ? chatDismissTransform : 'translateX(0) scale(1)'),
             opacity: (anyViewActive || serverActive) ? 0 : 1,
             filter: serverActive ? 'blur(12px)' : 'none',
             transition: serverActive
@@ -364,7 +378,7 @@ export function ChatLayout() {
 
                 <div className="relative text-center animate-fade-in">
                   <div className="mx-auto mb-5 animate-float">
-                    <AeroLogo size={72} className="opacity-40" />
+                    <AeroLogo size={140} className="opacity-40" />
                   </div>
                   <p className="text-base font-bold" style={{ color: 'var(--text-secondary)' }}>
                     Select a conversation
@@ -388,7 +402,7 @@ export function ChatLayout() {
           style={{
             position: 'absolute',
             inset: 0,
-            transform: gameViewActive ? 'translateX(0)' : 'translateX(102%)',
+            transform: gameViewActive ? 'translateX(0)' : cornerOffTransform,
             opacity: gameViewActive ? 1 : 0,
             transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: gameViewActive ? 'auto' : 'none',
@@ -402,7 +416,7 @@ export function ChatLayout() {
         <div
           style={{
             position: 'absolute', inset: 0,
-            transform: writerViewActive ? 'translateX(0)' : 'translateX(102%)',
+            transform: writerViewActive ? 'translateX(0)' : cornerOffTransform,
             opacity: writerViewActive ? 1 : 0,
             transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: writerViewActive ? 'auto' : 'none',
@@ -421,7 +435,7 @@ export function ChatLayout() {
         <div
           style={{
             position: 'absolute', inset: 0,
-            transform: calendarViewActive ? 'translateX(0)' : 'translateX(102%)',
+            transform: calendarViewActive ? 'translateX(0)' : cornerOffTransform,
             opacity: calendarViewActive ? 1 : 0,
             transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: calendarViewActive ? 'auto' : 'none',
@@ -440,7 +454,7 @@ export function ChatLayout() {
         <div
           style={{
             position: 'absolute', inset: 0,
-            transform: avatarViewActive ? 'translateX(0)' : 'translateX(102%)',
+            transform: avatarViewActive ? 'translateX(0)' : cornerOffTransform,
             opacity: avatarViewActive ? 1 : 0,
             transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
             pointerEvents: avatarViewActive ? 'auto' : 'none',
@@ -461,7 +475,7 @@ export function ChatLayout() {
             style={{
               position: 'absolute',
               inset: 0,
-              transform: devViewActive ? 'translateX(0)' : 'translateX(102%)',
+              transform: devViewActive ? 'translateX(0)' : cornerOffTransform,
               opacity: devViewActive ? 1 : 0,
               transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
               pointerEvents: devViewActive ? 'auto' : 'none',
@@ -516,6 +530,123 @@ export function ChatLayout() {
         }}
         onComplete={() => setCornerWipeActive(false)}
       />
+
+      {/* ── Ghost drop zones — shown during rearrange mode ── */}
+      {rearrangeMode && (
+        <div
+          className="absolute inset-0 animate-fade-in"
+          style={{ zIndex: 50, pointerEvents: 'auto' }}
+          onClick={() => setRearrangeMode(false)}
+        >
+          {/* Backdrop dimmer */}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }} />
+
+          {/* LEFT ghost zone — only if not already there */}
+          {cornerPosition !== 'left' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCornerPosition('left'); }}
+              style={{
+                position: 'absolute', left: 12, top: 12, bottom: 12, width: 64,
+                borderRadius: 16,
+                background: 'rgba(0,212,255,0.06)',
+                border: '2px dashed rgba(0,212,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'ghost-zone-pulse 2s ease-in-out infinite',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)'; }}
+            >
+              <span style={{ writingMode: 'vertical-lr', fontSize: 11, fontWeight: 700, color: 'rgba(0,212,255,0.5)', letterSpacing: '0.06em' }}>
+                LEFT
+              </span>
+            </button>
+          )}
+
+          {/* TOP ghost zone — only if not already there */}
+          {cornerPosition !== 'top' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCornerPosition('top'); }}
+              style={{
+                position: 'absolute', left: 88, right: 88, top: 12, height: 64,
+                borderRadius: 16,
+                background: 'rgba(0,212,255,0.06)',
+                border: '2px dashed rgba(0,212,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'ghost-zone-pulse 2s ease-in-out 0.3s infinite',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)'; }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(0,212,255,0.5)', letterSpacing: '0.06em' }}>
+                TOP
+              </span>
+            </button>
+          )}
+
+          {/* BOTTOM ghost zone — only if not already there */}
+          {cornerPosition !== 'bottom' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCornerPosition('bottom'); }}
+              style={{
+                position: 'absolute', left: 88, right: 88, bottom: 12, height: 64,
+                borderRadius: 16,
+                background: 'rgba(0,212,255,0.06)',
+                border: '2px dashed rgba(0,212,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'ghost-zone-pulse 2s ease-in-out 0.5s infinite',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)'; }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(0,212,255,0.5)', letterSpacing: '0.06em' }}>
+                BOTTOM
+              </span>
+            </button>
+          )}
+
+          {/* RIGHT ghost zone — only if not already there */}
+          {cornerPosition !== 'right' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCornerPosition('right'); }}
+              style={{
+                position: 'absolute', right: 12, top: 12, bottom: 12, width: 64,
+                borderRadius: 16,
+                background: 'rgba(0,212,255,0.06)',
+                border: '2px dashed rgba(0,212,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'ghost-zone-pulse 2s ease-in-out 1s infinite',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)'; }}
+            >
+              <span style={{ writingMode: 'vertical-lr', fontSize: 11, fontWeight: 700, color: 'rgba(0,212,255,0.5)', letterSpacing: '0.06em' }}>
+                RIGHT
+              </span>
+            </button>
+          )}
+
+          {/* Instructions */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            textAlign: 'center', pointerEvents: 'none',
+          }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
+              Move Corners Rail
+            </p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+              Click a zone to place it &middot; Click anywhere to cancel
+            </p>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

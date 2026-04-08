@@ -180,8 +180,8 @@ export function UltraAuthShell({ children }: Props) {
       >
         {/* Logo inside card */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center" style={{ filter: 'drop-shadow(0 0 20px var(--input-focus-border))' }}>
-            <AeroLogo size={52} />
+          <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center" style={{ filter: 'drop-shadow(0 0 20px var(--input-focus-border))' }}>
+            <AeroLogo size={110} />
           </div>
           <h1 className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-title)', letterSpacing: '-0.5px' }}>
             Aero<span style={{ color: 'var(--input-focus-border, #1a6fd4)' }}>Chat</span>

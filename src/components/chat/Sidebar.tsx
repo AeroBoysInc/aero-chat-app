@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool, Palette, Camera } from 'lucide-react';
+import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -19,39 +19,16 @@ import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
-import { CardImageCropModal, type CropParams } from './CardImageCropModal';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { XpMiniBar } from '../ui/XpMiniBar';
 import { AccentName } from '../ui/AccentName';
 import { CustomStatusBadge } from '../ui/CustomStatusBadge';
 import { CardEffect } from '../ui/CardEffect';
-import { getBannerCss } from '../../lib/identityConstants';
 import { ProfilePopout } from '../ui/ProfilePopout';
 import { IdentityEditor } from '../ui/IdentityEditor';
+import { useThemeStore, FREE_THEMES } from '../../store/themeStore';
+import { useParallax } from '../../hooks/useParallax';
 
-const CARD_GRADIENT_KEY = 'aero_card_gradient';
-
-function loadCardGradient(): string {
-  return localStorage.getItem(CARD_GRADIENT_KEY) ?? 'ocean';
-}
-
-/** Resize an image data URL to max `maxPx` wide at `quality` JPEG quality.
- *  Keeps images small enough to fit in localStorage without quota errors. */
-function resizeImageDataUrl(dataUrl: string, maxPx: number, quality: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = img.width > maxPx ? maxPx / img.width : 1;
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
 
 interface Props {
   selectedUser: Profile | null;
@@ -75,6 +52,10 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const callStatus = useCallStore(s => s.status);
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
+  const currentTheme = useThemeStore(s => s.theme);
+  const hasParallax = !FREE_THEMES.includes(currentTheme as any);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const parallax = useParallax(cardRef, 4);
 
   // Group friends by effective status
   const STATUS_ORDER: Status[] = ['online', 'busy', 'away', 'offline'];
@@ -99,75 +80,14 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [requestsOpen,    setRequestsOpen]    = useState(false);
   const [settingsView,    setSettingsView]    = useState<null | 'menu' | 'profile' | 'security' | 'general'>(null);
   const [statusMenuOpen,  setStatusMenuOpen]  = useState(false);
-  const [cardGradient,      setCardGradient]      = useState<string>(() => user?.card_gradient ?? loadCardGradient());
-  const [cardImage,         setCardImage]         = useState<string | null>(() => user?.card_image_url ?? null);
-  const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? { zoom: 1.5, x: 50, y: 50 });
-  const [gradientPickerOpen,  setGradientPickerOpen]  = useState(false);
-  const [cropModalPending,    setCropModalPending]    = useState<string | null>(null);
   const [identityEditorOpen,  setIdentityEditorOpen]  = useState(false);
   const [isOwnCardHovered,    setIsOwnCardHovered]    = useState(false);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
   const asideRef       = useRef<HTMLElement>(null);
-  const imageInputRef  = useRef<HTMLInputElement>(null);
 
-  async function selectCardGradient(id: string) {
-    setCardGradient(id);
-    localStorage.setItem(CARD_GRADIENT_KEY, id);
-    if (!user) return;
-    const { error } = await supabase.from('profiles').update({ card_gradient: id }).eq('id', user.id);
-    if (error) console.error('[card-gradient] update failed:', error.message);
-  }
-
-  function handleCardImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
-      // Resize to max 800 px wide at 80 % JPEG quality so it fits in localStorage
-      const resized = await resizeImageDataUrl(raw, 800, 0.8);
-      setCropModalPending(resized);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  async function onCropConfirm(params: CropParams) {
-    if (!cropModalPending) return;
-    setCardImage(cropModalPending);
-    setCardCropParams(params);
-    const pendingDataUrl = cropModalPending;
-    setCropModalPending(null);
-    if (!user) return;
-    // Re-compress to 500px/72% for DB storage (~20-40KB) — profiles UPDATE has no RLS issues
-    try {
-      const dbDataUrl = await resizeImageDataUrl(pendingDataUrl, 500, 0.72);
-      const { error } = await supabase
-        .from('profiles')
-        .update({ card_image_url: dbDataUrl, card_image_params: params })
-        .eq('id', user.id);
-      if (error) console.error('[card-image] profile update failed:', error.message);
-    } catch (err) {
-      console.error('[card-image] unexpected error:', err);
-    }
-  }
-
-  async function removeCardImage() {
-    setCardImage(null);
-    if (!user) return;
-    const { error } = await supabase.from('profiles')
-      .update({ card_image_url: null, card_image_params: null })
-      .eq('id', user.id);
-    if (error) console.error('[card-image] remove failed:', error.message);
-  }
-
-  // Sync card state from Supabase profile when user changes (login/logout/account switch)
-  useEffect(() => {
-    if (!user) return;
-    if (user.card_gradient) setCardGradient(user.card_gradient);
-    setCardImage(user.card_image_url ?? null);
-    if (user.card_image_params) setCardCropParams(user.card_image_params as CropParams);
-  }, [user?.id, user?.card_gradient, user?.card_image_url, user?.card_image_params]);
+  const cardGradient = user?.card_gradient ?? 'ocean';
+  const cardImage = user?.card_image_url ?? null;
+  const cardCropParams = (user?.card_image_params as { zoom: number; x: number; y: number } | null) ?? { zoom: 1.5, x: 50, y: 50 };
 
   const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
 
@@ -227,7 +147,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           style={{ borderBottom: '1px solid var(--panel-divider)' }}
         >
           <div className="flex items-center gap-2.5">
-            <AeroLogo size={30} />
+            <AeroLogo size={64} />
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
               AeroChat
             </span>
@@ -297,14 +217,19 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       {/* ── Profile Card ── */}
       <div
         className="relative mx-3 my-2 rounded-[14px] overflow-visible"
-        ref={statusMenuRef}
-        onMouseEnter={() => setIsOwnCardHovered(true)}
-        onMouseLeave={() => setIsOwnCardHovered(false)}
+        ref={(el) => {
+          // Share the ref between statusMenuRef and cardRef (for parallax)
+          (statusMenuRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }}
+        onMouseEnter={() => { setIsOwnCardHovered(true); if (hasParallax) parallax.onMouseEnter(); }}
+        onMouseLeave={() => { setIsOwnCardHovered(false); if (hasParallax) parallax.onMouseLeave(); }}
+        onMouseMove={hasParallax ? parallax.onMouseMove : undefined}
         style={{
           border: user?.is_premium
             ? '1px solid rgba(255,215,0,0.22)'
             : '1px solid var(--panel-divider)',
-          padding: '12px 14px',
+          padding: '10px 12px',
           flexShrink: 0,
           ...(cardImage
             ? {
@@ -317,6 +242,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           boxShadow: user?.is_premium
             ? '0 4px 20px rgba(255,180,0,0.10), 0 0 30px rgba(255,215,0,0.04), inset 0 1px 0 rgba(255,255,255,0.18)'
             : '0 4px 16px rgba(0,80,200,0.08), inset 0 1px 0 rgba(255,255,255,0.18)',
+          ...(hasParallax ? { transformStyle: 'preserve-3d' as const } : {}),
         }}
       >
         {/* Dark overlay when image is set — keeps text readable */}
@@ -336,16 +262,30 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           </div>
         )}
 
-        {/* Decorative corner orb */}
-        <div className="pointer-events-none absolute" style={{
-          width: 80, height: 80, top: -20, right: -20,
-          borderRadius: '50%',
-          background: user?.is_premium
-            ? 'radial-gradient(circle, rgba(255,200,0,0.22) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%)',
-          filter: 'blur(12px)',
-          zIndex: 0,
-        }} />
+        {/* Decorative corner orb (non-premium only) */}
+        {!user?.is_premium && (
+          <div className="pointer-events-none absolute" style={{
+            width: 80, height: 80, top: -20, right: -20,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%)',
+            filter: 'blur(12px)',
+            zIndex: 0,
+          }} />
+        )}
+
+        {/* Premium "Aero Chat+" badge — top-right corner */}
+        {user?.is_premium && (
+          <span style={{
+            position: 'absolute', top: 6, right: 8, zIndex: 5,
+            padding: '2px 8px', borderRadius: 10,
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+            background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10))',
+            color: '#FFD700',
+            border: '1px solid rgba(255,215,0,0.28)',
+          }}>
+            Aero Chat+
+          </span>
+        )}
 
         {/* Card effect overlay — plays on hover */}
         <CardEffect effect={user?.card_effect} playing={isOwnCardHovered} />
@@ -377,18 +317,6 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 </span>
               )}
             </p>
-            {user?.is_premium && (
-              <span style={{
-                display: 'inline-block', marginTop: 2,
-                padding: '2px 8px', borderRadius: 10,
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
-                background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10))',
-                color: '#FFD700',
-                border: '1px solid rgba(255,215,0,0.28)',
-              }}>
-                Aero Chat+
-              </span>
-            )}
             <button
               onClick={() => setStatusMenuOpen(o => !o)}
               className="flex items-center gap-1.5 mt-0.5 rounded transition-opacity hover:opacity-70"
@@ -405,131 +333,36 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 <CustomStatusBadge emoji={user.custom_status_emoji} text={user.custom_status_text} size="sm" />
               </div>
             )}
-            {/* Premium Chatter XP bar under profile card */}
-            {user?.is_premium && (
-              <div style={{ marginTop: 6 }}>
-                <XpMiniBar bar="chatter" />
-              </div>
-            )}
           </div>
-          <button
-            onClick={() => setIdentityEditorOpen(o => !o)}
-            className="rounded-aero p-1.5 transition-all shrink-0"
-            style={{ color: identityEditorOpen ? 'var(--text-primary)' : 'var(--text-muted)', background: identityEditorOpen ? 'var(--hover-bg)' : '' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-            onMouseLeave={e => { if (!identityEditorOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
-            title="Edit identity"
-          >
-            {/* Pencil icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button
-            onClick={() => setGradientPickerOpen(o => !o)}
-            className="rounded-aero p-1.5 transition-all shrink-0"
-            style={{ color: gradientPickerOpen ? 'var(--text-primary)' : 'var(--text-muted)', background: gradientPickerOpen ? 'var(--hover-bg)' : '' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-            onMouseLeave={e => { if (!gradientPickerOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
-            title="Card background"
-          >
-            <Palette className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
-            className="rounded-aero p-1.5 transition-all shrink-0"
-            style={{ color: settingsView ? 'var(--text-primary)' : 'var(--text-muted)', background: settingsView === 'menu' ? 'var(--hover-bg)' : '' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-            onMouseLeave={e => { if (settingsView !== 'menu') (e.currentTarget as HTMLElement).style.background = ''; }}
-            title="Settings"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* Hidden file input for card background image */}
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleCardImageUpload}
-          style={{ display: 'none' }}
-        />
-
-        {/* Gradient / image picker */}
-        {gradientPickerOpen && (
-          <div className="mt-2 pt-2 flex items-center gap-1.5 flex-wrap" style={{ borderTop: '1px solid var(--panel-divider)', zIndex: 2, position: 'relative' }}>
-            {/* Gradient swatches */}
-            {CARD_GRADIENTS.map(g => (
-              <button
-                key={g.id}
-                onClick={() => { selectCardGradient(g.id); removeCardImage(); }}
-                title={g.id.charAt(0).toUpperCase() + g.id.slice(1)}
-                style={{
-                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                  background: g.preview,
-                  border: !cardImage && cardGradient === g.id ? '2px solid var(--text-primary)' : '2px solid transparent',
-                  boxShadow: !cardImage && cardGradient === g.id ? '0 0 0 1px var(--panel-divider)' : '0 1px 4px rgba(0,0,0,0.2)',
-                  cursor: 'pointer',
-                  transition: 'transform 0.1s',
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.2)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
-              />
-            ))}
-
-            {/* Divider */}
-            <div style={{ width: 1, height: 14, background: 'var(--panel-divider)', flexShrink: 0 }} />
-
-            {/* Upload image button */}
+          <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={() => imageInputRef.current?.click()}
-              title="Upload background image"
-              style={{
-                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                background: cardImage ? 'rgba(0,180,255,0.7)' : 'var(--hover-bg)',
-                border: cardImage ? '2px solid var(--text-primary)' : '2px solid transparent',
-                boxShadow: cardImage ? '0 0 0 1px var(--panel-divider)' : '0 1px 4px rgba(0,0,0,0.2)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'transform 0.1s',
-                color: 'var(--text-muted)',
-              }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.2)'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+              onClick={() => setIdentityEditorOpen(o => !o)}
+              className="rounded-aero p-1.5 transition-all"
+              style={{ color: identityEditorOpen ? 'var(--text-primary)' : 'var(--text-muted)', background: identityEditorOpen ? 'var(--hover-bg)' : '' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => { if (!identityEditorOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
+              title="Edit identity"
             >
-              <Camera style={{ width: 10, height: 10 }} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
             </button>
-
-            {/* Remove image button — only when image is set */}
-            {cardImage && (
-              <button
-                onClick={removeCardImage}
-                title="Remove background image"
-                style={{
-                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                  background: 'rgba(220,50,50,0.6)',
-                  border: '2px solid transparent',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'transform 0.1s',
-                  color: 'white',
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.2)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
-              >
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            )}
+            <button
+              onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
+              className="rounded-aero p-1.5 transition-all"
+              style={{ color: settingsView ? 'var(--text-primary)' : 'var(--text-muted)', background: settingsView === 'menu' ? 'var(--hover-bg)' : '' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => { if (settingsView !== 'menu') (e.currentTarget as HTMLElement).style.background = ''; }}
+              title="Settings"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Status menu — opens downward */}
         {statusMenuOpen && (
@@ -620,6 +453,13 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
         )}
       </div>
+
+      {/* ── XP Bar (premium) — connected underneath the card ── */}
+      {user?.is_premium && (
+        <div className="mx-3 -mt-1 px-1" style={{ position: 'relative', zIndex: 0 }}>
+          <XpMiniBar bar="chatter" />
+        </div>
+      )}
 
       {/* ── Search ── */}
       <div className="px-3 pt-3 pb-2">
@@ -776,17 +616,6 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         document.body
       )}
 
-      {/* Card background crop modal — portal so it escapes aside's stacking context */}
-      {cropModalPending && createPortal(
-        <CardImageCropModal
-          imageUrl={cropModalPending}
-          initialParams={cardCropParams}
-          onConfirm={onCropConfirm}
-          onCancel={() => setCropModalPending(null)}
-        />,
-        document.body
-      )}
-
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
     </aside>
   );
@@ -826,7 +655,7 @@ const FriendItem = memo(function FriendItem({
   // Identity fields
   const accentColor = friend.accent_color || null;
   const accentSecondary = friend.accent_color_secondary || null;
-  const bannerCss = getBannerCss(friend.banner_gradient);
+  const cardGradientCss = CARD_GRADIENTS.find(g => g.id === friend.card_gradient)?.css ?? null;
   const cardImage = friend.card_image_url;
   const cardEffect = friend.card_effect || null;
   const nameEffect = friend.name_effect || null;
@@ -906,8 +735,8 @@ const FriendItem = memo(function FriendItem({
           <div style={{ position: 'absolute', inset: 0, background: `url(${cardImage}) center/cover`, borderRadius: 12 }} />
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 12 }} />
         </>
-      ) : bannerCss ? (
-        <div style={{ position: 'absolute', inset: 0, background: bannerCss, opacity: 0.12, borderRadius: 12 }} />
+      ) : cardGradientCss ? (
+        <div style={{ position: 'absolute', inset: 0, background: cardGradientCss, opacity: 0.12, borderRadius: 12 }} />
       ) : null}
 
       {/* Card effect overlay (plays on hover) */}

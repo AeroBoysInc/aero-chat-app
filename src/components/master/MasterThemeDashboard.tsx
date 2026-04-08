@@ -130,7 +130,7 @@ export const MasterThemeDashboard = memo(function MasterThemeDashboard() {
         transition: 'opacity 0.2s ease',
         pointerEvents: dashboardVisible ? 'auto' : 'none',
       }}>
-        <AeroLogo size={isMobile ? 18 : 22} />
+        <AeroLogo size={isMobile ? 40 : 48} />
         <span style={{ fontWeight: 800, fontSize: isMobile ? 12 : 14, color: '#00e676', letterSpacing: -0.3 }}>
           AeroChat
         </span>

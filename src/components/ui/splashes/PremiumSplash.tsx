@@ -45,7 +45,7 @@ export function PremiumSplash({ phase }: Props) {
           <div className="splash-logo-pulse" style={{
             filter: 'drop-shadow(0 0 28px var(--input-focus-border))',
           }}>
-            <AeroLogo size={72} />
+            <AeroLogo size={140} />
           </div>
           <h1 style={{
             fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px',
