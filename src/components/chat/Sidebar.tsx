@@ -105,6 +105,45 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const cardImage = user?.card_image_url ?? null;
   const cardCropParams = (user?.card_image_params as { zoom: number; x: number; y: number } | null) ?? { zoom: 1.5, x: 50, y: 50 };
 
+  // Resizable card height
+  const CARD_MIN_H = 70;
+  const CARD_MAX_H = 280;
+  const CARD_KEY = 'aero-card-height';
+  const [cardHeight, setCardHeight] = useState<number | null>(() => {
+    const v = localStorage.getItem(CARD_KEY);
+    return v ? Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, parseInt(v, 10))) : null;
+  });
+  const cardDragging = useRef(false);
+  const cardStartY = useRef(0);
+  const cardStartH = useRef(0);
+
+  const onCardResizeDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cardDragging.current = true;
+    cardStartY.current = e.clientY;
+    const el = statusMenuRef.current;
+    cardStartH.current = el ? el.offsetHeight : (cardHeight ?? CARD_MIN_H);
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!cardDragging.current) return;
+      const next = Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, cardStartH.current + ev.clientY - cardStartY.current));
+      setCardHeight(next);
+    };
+    const onUp = () => {
+      cardDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setCardHeight(h => { if (h != null) localStorage.setItem(CARD_KEY, String(h)); return h; });
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [cardHeight]);
+
   const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
 
   // Close status menu on outside click
@@ -272,6 +311,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             : '1px solid var(--panel-divider)',
           padding: '10px 12px',
           flexShrink: 0,
+          ...(cardHeight != null ? { height: cardHeight, overflow: 'hidden' } : {}),
           ...(cardImage
             ? {
                 backgroundImage: `url(${cardImage})`,
@@ -403,6 +443,22 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* Resize handle — bottom-right corner */}
+        <div
+          onMouseDown={onCardResizeDown}
+          style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 20, height: 20, cursor: 'ns-resize', zIndex: 5,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end',
+            padding: 3, borderRadius: '14px 0 14px 0',
+          }}
+          title="Resize card"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.35 }}>
+            <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" style={{ color: 'var(--text-muted)' }} />
+          </svg>
         </div>
 
         {/* Status menu — opens downward */}
