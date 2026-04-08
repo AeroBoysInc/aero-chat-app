@@ -1591,6 +1591,17 @@
   100% { opacity: 0; transform: translateY(-24px); }
 }
 
+@keyframes rail-pop-out {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.12); }
+  60%  { transform: scale(1.06); }
+  100% { transform: scale(1.08); }
+}
+@keyframes ghost-zone-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.85; }
+}
+
 @keyframes bubble-notify-in {
   0%   { transform: translateY(20px) scale(0.7); opacity: 0; }
   60%  { transform: translateY(-4px)  scale(1.05); opacity: 1; }
@@ -1798,3 +1809,73 @@
 }
 .master-compact .rounded-aero { border-radius: 10px; }
 .master-compact .rounded-aero-lg { border-radius: 12px; }
+
+/* ── Tiered Login / Splash keyframes ── */
+@keyframes particle-rise {
+  0%   { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-120px) scale(0.5); opacity: 0; }
+}
+
+@keyframes scan-line-sweep {
+  0%   { top: -2px; }
+  100% { top: 100%; }
+}
+
+@keyframes divider-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0.45; }
+}
+
+@keyframes typewriter-cursor {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+@keyframes glitch-cut {
+  0%   { opacity: 1; }
+  25%  { opacity: 0; }
+  50%  { opacity: 1; }
+  75%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes curtain-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes curtain-right {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Master auth input/button overrides ── */
+.master-auth .aero-input {
+  background: rgba(0,230,118,0.04);
+  border-color: rgba(0,230,118,0.15);
+  color: rgba(0,230,118,0.8);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+.master-auth .aero-input:focus {
+  border-color: rgba(0,230,118,0.4);
+  box-shadow: 0 0 0 3px rgba(0,230,118,0.08);
+}
+.master-auth .aero-input::placeholder {
+  color: rgba(0,230,118,0.25);
+}
+.master-auth .aero-btn-primary {
+  background: linear-gradient(180deg, rgba(0,230,118,0.25), rgba(0,230,118,0.15));
+  border-color: rgba(0,230,118,0.4);
+  color: rgba(0,230,118,0.9);
+}
+.master-auth .aero-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(0,230,118,0.35), rgba(0,230,118,0.22));
+}
+
+/* Pause tiered login animations when idle */
+.paused .particle-rise-anim,
+.paused .scan-line-anim,
+.paused .divider-pulse-anim,
+.paused .curtain-anim {
+  animation-play-state: paused;
+}

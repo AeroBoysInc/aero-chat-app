@@ -10,6 +10,15 @@ export const ULTRA_THEMES: Theme[] = ['john-frutiger', 'golden-hour'];
 export const MASTER_THEMES: Theme[] = ['master'];
 export const ALL_THEMES: Theme[] = [...FREE_THEMES, ...PREMIUM_THEMES, ...ULTRA_THEMES, ...MASTER_THEMES];
 
+export type ThemeTier = 'free' | 'premium' | 'ultra' | 'master';
+
+export function getThemeTier(theme: Theme): ThemeTier {
+  if (PREMIUM_THEMES.includes(theme)) return 'premium';
+  if (ULTRA_THEMES.includes(theme)) return 'ultra';
+  if (MASTER_THEMES.includes(theme)) return 'master';
+  return 'free';
+}
+
 export function isUltraTheme(t: Theme): boolean {
   return ULTRA_THEMES.includes(t);
 }
