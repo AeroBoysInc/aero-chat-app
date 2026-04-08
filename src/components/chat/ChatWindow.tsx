@@ -31,6 +31,9 @@ import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { BubbleStylePicker } from '../ui/BubbleStylePicker';
 import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStore';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { AccentName } from '../ui/AccentName';
+import { CustomStatusBadge } from '../ui/CustomStatusBadge';
+import { getBannerCss, DEFAULT_ACCENT } from '../../lib/identityConstants';
 
 const CHESS_INVITE_PREFIX = '__CHESS_INVITE__';
 
@@ -837,6 +840,13 @@ export function ChatWindow({ contact, onBack }: Props) {
       }
     : { background: `linear-gradient(to left, ${bleedPreset.preview}cc 0%, ${bleedPreset.preview}55 55%, transparent 100%)` };
 
+  // Contact identity for header bleed + accent name + custom status
+  const contactProfile = useFriendStore(s => s.friends.find(f => f.id === contact?.id));
+  const contactAccent = contactProfile?.accent_color || DEFAULT_ACCENT;
+  const contactAccentSecondary = contactProfile?.accent_color_secondary || null;
+  const contactBannerCss = getBannerCss(contactProfile?.banner_gradient);
+  const contactCardImage = contactProfile?.card_image_url;
+
   // Read from localStorage synchronously — guaranteed to have data on refresh
   const [messages,      setMessages]      = useState<Message[]>(() => loadChatCache(user!.id, contact.id));
   const [input,         setInput]         = useState('');
@@ -1459,6 +1469,25 @@ export function ChatWindow({ contact, onBack }: Props) {
       <div className="drag-region"
         style={{ position: 'relative', overflow: 'hidden', padding: '8px 14px', borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
 
+        {/* Banner bleed background */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', inset: 0,
+          background: contactCardImage
+            ? `url(${contactCardImage}) center/cover`
+            : contactBannerCss || `linear-gradient(135deg, ${contactAccent}20, transparent)`,
+          opacity: contactCardImage ? 0.18 : 0.15,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }} />
+        {/* Accent gradient line at bottom */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+          background: contactAccentSecondary
+            ? `linear-gradient(90deg, ${contactAccent}, ${contactAccentSecondary}, transparent 70%)`
+            : `linear-gradient(90deg, ${contactAccent}80, transparent 60%)`,
+          zIndex: 1,
+          pointerEvents: 'none',
+        }} />
         {/* Card image / gradient bleed — right-side fade */}
         <div
           aria-hidden="true"
@@ -1497,13 +1526,30 @@ export function ChatWindow({ contact, onBack }: Props) {
           <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} />
         </ProfileTooltip>
         <div className="no-drag flex-1 min-w-0">
+          {/* Name row */}
+          <div className="flex items-center gap-1.5">
+            <AccentName
+              name={contact?.username ?? ''}
+              accentColor={contactAccent}
+              accentColorSecondary={contactAccentSecondary}
+              style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif' }}
+            />
+            {/* Clear chat button */}
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="no-drag flex-shrink-0 rounded-aero p-0.5 transition-all"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              title="Clear chat"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+          {/* Status row — typing overrides everything, then custom status, then online/game */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-bold truncate" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--text-primary)', fontSize: 13 }}>
-              {contact.username}
-            </p>
             {contactTyping ? (
               <>
-                <span style={{ fontSize: 10, color: 'var(--separator-dot)' }}>·</span>
                 <span className="flex items-center gap-1 text-[10px] italic" style={{ color: '#1a6fd4' }}>
                   <span className="typing-dots" style={{ color: '#1a6fd4' }}>
                     <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
@@ -1511,6 +1557,8 @@ export function ChatWindow({ contact, onBack }: Props) {
                   typing…
                 </span>
               </>
+            ) : (contactProfile?.custom_status_emoji || contactProfile?.custom_status_text) ? (
+              <CustomStatusBadge emoji={contactProfile.custom_status_emoji} text={contactProfile.custom_status_text} size="sm" />
             ) : (
               <>
                 <span className="inline-block h-1.5 w-1.5 rounded-full"
@@ -1528,17 +1576,6 @@ export function ChatWindow({ contact, onBack }: Props) {
                 )}
               </>
             )}
-            {/* Clear chat button */}
-            <button
-              onClick={() => setShowClearModal(true)}
-              className="no-drag flex-shrink-0 rounded-aero p-0.5 transition-all"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-              title="Clear chat"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
           </div>
         </div>
         <div className="no-drag flex items-center gap-1.5">

@@ -19,10 +19,15 @@ import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
-import { GAME_LABELS } from '../../lib/gameLabels';
 import { CardImageCropModal, type CropParams } from './CardImageCropModal';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { XpMiniBar } from '../ui/XpMiniBar';
+import { AccentName } from '../ui/AccentName';
+import { CustomStatusBadge } from '../ui/CustomStatusBadge';
+import { CardEffect } from '../ui/CardEffect';
+import { getBannerCss } from '../../lib/identityConstants';
+import { ProfilePopout } from '../ui/ProfilePopout';
+import { IdentityEditor } from '../ui/IdentityEditor';
 
 const CARD_GRADIENT_KEY = 'aero_card_gradient';
 
@@ -97,8 +102,10 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [cardGradient,      setCardGradient]      = useState<string>(() => user?.card_gradient ?? loadCardGradient());
   const [cardImage,         setCardImage]         = useState<string | null>(() => user?.card_image_url ?? null);
   const [cardCropParams,    setCardCropParams]    = useState<CropParams>(() => (user?.card_image_params as CropParams | null) ?? { zoom: 1.5, x: 50, y: 50 });
-  const [gradientPickerOpen, setGradientPickerOpen] = useState(false);
-  const [cropModalPending,  setCropModalPending]  = useState<string | null>(null);
+  const [gradientPickerOpen,  setGradientPickerOpen]  = useState(false);
+  const [cropModalPending,    setCropModalPending]    = useState<string | null>(null);
+  const [identityEditorOpen,  setIdentityEditorOpen]  = useState(false);
+  const [isOwnCardHovered,    setIsOwnCardHovered]    = useState(false);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
   const asideRef       = useRef<HTMLElement>(null);
   const imageInputRef  = useRef<HTMLInputElement>(null);
@@ -291,6 +298,8 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       <div
         className="relative mx-3 my-2 rounded-[14px] overflow-visible"
         ref={statusMenuRef}
+        onMouseEnter={() => setIsOwnCardHovered(true)}
+        onMouseLeave={() => setIsOwnCardHovered(false)}
         style={{
           border: user?.is_premium
             ? '1px solid rgba(255,215,0,0.22)'
@@ -338,6 +347,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           zIndex: 0,
         }} />
 
+        {/* Card effect overlay — plays on hover */}
+        <CardEffect effect={user?.card_effect} playing={isOwnCardHovered} />
+
         <div className="relative flex items-center gap-3" style={{ zIndex: 1 }}>
           <AvatarImage
             username={user?.username ?? '?'}
@@ -348,8 +360,8 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             playingGame={myPlayingGame}
           />
           <div className="flex-1 min-w-0">
-            <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
-              {user?.username}
+            <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.1px' }}>
+              <AccentName name={user?.username ?? '?'} accentColor={user?.accent_color} accentColorSecondary={user?.accent_color_secondary} style={{ fontSize: 14, fontWeight: 700 }} />
               {callStatus === 'connected' && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -385,6 +397,12 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               {statusLabel[myStatus]}
               <ChevronUp className="h-3 w-3" style={{ transform: statusMenuOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
             </button>
+            {/* Custom status badge */}
+            {(user?.custom_status_emoji || user?.custom_status_text) && (
+              <div style={{ marginTop: 2 }}>
+                <CustomStatusBadge emoji={user.custom_status_emoji} text={user.custom_status_text} size="sm" />
+              </div>
+            )}
             {/* Premium Chatter XP bar under profile card */}
             {user?.is_premium && (
               <div style={{ marginTop: 6 }}>
@@ -392,6 +410,20 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               </div>
             )}
           </div>
+          <button
+            onClick={() => setIdentityEditorOpen(o => !o)}
+            className="rounded-aero p-1.5 transition-all shrink-0"
+            style={{ color: identityEditorOpen ? 'var(--text-primary)' : 'var(--text-muted)', background: identityEditorOpen ? 'var(--hover-bg)' : '' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+            onMouseLeave={e => { if (!identityEditorOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
+            title="Edit identity"
+          >
+            {/* Pencil icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
           <button
             onClick={() => setGradientPickerOpen(o => !o)}
             className="rounded-aero p-1.5 transition-all shrink-0"
@@ -579,6 +611,11 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               Security
             </button>
           </div>
+        )}
+
+        {/* Identity Editor — opens below profile card */}
+        {identityEditorOpen && (
+          <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
         )}
       </div>
 
@@ -768,68 +805,139 @@ interface FriendItemProps {
 const FriendItem = memo(function FriendItem({
   friend, isSelected, onSelect, currentUserId,
 }: FriendItemProps) {
-  const isOnline      = usePresenceStore(s => s.onlineIds.has(friend.id));
+  const isOnline      = usePresenceStore(s => s.presenceReady && s.onlineIds.has(friend.id));
   const presenceReady = usePresenceStore(s => s.presenceReady);
   const playingGame   = usePresenceStore(s => s.playingGames.get(friend.id) ?? null);
   const isTyping      = useTypingStore(s => s.typing[friend.id] === true);
   const unread        = useUnreadStore(s => s.counts[friend.id] ?? 0);
   const removeFriend  = useFriendStore(s => s.removeFriend);
   const [isHovered, setIsHovered] = useState(false);
+  const [showPopout, setShowPopout] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRef = useRef<HTMLButtonElement>(null);
 
   const storedStatus = (friend.status as Status | undefined) ?? 'online';
-  const effectiveStatus: Status = !presenceReady ? 'offline' : !isOnline ? 'offline' : storedStatus;
+  const liveStatus: Status = !presenceReady ? 'offline' : !isOnline ? 'offline' : storedStatus;
+
+  // Identity fields
+  const accentColor = friend.accent_color || null;
+  const accentSecondary = friend.accent_color_secondary || null;
+  const bannerCss = getBannerCss(friend.banner_gradient);
+  const cardImage = friend.card_image_url;
+  const cardEffect = friend.card_effect || null;
+
+  // Custom status line: custom status emoji/text
+  const statusLine = (friend.custom_status_emoji || friend.custom_status_text)
+    ? { emoji: friend.custom_status_emoji, text: friend.custom_status_text }
+    : null;
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    hoverTimerRef.current = setTimeout(() => setShowPopout(true), 200);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    // Popout closes via its own onMouseLeave
+  }, []);
+
+  const handlePopoutClose = useCallback(() => {
+    setShowPopout(false);
+    setIsHovered(false);
+  }, []);
 
   return (
+    <>
     <button
+      ref={cardRef}
       onClick={() => onSelect(friend)}
-      className="flex w-full items-center gap-3 rounded-aero px-3 py-3 text-left transition-all duration-150"
-      style={isSelected ? {
-        background: 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)',
-        boxShadow: 'inset 0 0 0 1.5px rgba(26,111,212,0.30), 0 2px 8px rgba(26,111,212,0.10)',
-      } : {}}
-      onMouseEnter={e => { setIsHovered(true); if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'; }}
-      onMouseLeave={e => { setIsHovered(false); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="w-full text-left transition-all"
+      style={{
+        borderRadius: 12,
+        overflow: 'hidden',
+        position: 'relative',
+        padding: '10px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 4,
+        border: isSelected
+          ? `1px solid ${accentColor ? accentColor + '40' : 'rgba(0,212,255,0.25)'}`
+          : isHovered
+            ? '1px solid rgba(255,255,255,0.08)'
+            : '1px solid rgba(255,255,255,0.04)',
+        opacity: liveStatus === 'offline' ? 0.5 : 1,
+        cursor: 'pointer',
+        background: isSelected
+          ? 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)'
+          : isHovered
+            ? 'var(--hover-bg)'
+            : 'transparent',
+      }}
     >
-      <ProfileTooltip data={{
-        username: friend.username,
-        avatarUrl: friend.avatar_url,
-        status: effectiveStatus,
-        cardGradient: friend.card_gradient,
-        cardImageUrl: friend.card_image_url,
-        cardImageParams: friend.card_image_params,
-      }}>
-        <AvatarImage
-          username={friend.username}
-          avatarUrl={friend.avatar_url}
-          size="xl"
-          status={effectiveStatus}
-          playingGame={playingGame}
-        />
-      </ProfileTooltip>
+      {/* Card background layer */}
+      {cardImage ? (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: `url(${cardImage}) center/cover`, borderRadius: 12 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 12 }} />
+        </>
+      ) : bannerCss ? (
+        <div style={{ position: 'absolute', inset: 0, background: bannerCss, opacity: 0.12, borderRadius: 12 }} />
+      ) : null}
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
-          {friend.username}
-        </p>
-        {isTyping ? (
-          <p className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: '#1a6fd4', fontStyle: 'italic' }}>
-            <span className="typing-dots" style={{ color: '#1a6fd4' }}>
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-            </span>
-            <span>typing…</span>
-          </p>
-        ) : (
-          <StatusLine status={effectiveStatus} playingGame={playingGame} />
-        )}
+      {/* Card effect overlay (plays on hover) */}
+      <CardEffect effect={cardEffect} playing={isHovered && liveStatus !== 'offline'} />
+
+      {/* Avatar */}
+      <div style={{ position: 'relative', zIndex: 3, flexShrink: 0 }}>
+        <ProfileTooltip data={{
+          username: friend.username,
+          avatarUrl: friend.avatar_url,
+          status: liveStatus,
+          cardGradient: friend.card_gradient,
+          cardImageUrl: friend.card_image_url,
+          cardImageParams: friend.card_image_params,
+        }}>
+          <AvatarImage
+            username={friend.username}
+            avatarUrl={friend.avatar_url}
+            size="sm"
+            status={liveStatus}
+            playingGame={playingGame}
+          />
+        </ProfileTooltip>
       </div>
 
+      {/* Name + status */}
+      <div style={{ position: 'relative', zIndex: 3, flex: 1, minWidth: 0 }}>
+        <AccentName
+          name={friend.username}
+          accentColor={accentColor}
+          accentColorSecondary={accentSecondary}
+          style={{ fontSize: '12.5px', fontWeight: 600 }}
+        />
+        <div style={{ marginTop: 1 }}>
+          {isTyping ? (
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontStyle: 'italic' }}>typing...</span>
+          ) : statusLine ? (
+            <CustomStatusBadge emoji={statusLine.emoji} text={statusLine.text} size="sm" />
+          ) : playingGame ? (
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>🎮 {playingGame}</span>
+          ) : (
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>{liveStatus}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Remove friend button (hover, no unread) */}
       {isHovered && unread === 0 && (
         <button
           onClick={e => { e.stopPropagation(); removeFriend(currentUserId, friend.id); }}
           className="rounded-aero p-1 transition-all shrink-0"
-          style={{ color: 'var(--text-muted)' }}
+          style={{ position: 'relative', zIndex: 4, color: 'var(--text-muted)' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
           title="Remove friend"
@@ -838,35 +946,32 @@ const FriendItem = memo(function FriendItem({
         </button>
       )}
 
+      {/* Unread badge */}
       {unread > 0 && (
-        <span
-          className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shrink-0"
-          style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)', boxShadow: '0 1px 6px rgba(0,80,200,0.30)' }}
-        >
+        <div style={{
+          position: 'relative', zIndex: 4,
+          background: '#ff4060', color: 'white',
+          fontSize: 9, fontWeight: 700,
+          borderRadius: 10, padding: '1px 6px',
+          minWidth: 18, textAlign: 'center',
+          flexShrink: 0,
+        }}>
           {unread > 99 ? '99+' : unread}
-        </span>
+        </div>
       )}
     </button>
+    {showPopout && cardRef.current && (
+      <ProfilePopout
+        friend={friend}
+        status={liveStatus}
+        game={playingGame}
+        anchorRect={cardRef.current.getBoundingClientRect()}
+        direction="right"
+        onClose={handlePopoutClose}
+        onMessage={() => { handlePopoutClose(); onSelect(friend); }}
+      />
+    )}
+    </>
   );
 });
 
-function StatusLine({ status, playingGame }: { status: Status; playingGame?: string | null }) {
-  const color = statusColor[status];
-  return (
-    <p className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: 11, color }}>
-      <span className="inline-block rounded-full shrink-0"
-        style={{ width: 7, height: 7, background: color, boxShadow: `0 0 5px ${color}cc` }} />
-      <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 500 }}>
-        {statusLabel[status]}
-      </span>
-      {playingGame && (
-        <>
-          <span style={{ color: 'var(--separator-dot)' }}>·</span>
-          <span style={{ color: 'var(--game-activity-color)', fontWeight: 500 }}>
-            🎮 Playing {GAME_LABELS[playingGame as keyof typeof GAME_LABELS] ?? playingGame}
-          </span>
-        </>
-      )}
-    </p>
-  );
-}
