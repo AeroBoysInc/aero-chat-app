@@ -100,7 +100,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
     const [membersRes, bubblesRes] = await Promise.all([
       supabase
         .from('server_members')
-        .select('*, profiles:user_id(username, avatar_url, status, card_gradient, card_image_url, card_image_params)')
+        .select('*, profiles:user_id(username, avatar_url, status, card_gradient, card_image_url, card_image_params, bio, custom_status_text, custom_status_emoji, accent_color, accent_color_secondary, banner_gradient, banner_image_url, card_effect, avatar_gif_url, name_effect)')
         .eq('server_id', serverId),
       supabase
         .from('bubbles')
@@ -119,6 +119,16 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
       card_gradient: m.profiles?.card_gradient,
       card_image_url: m.profiles?.card_image_url,
       card_image_params: m.profiles?.card_image_params,
+      bio: m.profiles?.bio,
+      custom_status_text: m.profiles?.custom_status_text,
+      custom_status_emoji: m.profiles?.custom_status_emoji,
+      accent_color: m.profiles?.accent_color,
+      accent_color_secondary: m.profiles?.accent_color_secondary,
+      banner_gradient: m.profiles?.banner_gradient,
+      banner_image_url: m.profiles?.banner_image_url,
+      card_effect: m.profiles?.card_effect,
+      avatar_gif_url: m.profiles?.avatar_gif_url,
+      name_effect: m.profiles?.name_effect,
     }));
     set({
       members,

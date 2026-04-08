@@ -24,6 +24,8 @@ export interface Profile {
   banner_gradient?: string | null;
   banner_image_url?: string | null;
   card_effect?: string | null;
+  avatar_gif_url?: string | null;
+  name_effect?: string | null;
 }
 
 interface AuthState {
@@ -32,7 +34,7 @@ interface AuthState {
   setUser:        (user: Profile | null) => void;
   refreshProfile: () => Promise<void>;
   signOut:        () => Promise<void>;
-  updateIdentity(fields: Partial<Pick<Profile, 'bio' | 'custom_status_text' | 'custom_status_emoji' | 'accent_color' | 'accent_color_secondary' | 'banner_gradient' | 'banner_image_url' | 'card_effect'>>): Promise<void>;
+  updateIdentity(fields: Partial<Pick<Profile, 'bio' | 'custom_status_text' | 'custom_status_emoji' | 'accent_color' | 'accent_color_secondary' | 'banner_gradient' | 'banner_image_url' | 'card_effect' | 'avatar_gif_url' | 'name_effect'>>): Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -44,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, public_key, avatar_url, status, card_gradient, card_image_url, card_image_params, is_premium')
+      .select('id, username, public_key, avatar_url, status, card_gradient, card_image_url, card_image_params, is_premium, bio, custom_status_text, custom_status_emoji, accent_color, accent_color_secondary, banner_gradient, banner_image_url, card_effect, avatar_gif_url, name_effect')
       .eq('id', user.id)
       .single();
     if (data) set({ user: data });

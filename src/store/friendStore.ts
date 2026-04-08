@@ -33,7 +33,7 @@ export const useFriendStore = create<FriendState>((set, get) => ({
   loadFriends: async (userId) => {
     set({ loading: true });
 
-    const PROFILE_FIELDS = 'id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params,is_premium,bio,custom_status_text,custom_status_emoji,accent_color,accent_color_secondary,banner_gradient,banner_image_url,card_effect';
+    const PROFILE_FIELDS = 'id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params,is_premium,bio,custom_status_text,custom_status_emoji,accent_color,accent_color_secondary,banner_gradient,banner_image_url,card_effect,avatar_gif_url,name_effect';
 
     // Accepted requests (both directions)
     const { data: accepted } = await supabase

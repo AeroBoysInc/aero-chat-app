@@ -49,6 +49,26 @@ export const CARD_EFFECTS = [
 
 export type CardEffectId = (typeof CARD_EFFECTS)[number]['id'];
 
+// ── Name effects ────────────────────────────────────────────────────
+export const NAME_EFFECTS_FREE = [
+  { id: 'glow',     label: 'Glow' },
+  { id: 'shadow',   label: 'Shadow' },
+  { id: 'metallic', label: 'Metallic' },
+  { id: 'spaced',   label: 'Spaced' },
+  { id: 'italic',   label: 'Italic' },
+] as const;
+
+export const NAME_EFFECTS_PREMIUM = [
+  { id: 'rainbow',  label: 'Rainbow' },
+  { id: 'wave',     label: 'Wave' },
+  { id: 'pulse',    label: 'Pulse' },
+  { id: 'glitch',   label: 'Glitch' },
+  { id: 'sparkle',  label: 'Sparkle' },
+] as const;
+
+export const NAME_EFFECTS = [...NAME_EFFECTS_FREE, ...NAME_EFFECTS_PREMIUM] as const;
+export type NameEffectId = (typeof NAME_EFFECTS)[number]['id'];
+
 // ── Shared identity type ────────────────────────────────────────────
 export interface IdentityFields {
   bio: string | null;
@@ -59,12 +79,15 @@ export interface IdentityFields {
   banner_gradient: string | null;
   banner_image_url: string | null;
   card_effect: string | null;
+  avatar_gif_url: string | null;
+  name_effect: string | null;
 }
 
 export const IDENTITY_COLUMNS = [
   'bio', 'custom_status_text', 'custom_status_emoji',
   'accent_color', 'accent_color_secondary',
   'banner_gradient', 'banner_image_url', 'card_effect',
+  'avatar_gif_url', 'name_effect',
 ] as const;
 
 /** Max bio length by tier */

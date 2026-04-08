@@ -46,6 +46,17 @@ export interface ServerMember {
   card_gradient?: string | null;
   card_image_url?: string | null;
   card_image_params?: any;
+  // Identity fields:
+  bio?: string | null;
+  custom_status_text?: string | null;
+  custom_status_emoji?: string | null;
+  accent_color?: string | null;
+  accent_color_secondary?: string | null;
+  banner_gradient?: string | null;
+  banner_image_url?: string | null;
+  card_effect?: string | null;
+  avatar_gif_url?: string | null;
+  name_effect?: string | null;
 }
 
 export interface Bubble {
