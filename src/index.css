@@ -1696,6 +1696,59 @@
   75% { opacity: 0.9; transform: translate(2px, -2px); }
 }
 
+/* ── Name effect keyframes ────────────────────────────────────────── */
+@keyframes name-rainbow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes name-wave {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes name-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+@keyframes name-glitch {
+  0%, 94%, 100% { transform: none; opacity: 1; }
+  95%  { transform: translate(-2px, 1px); opacity: 0.8; }
+  96%  { transform: translate(2px, -1px); opacity: 0.9; }
+  97%  { transform: translate(-1px, 0); opacity: 0.7; }
+  98%  { transform: translate(1px, 1px); opacity: 0.85; }
+  99%  { transform: none; opacity: 0.95; }
+}
+@keyframes name-sparkle-orbit {
+  0%   { top: -4px; right: -8px; opacity: 1; }
+  25%  { top: -2px; right: -12px; opacity: 0.6; }
+  50%  { top: 2px; right: -8px; opacity: 1; }
+  75%  { top: 0px; right: -4px; opacity: 0.6; }
+  100% { top: -4px; right: -8px; opacity: 1; }
+}
+
+.name-effect-sparkle {
+  position: relative;
+}
+.name-effect-sparkle::after {
+  content: '✦';
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  font-size: 7px;
+  color: inherit;
+  animation: name-sparkle-orbit 3s linear infinite;
+  pointer-events: none;
+}
+
+/* ── Card effect upgrade keyframes ────────────────────────────────── */
+@keyframes effect-bubble-drift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(var(--drift-x, 8px)); }
+}
+@keyframes effect-rain-splash {
+  0%   { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
 /* ═══════════════════════════════════════════════
    UTILITIES
 ═══════════════════════════════════════════════ */
