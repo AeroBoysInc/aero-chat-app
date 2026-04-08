@@ -116,7 +116,7 @@ const THEME_META: ThemeMeta[] = [
     hoverBg: 'rgba(255,180,80,0.08)',
   },
   {
-    id: 'master', label: 'Master', description: 'Emerald glass, parallax tile dashboard',
+    id: 'master', label: 'Matrix', description: 'Emerald glass, parallax tile dashboard',
     icon: <Sparkles className="h-4 w-4" />,
     accent: '#00e676', accentSecondary: '#00c853', gradient: 'linear-gradient(135deg, #00e676, #00c853, #0a1a10)',
     bodySnippet: '#050505',
@@ -128,8 +128,203 @@ const THEME_META: ThemeMeta[] = [
   },
 ];
 
+/* ── Master Theme preview — tile grid dashboard ── */
+const MasterThemePreview = memo(function MasterThemePreview({ meta }: { meta: ThemeMeta }) {
+  const a = meta.accent; // #00e676
+  const border = meta.panelBorder;
+  const glass = meta.sidebarBg;
+  const txt = meta.textPrimary;
+  const muted = meta.textMuted;
+
+  const tileStyle: React.CSSProperties = {
+    borderRadius: 10, background: glass,
+    border: `1px solid ${border}`,
+    overflow: 'hidden', display: 'flex', flexDirection: 'column',
+    padding: 6,
+  };
+
+  return (
+    <div style={{
+      width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden',
+      background: meta.bodySnippet, display: 'flex', flexDirection: 'column',
+      border: `1px solid ${border}`, padding: 6, gap: 5,
+    }}>
+      {/* Header bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '2px 4px' }}>
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: `${a}50` }} />
+        <span style={{ fontSize: 7, fontWeight: 800, color: a, letterSpacing: '-0.2px' }}>AeroChat</span>
+        <span style={{ fontSize: 5, fontWeight: 700, color: `${a}50`, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Matrix</span>
+        <div style={{ flex: 1 }} />
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: `${a}12`, border: `1px solid ${border}` }} />
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: `${a}12`, border: `1px solid ${border}` }} />
+      </div>
+
+      {/* Tile Grid — 3 columns: Home (2.2fr, 2 rows), 2 small tiles per row */}
+      <div style={{
+        flex: 1, minHeight: 0,
+        display: 'grid',
+        gridTemplateColumns: '2.2fr 1fr 1fr',
+        gridTemplateRows: '1fr 1fr',
+        gap: 5,
+      }}>
+        {/* Home tile — spans 2 rows */}
+        <div style={{ ...tileStyle, gridRow: '1 / 3', padding: 5, gap: 3 }}>
+          {/* Profile card */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '3px 2px',
+            borderBottom: `1px solid ${border}`, paddingBottom: 4,
+          }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: '50%',
+              background: `linear-gradient(135deg, ${a}60, ${a}30)`,
+              border: `1.5px solid ${a}50`, flexShrink: 0,
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ height: 3, width: '65%', borderRadius: 1, background: txt, opacity: 0.5 }} />
+              <div style={{ height: 2, width: '40%', borderRadius: 1, background: a, opacity: 0.35, marginTop: 2 }} />
+            </div>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: `${a}15`, border: `1px solid ${border}` }} />
+          </div>
+
+          {/* Friend list */}
+          <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 3 }}>
+            <div style={{ width: '38%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[true, false, false, false].map((active, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 3, padding: '2px 3px', borderRadius: 4,
+                  background: active ? `${a}12` : 'transparent',
+                }}>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                    background: active ? `${a}40` : `${muted}20`,
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: 2, width: `${60 + i * 10}%`, borderRadius: 1, background: txt, opacity: active ? 0.5 : 0.15 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Chat area */}
+            <div style={{
+              flex: 1, borderRadius: 6, background: meta.chatBg,
+              border: `1px solid ${border}`, display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+            }}>
+              <div style={{ padding: '3px 4px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: `${a}35` }} />
+                <div style={{ height: 2, width: 24, borderRadius: 1, background: txt, opacity: 0.4 }} />
+              </div>
+              <div style={{ flex: 1, padding: '4px 4px', display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'flex-end' }}>
+                {/* Recv */}
+                <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: `${muted}25` }} />
+                  <div style={{
+                    padding: '2px 4px', borderRadius: '4px 4px 4px 1px', maxWidth: '60%',
+                    background: meta.recvBg, border: `1px solid ${border}`,
+                  }}>
+                    <div style={{ height: 2, width: 28, borderRadius: 1, background: txt, opacity: 0.3 }} />
+                  </div>
+                </div>
+                {/* Sent */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{
+                    padding: '2px 4px', borderRadius: '4px 4px 1px 4px', maxWidth: '55%',
+                    background: `linear-gradient(135deg, ${a}cc, ${a}88)`,
+                  }}>
+                    <div style={{ height: 2, width: 24, borderRadius: 1, background: '#fff', opacity: 0.5 }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Games tile */}
+        <div style={tileStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: `${a}30` }} />
+            <span style={{ fontSize: 5, fontWeight: 700, color: a, opacity: 0.7 }}>Games</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: `${a}18` }} />
+                <div style={{ height: 2, width: `${40 + i * 10}%`, borderRadius: 1, background: txt, opacity: 0.2 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Writers tile */}
+        <div style={tileStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: `${a}30` }} />
+            <span style={{ fontSize: 5, fontWeight: 700, color: a, opacity: 0.7 }}>Writers</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ height: 2, width: `${50 + i * 8}%`, borderRadius: 1, background: txt, opacity: 0.2 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Calendar tile */}
+        <div style={tileStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: `${a}30` }} />
+            <span style={{ fontSize: 5, fontWeight: 700, color: a, opacity: 0.7 }}>Calendar</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[1, 2].map(i => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 4, height: 4, borderRadius: '50%', background: i === 1 ? '#00e676' : '#ffa000', opacity: 0.6 }} />
+                <div style={{ height: 2, width: `${45 + i * 12}%`, borderRadius: 1, background: txt, opacity: 0.2 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Avatar tile */}
+        <div style={tileStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: `${a}30` }} />
+            <span style={{ fontSize: 5, fontWeight: 700, color: a, opacity: 0.7 }}>Avatar</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {['#00e676', '#00d4ff', '#ffa000'].map((c, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ height: 3, flex: 1, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${30 + i * 20}%`, borderRadius: 2, background: `${c}88` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Servers bar — full width */}
+      <div style={{
+        height: 18, borderRadius: 8, background: glass,
+        border: `1px solid ${border}`, flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px',
+      }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: `${a}25` }} />
+        <span style={{ fontSize: 5, fontWeight: 700, color: a, opacity: 0.5 }}>Servers</span>
+        <div style={{ width: 1, height: 8, background: border, margin: '0 2px' }} />
+        {[1, 2, 3].map(i => (
+          <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: `${a}18`, border: `1px solid ${border}` }} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 /* ── Full app viewport preview ── */
 const ThemePreview = memo(function ThemePreview({ meta }: { meta: ThemeMeta }) {
+  if (meta.id === 'master') return <MasterThemePreview meta={meta} />;
   const isDark = meta.id !== 'day';
   return (
     <div style={{
@@ -603,14 +798,14 @@ function PremiumPicker() {
                 {/* Divider */}
                 <div style={{ height: 1, background: 'var(--popup-divider)', margin: '8px 16px' }} />
 
-                {/* Section: Master Theme */}
+                {/* Section: Matrix Theme */}
                 <div style={{
                   padding: '4px 16px 6px', fontSize: 9, fontWeight: 700,
                   letterSpacing: '0.06em', textTransform: 'uppercase',
                   background: 'linear-gradient(90deg, #00e676, #00c853)',
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 }}>
-                  ✦ Master
+                  ✦ Matrix
                 </div>
                 {THEME_META.filter(t => MASTER_THEMES.includes(t.id)).map(meta => {
                   const isOwned = useThemeStore.getState().ownsMaster;

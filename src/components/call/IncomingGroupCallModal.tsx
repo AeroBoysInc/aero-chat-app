@@ -2,9 +2,18 @@ import { useEffect } from 'react';
 import { Phone, PhoneOff, Users } from 'lucide-react';
 import { useGroupCallStore } from '../../store/groupCallStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { startRingtone, stopRingtone } from '../../lib/ringtone';
 
 export function IncomingGroupCallModal() {
   const { status, callId, participants, joinGroupCall } = useGroupCallStore();
+
+  // Play ringtone while ringing
+  useEffect(() => {
+    if (status === 'ringing') {
+      startRingtone();
+      return () => stopRingtone();
+    }
+  }, [status]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {

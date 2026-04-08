@@ -662,14 +662,14 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       }),
     }).catch(err => console.error('[group-call] Ring failed for', newFriend.id, err));
 
-    // Also tell existing contact to join group channel
+    // Tell existing contact to auto-escalate to the group channel (not ring — they're already in a call with us)
     fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
       method: 'POST',
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{
           topic: `realtime:call:ring:${refs.contact.id}`,
-          event: 'call:group-invite',
+          event: 'call:group-escalate',
           payload: {
             callId,
             inviter: { userId: myUserId, username: user.username, avatar_url: user.avatar_url ?? null },
@@ -776,8 +776,20 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     set(INITIAL_STATE);
   },
   addParticipant: async (friend) => {
-    const { callId, myUserId, participants } = get();
-    if (!callId || !myUserId) return;
+    let { callId, myUserId, participants } = get();
+
+    // If no group call active, check if there's a 1:1 call to escalate
+    if (!callId || !myUserId) {
+      const { useCallStore } = await import('./callStore');
+      const callStatus = useCallStore.getState().status;
+      if (callStatus === 'connected') {
+        // Escalate the 1:1 call to a group call with the new friend
+        await get().escalateToGroup(friend);
+        return;
+      }
+      return; // No active call at all
+    }
+
     if (participants.size >= 4) return; // Max 4
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -786,6 +798,8 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     const { useAuthStore } = await import('./authStore');
     const user = useAuthStore.getState().user;
 
+    // Re-read after potential async operations
+    ({ callId, myUserId, participants } = get());
     const participantList = Array.from(participants.values());
 
     fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {

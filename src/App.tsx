@@ -254,12 +254,14 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
-  // OS notification for incoming calls — fires even when the window is idle
+  // OS notification for incoming calls — fires once on transition to ringing
   useEffect(() => {
+    let prevStatus = useCallStore.getState().status;
     return useCallStore.subscribe(state => {
-      if (state.status === 'ringing' && state.contact) {
+      if (state.status === 'ringing' && prevStatus !== 'ringing' && state.contact) {
         showCallNotification(state.contact.username, state.callType ?? 'audio');
       }
+      prevStatus = state.status;
     });
   }, []);
 
@@ -351,6 +353,30 @@ export default function App() {
           participants ?? [],
           { ...friend },
         );
+      })
+      .on('broadcast', { event: 'call:group-escalate' }, async ({ payload }) => {
+        const { callId, inviter, participants } = payload;
+        if (!callId || !inviter) return;
+
+        // Only accept from friends
+        const friend = useFriendStore.getState().friends.find(f => f.id === inviter.userId);
+        if (!friend) return;
+
+        // This is for users already in a 1:1 call — auto-join the group
+        const callStatus = useCallStore.getState().status;
+        if (callStatus !== 'connected') return;
+
+        const groupStore = useGroupCallStore.getState();
+        if (groupStore.status !== 'idle') return;
+
+        // End the 1:1 call silently (the other side already escalated)
+        useCallStore.getState().hangUp();
+
+        try {
+          await groupStore.joinGroupCall(callId, inviter.userId, participants ?? []);
+        } catch (err) {
+          console.error('[group-call] Auto-escalation failed', err);
+        }
       })
       .subscribe();
 

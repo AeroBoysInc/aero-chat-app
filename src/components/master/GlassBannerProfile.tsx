@@ -5,6 +5,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useStatusStore } from '../../store/statusStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useCallStore } from '../../store/callStore';
+import { useXpStore } from '../../store/xpStore';
+import { deriveLevel, BAR_META } from '../../lib/xpConfig';
+import { useIsMobile } from '../../lib/useIsMobile';
 
 const ALL_STATUSES: Status[] = ['online', 'busy', 'away', 'offline'];
 const STATUS_LABELS: Record<Status, string> = { online: 'Online', busy: 'Do Not Disturb', away: 'Away', offline: 'Invisible' };
@@ -21,22 +24,29 @@ export const GlassBannerProfile = memo(function GlassBannerProfile({
   const callStatus = useCallStore(s => s.status);
   const playingGame = usePresenceStore(s => s.playingGames.get(user?.id ?? '') ?? null);
   const [statusOpen, setStatusOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const chatterXp = useXpStore(s => s.chatter_xp);
+  const chatterMeta = BAR_META.chatter;
+  const { level: chatterLevel, currentXp, nextXp } = deriveLevel(chatterXp);
+  const chatterProgress = chatterLevel >= 100 ? 100 : nextXp > 0 ? Math.round((currentXp / nextXp) * 100) : 0;
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 14,
-      padding: '12px 16px',
+      display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14,
+      padding: isMobile ? '10px 10px' : '12px 16px',
       borderBottom: '1px solid rgba(0,230,118,0.08)',
-      position: 'relative', overflow: 'hidden',
+      position: 'relative', overflow: 'visible',
       background: 'linear-gradient(135deg, rgba(0,230,118,0.06), rgba(0,230,118,0.02))',
+      zIndex: 10,
     }}>
-      {/* Decorative orb */}
+      {/* Decorative orb — clipped to banner area */}
       <div style={{
         position: 'absolute', width: 120, height: 120, top: -40, right: 40,
         borderRadius: '50%',
         background: 'radial-gradient(circle, rgba(0,230,118,0.08) 0%, transparent 70%)',
         filter: 'blur(16px)',
         pointerEvents: 'none',
+        zIndex: 0,
       }} />
 
       {/* Avatar */}
@@ -97,7 +107,7 @@ export const GlassBannerProfile = memo(function GlassBannerProfile({
             <div
               className="animate-fade-in"
               style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                position: 'absolute', top: '100%', left: 0, zIndex: 50,
                 marginTop: 4, borderRadius: 10, overflow: 'hidden',
                 background: 'rgba(8,20,12,0.95)',
                 border: '1px solid rgba(0,230,118,0.15)',
@@ -132,14 +142,38 @@ export const GlassBannerProfile = memo(function GlassBannerProfile({
             </div>
           )}
         </div>
+
+        {/* Chatter XP bar */}
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 7, fontWeight: 700, color: `${chatterMeta.color}cc`, textTransform: 'uppercase', flexShrink: 0 }}>
+            Chat Lv.{chatterLevel}
+          </span>
+          <div style={{
+            flex: 1, height: 5, borderRadius: 3,
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.04)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', borderRadius: 3,
+              width: `${Math.max(chatterProgress, 2)}%`,
+              background: `linear-gradient(90deg, ${chatterMeta.color}99, ${chatterMeta.color})`,
+              boxShadow: `0 0 4px ${chatterMeta.color}50`,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.22)', flexShrink: 0 }}>
+            {chatterLevel >= 100 ? 'MAX' : `${currentXp}/${nextXp}`}
+          </span>
+        </div>
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 6, position: 'relative', zIndex: 1 }}>
+      <div style={{ display: 'flex', gap: isMobile ? 4 : 6, position: 'relative', zIndex: 1 }}>
         <button
           onClick={onBellClick}
           style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: isMobile ? 36 : 28, height: isMobile ? 36 : 28, borderRadius: 8,
             background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.10)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', outline: 'none', color: 'rgba(0,230,118,0.40)',
@@ -148,12 +182,12 @@ export const GlassBannerProfile = memo(function GlassBannerProfile({
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,230,118,0.12)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,230,118,0.05)')}
         >
-          <Bell style={{ width: 13, height: 13 }} />
+          <Bell style={{ width: isMobile ? 15 : 13, height: isMobile ? 15 : 13 }} />
         </button>
         <button
           onClick={onSettingsClick}
           style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: isMobile ? 36 : 28, height: isMobile ? 36 : 28, borderRadius: 8,
             background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.10)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', outline: 'none', color: 'rgba(0,230,118,0.40)',
@@ -162,7 +196,7 @@ export const GlassBannerProfile = memo(function GlassBannerProfile({
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,230,118,0.12)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,230,118,0.05)')}
         >
-          <Settings style={{ width: 13, height: 13 }} />
+          <Settings style={{ width: isMobile ? 15 : 13, height: isMobile ? 15 : 13 }} />
         </button>
       </div>
     </div>

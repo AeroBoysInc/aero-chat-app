@@ -2,9 +2,16 @@ import { useEffect } from 'react';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { useCallStore } from '../../store/callStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { startRingtone, stopRingtone } from '../../lib/ringtone';
 
 export function IncomingCallModal() {
   const { contact, callType, answerCall, rejectCall } = useCallStore();
+
+  // Play ringtone while modal is shown
+  useEffect(() => {
+    startRingtone();
+    return () => stopRingtone();
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {

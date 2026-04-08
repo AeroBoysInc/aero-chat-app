@@ -10,9 +10,10 @@ import type { Profile } from '../../store/authStore';
 interface CompactSidebarProps {
   selectedUserId: string | null;
   onSelectUser: (user: Profile) => void;
+  fullWidth?: boolean;
 }
 
-export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onSelectUser }: CompactSidebarProps) {
+export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onSelectUser, fullWidth }: CompactSidebarProps) {
   const friends = useFriendStore(useShallow(s => s.friends));
   const onlineIds = usePresenceStore(s => s.onlineIds);
   const presenceReady = usePresenceStore(s => s.presenceReady);
@@ -45,8 +46,8 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
 
   return (
     <div style={{
-      width: 200, flexShrink: 0,
-      borderRight: '1px solid rgba(0,230,118,0.08)',
+      width: fullWidth ? '100%' : 200, flexShrink: 0,
+      borderRight: fullWidth ? 'none' : '1px solid rgba(0,230,118,0.08)',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
     }}>

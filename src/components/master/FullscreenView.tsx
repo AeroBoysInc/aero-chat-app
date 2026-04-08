@@ -1,10 +1,12 @@
-import { memo, useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { memo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { BackBar } from './BackBar';
 import { GlassBannerProfile } from './GlassBannerProfile';
 import { CompactSidebar } from './CompactSidebar';
 import { ChatWindow } from '../chat/ChatWindow';
 import { CallView } from '../call/CallView';
 import { GroupCallView } from '../call/GroupCallView';
+import { useIsMobile } from '../../lib/useIsMobile';
 import { GamesCorner } from '../corners/GamesCorner';
 import { GameChatOverlay } from '../corners/GameChatOverlay';
 import { ServerOverlay } from '../servers/ServerOverlay';
@@ -100,7 +102,7 @@ export const FullscreenView = memo(function FullscreenView({
             <AvatarCorner />
           </Suspense>
         )}
-        {tileId === 'servers' && <ServersFullscreen />}
+        {tileId === 'servers' && <ServersFullscreen onCollapse={handleCollapse} />}
       </div>
     </div>
   );
@@ -113,41 +115,98 @@ function HomeFullscreen() {
   const callActive = callStatus !== 'idle';
   const groupCallStatus = useGroupCallStore(s => s.status);
   const groupCallActive = groupCallStatus !== 'idle' && groupCallStatus !== 'ringing';
+  const isMobile = useIsMobile();
+  const [mobileShowChat, setMobileShowChat] = useState(false);
+
+  const handleSelectUser = useCallback((user: import('../../store/authStore').Profile) => {
+    setSelectedContact(user);
+    if (isMobile) setMobileShowChat(true);
+  }, [setSelectedContact, isMobile]);
 
   return (
     <>
       <GlassBannerProfile />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <CompactSidebar
-          selectedUserId={selectedContact?.id ?? null}
-          onSelectUser={setSelectedContact}
-        />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {callActive ? (
-            <CallView />
-          ) : groupCallActive ? (
-            <GroupCallView />
-          ) : selectedContact ? (
-            <ChatWindow contact={selectedContact} />
-          ) : (
-            <div style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'rgba(0,230,118,0.25)', fontSize: 12,
-            }}>
-              Select a conversation
+        {isMobile ? (
+          mobileShowChat && selectedContact ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <button
+                onClick={() => setMobileShowChat(false)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '8px 12px', flexShrink: 0,
+                  background: 'rgba(0,230,118,0.04)',
+                  borderBottom: '1px solid rgba(0,230,118,0.08)',
+                  border: 'none', cursor: 'pointer', outline: 'none',
+                  color: 'rgba(0,230,118,0.55)', fontSize: 11, fontWeight: 600,
+                  minHeight: 36,
+                }}
+              >
+                <ArrowLeft style={{ width: 13, height: 13 }} />
+                Back to contacts
+              </button>
+              {callActive ? (
+                <CallView />
+              ) : groupCallActive ? (
+                <GroupCallView />
+              ) : (
+                <ChatWindow contact={selectedContact} />
+              )}
             </div>
-          )}
-        </div>
+          ) : (
+            <CompactSidebar
+              selectedUserId={selectedContact?.id ?? null}
+              onSelectUser={handleSelectUser}
+              fullWidth
+            />
+          )
+        ) : (
+          <>
+            <CompactSidebar
+              selectedUserId={selectedContact?.id ?? null}
+              onSelectUser={setSelectedContact}
+            />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {callActive ? (
+                <CallView />
+              ) : groupCallActive ? (
+                <GroupCallView />
+              ) : selectedContact ? (
+                <ChatWindow contact={selectedContact} />
+              ) : (
+                <div style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'rgba(0,230,118,0.25)', fontSize: 12,
+                }}>
+                  Select a conversation
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </>
   );
 }
 
 /* ── Servers fullscreen ── */
-function ServersFullscreen() {
+function ServersFullscreen({ onCollapse }: { onCollapse: () => void }) {
   const serverView = useCornerStore(s => s.serverView);
+  const prevServerView = useRef(serverView);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+
+  // When ServerView's back button sets serverView to null, collapse to dashboard
+  useEffect(() => {
+    if (prevServerView.current === 'server' && serverView === null) {
+      onCollapse();
+    }
+    if (prevServerView.current === 'bubble' && (serverView === null || serverView === 'server')) {
+      // bubble -> server is normal navigation, bubble -> null should collapse
+      if (serverView === null) onCollapse();
+    }
+    prevServerView.current = serverView;
+  }, [serverView, onCollapse]);
 
   return (
     <>

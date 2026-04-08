@@ -55,12 +55,15 @@ export function AddToCallModal({ onClose, multiSelect }: Props) {
     }
   }
 
-  function handleStartCall() {
+  async function handleStartCall() {
     const selected = friends.filter(f => selectedIds.has(f.id));
-    if (selected.length > 0) {
-      startGroupCall(selected);
-      onClose();
+    if (selected.length === 0) return;
+    try {
+      await startGroupCall(selected);
+    } catch (err) {
+      console.error('[group-call] Failed to start group call', err);
     }
+    onClose();
   }
 
   return (
