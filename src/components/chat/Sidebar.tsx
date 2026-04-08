@@ -151,7 +151,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             position: 'absolute', left: -16, top: -8, zIndex: 15,
           }}>
             <div style={{
-              width: 64, height: 64, borderRadius: '50%',
+              width: 52, height: 52, borderRadius: '50%',
               background: 'var(--card-bg-solid, var(--bg-solid, #dceefb))',
               border: '3px solid var(--panel-divider)',
               boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
