@@ -146,18 +146,26 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           className="flex items-center justify-between pl-16 pr-4 py-2"
           style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
-          {/* Logo circle — overlapping left edge, same pattern as AvatarCorner level badge */}
+          {/* Logo circle + logo layered separately so logo isn't clipped */}
           <div style={{
             position: 'absolute', left: -16, top: -2, zIndex: 15,
+            width: 52, height: 52,
           }}>
+            {/* Circle backdrop */}
             <div style={{
               width: 52, height: 52, borderRadius: '50%',
               background: 'var(--card-bg-solid, var(--bg-solid, #dceefb))',
               border: '3px solid var(--panel-divider)',
               boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }} />
+            {/* Logo — sits on top, not clipped by circle */}
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 16,
+              pointerEvents: 'none',
             }}>
-              <AeroLogo size={252} />
+              <AeroLogo size={80} />
             </div>
           </div>
           <div className="flex items-center gap-1">
