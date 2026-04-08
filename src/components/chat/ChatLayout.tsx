@@ -207,7 +207,7 @@ export function ChatLayout() {
           display: 'flex',
           alignItems: 'center',
           position: 'relative',
-          padding: '8px 16px 8px 60px',
+          padding: '8px 16px 8px 90px',
           borderRadius: 14,
           background: 'var(--sidebar-bg)',
           border: '1px solid var(--panel-divider)',
@@ -218,14 +218,14 @@ export function ChatLayout() {
         }}>
           {/* Logo — protruding circle, top-left */}
           <div style={{
-            position: 'absolute', left: -10, top: -14, zIndex: 10,
-            width: 64, height: 64, borderRadius: '50%',
-            background: 'var(--sidebar-bg)',
-            border: '1px solid var(--panel-divider)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+            position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'var(--panel-header-bg, var(--sidebar-bg))',
+            border: '2px solid var(--panel-divider)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <AeroLogo size={44} />
+            <AeroLogo size={88} />
           </div>
 
           {/* Left side — Unlock Aero+ button for free users */}
@@ -251,7 +251,7 @@ export function ChatLayout() {
 
           {/* Title — sits after the protruding logo */}
           <div style={{
-            position: 'absolute', left: 62, top: 0, bottom: 0,
+            position: 'absolute', left: 82, top: 0, bottom: 0,
             display: 'flex', alignItems: 'center', gap: 4,
             pointerEvents: 'none',
           }}>

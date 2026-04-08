@@ -143,19 +143,19 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       {/* ── Header — mobile only (desktop header lives in ChatLayout top bar) ── */}
       {isMobile && (
         <div
-          className="flex items-center justify-between pl-16 pr-4 py-4"
+          className="flex items-center justify-between pl-20 pr-4 py-4"
           style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
           {/* Logo — protruding circle, top-left */}
           <div style={{
-            position: 'absolute', left: -10, top: -10, zIndex: 10,
-            width: 64, height: 64, borderRadius: '50%',
-            background: 'var(--sidebar-bg)',
-            border: '1px solid var(--panel-divider)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+            position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'var(--panel-header-bg, var(--sidebar-bg))',
+            border: '2px solid var(--panel-divider)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <AeroLogo size={44} />
+            <AeroLogo size={88} />
           </div>
           <div className="flex items-center gap-1">
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 18, color: 'var(--text-title)', letterSpacing: '-0.4px' }}>
