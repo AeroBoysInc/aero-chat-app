@@ -11,6 +11,8 @@ import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { useAudioStore } from '../../store/audioStore';
 import { Phone, Video, Monitor, MicOff } from 'lucide-react';
 import type { Profile } from '../../store/authStore';
+import { getCallTier, getTierPalette, type TierPalette, type AudioBarConfig } from '../../lib/callTierVisuals';
+import { useThemeStore } from '../../store/themeStore';
 
 /** Formats elapsed seconds as M:SS */
 function formatDuration(startedAt: number): string {
@@ -21,19 +23,25 @@ function formatDuration(startedAt: number): string {
 }
 
 /** Builds a CSS background for a participant panel from their Profile card settings */
-function panelBackground(profile: Profile | null): React.CSSProperties {
-  if (!profile) return { background: 'linear-gradient(180deg, #1a8fff40 0%, #1a8fff18 40%, rgba(6,14,31,0.95) 100%)' };
-  if (profile.card_image_url) {
+function panelBackground(profile: Profile | null, palette: TierPalette): React.CSSProperties {
+  if (palette.tier === 'free') {
+    return { background: palette.bg };
+  }
+  if (palette.tier === 'premium') {
+    if (!profile) return { background: palette.bg };
+    if (profile.card_image_url) {
+      return {
+        backgroundImage: `url(${profile.card_image_url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: `${profile.card_image_params?.x ?? 50}% ${profile.card_image_params?.y ?? 50}%`,
+      };
+    }
+    const preset = CARD_GRADIENTS.find(g => g.id === (profile.card_gradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
     return {
-      backgroundImage: `url(${profile.card_image_url})`,
-      backgroundSize: 'cover',
-      backgroundPosition: `${profile.card_image_params?.x ?? 50}% ${profile.card_image_params?.y ?? 50}%`,
+      background: `linear-gradient(180deg, ${preset.preview}40 0%, ${preset.preview}18 40%, rgba(6,14,31,0.95) 100%)`,
     };
   }
-  const preset = CARD_GRADIENTS.find(g => g.id === (profile.card_gradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
-  return {
-    background: `linear-gradient(180deg, ${preset.preview}40 0%, ${preset.preview}18 40%, rgba(6,14,31,0.95) 100%)`,
-  };
+  return { background: palette.bg };
 }
 
 export function CallView() {
@@ -55,6 +63,10 @@ export function CallView() {
   } = useCallStore();
 
   const user = useAuthStore(s => s.user);
+  const activeTheme = useThemeStore(s => s.theme);
+  const myTier = getCallTier(user, activeTheme);
+  const myPalette = getTierPalette(myTier);
+
   const chatPosition = useAudioStore(s => s.chatPosition);
   const chatSizeRight = useAudioStore(s => s.chatSizeRight);
   const chatSizeBottom = useAudioStore(s => s.chatSizeBottom);
@@ -261,20 +273,49 @@ export function CallView() {
           <div style={{
             position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 16, zIndex: 5,
-            background: 'linear-gradient(145deg, rgba(0,30,80,0.6), rgba(0,10,40,0.9))',
+            background: myPalette.ringingBg,
           }}>
+            {/* Ambient effects for ringing screen */}
+            <div className="pointer-events-none" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+              {myPalette.orbs.map((orb, i) => (
+                <div key={`ring-orb-${i}`} style={{
+                  position: 'absolute',
+                  width: orb.width, height: orb.height,
+                  borderRadius: '50%',
+                  background: orb.background,
+                  filter: `blur(${orb.blur}px)`,
+                  top: orb.top, bottom: orb.bottom, left: orb.left, right: orb.right,
+                  pointerEvents: 'none',
+                }} />
+              ))}
+              {myPalette.particles.map((p, i) => (
+                <div key={`ring-particle-${i}`} style={{
+                  position: 'absolute',
+                  width: p.size, height: p.size,
+                  borderRadius: '50%',
+                  background: p.color,
+                  boxShadow: p.glow,
+                  top: p.top, left: p.left,
+                  animation: `orb-drift ${5 + (i % 3) * 1.5}s ease-in-out ${(i * 0.8) % 3}s infinite`,
+                  pointerEvents: 'none',
+                }} />
+              ))}
+            </div>
+
             <div style={{
               width: 96, height: 96, borderRadius: '50%',
               background: 'linear-gradient(135deg, rgba(0,180,255,0.4), rgba(0,80,200,0.3))',
-              border: '2.5px solid rgba(0,200,255,0.5)',
+              border: myPalette.ringingRingColor,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               animation: 'pulse-ring 2s ease infinite',
+              boxShadow: myPalette.ringingRingGlow,
+              position: 'relative', zIndex: 1,
             }}>
               {callType === 'video'
-                ? <Video className="h-10 w-10" style={{ color: 'rgba(0,200,255,0.8)' }} />
-                : <Phone className="h-10 w-10" style={{ color: 'rgba(0,200,255,0.8)' }} />}
+                ? <Video className="h-10 w-10" style={{ color: myPalette.ringingIconColor }} />
+                : <Phone className="h-10 w-10" style={{ color: myPalette.ringingIconColor }} />}
             </div>
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
               <p style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{contact?.username}</p>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
                 {isCaller && contactIsRinging ? 'Ringing…' : 'Calling…'}
@@ -286,6 +327,7 @@ export function CallView() {
                 marginTop: 16, width: 56, height: 56, borderRadius: '50%',
                 background: 'rgba(220,50,50,0.85)', border: 'none', color: 'white',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative', zIndex: 1,
               }}
             >
               <Phone className="h-5 w-5" style={{ transform: 'rotate(135deg)' }} />
@@ -324,12 +366,29 @@ export function CallView() {
                     {duration}
                   </div>
 
+                  {myPalette.cornerAccents.map((accent, i) => {
+                    const pos: React.CSSProperties = {};
+                    if (accent.position.includes('top')) pos.top = 0;
+                    if (accent.position.includes('bottom')) pos.bottom = 0;
+                    if (accent.position.includes('left')) pos.left = 0;
+                    if (accent.position.includes('right')) pos.right = 0;
+                    return (
+                      <div key={i} style={{
+                        position: 'absolute', ...pos,
+                        width: accent.size, height: accent.size,
+                        background: `radial-gradient(circle at ${accent.position.replace('-', ' ')}, ${accent.color} 0%, transparent 70%)`,
+                        pointerEvents: 'none', zIndex: 5,
+                      }} />
+                    );
+                  })}
+
                   <div ref={pipRef} onMouseDown={onPipMouseDown} style={{
                     position: 'absolute', bottom: `${pipPos.current.y}px`, right: `${pipPos.current.x}px`,
                     width: 120, height: 90, cursor: 'grab', zIndex: 15, borderRadius: 10,
                     boxShadow: localSpeaking
                       ? `0 0 ${8 + localLevel * 18}px rgba(0,220,120,0.7), 0 0 0 2px rgba(0,220,120,0.5)`
-                      : '0 2px 12px rgba(0,0,0,0.4)',
+                      : `${myPalette.pipGlow}, 0 2px 12px rgba(0,0,0,0.4)`,
+                    border: `2px solid ${myPalette.pipBorderColor}`,
                     transition: 'box-shadow 0.1s ease',
                   }}>
                     <CameraFeed
@@ -353,6 +412,7 @@ export function CallView() {
                   audioLevel={localLevel}
                   isMuted={isMuted}
                   isMe
+                  palette={myPalette}
                 />
 
                 {/* Divider */}
@@ -367,6 +427,7 @@ export function CallView() {
                   audioLevel={remoteLevel}
                   isMuted={contactIsMuted}
                   isMe={false}
+                  palette={myPalette}
                 />
 
                 {/* Floating duration */}
@@ -456,7 +517,7 @@ export function CallView() {
 /* ── Split Panel — one half of the 1:1 audio call view ──────────────── */
 
 function SplitPanel({
-  profile, username, avatarUrl, isSpeaking, audioLevel, isMuted, isMe,
+  profile, username, avatarUrl, isSpeaking, audioLevel, isMuted, isMe, palette,
 }: {
   profile: Profile | null;
   username: string;
@@ -465,6 +526,7 @@ function SplitPanel({
   audioLevel: number;
   isMuted: boolean;
   isMe: boolean;
+  palette: TierPalette;
 }) {
   return (
     <div style={{
@@ -472,8 +534,8 @@ function SplitPanel({
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       transition: 'flex 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     }}>
-      {/* Card background — blurred to mask low-res data-URL source and create atmosphere */}
-      <div style={{ position: 'absolute', inset: -20, ...panelBackground(profile), opacity: 0.85, filter: 'blur(12px)', transform: 'scale(1.05)' }} />
+      {/* Card background */}
+      <div style={{ position: 'absolute', inset: -20, ...panelBackground(profile, palette), opacity: 0.85, filter: 'blur(12px)', transform: 'scale(1.05)' }} />
 
       {/* Dark overlay */}
       <div style={{
@@ -481,18 +543,66 @@ function SplitPanel({
         background: 'radial-gradient(ellipse at center 40%, rgba(6,14,31,0.3) 0%, rgba(6,14,31,0.75) 100%)',
       }} />
 
+      {/* Ambient effects (orbs + particles) */}
+      <div className="pointer-events-none" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+        {palette.orbs.map((orb, i) => (
+          <div key={`orb-${i}`} style={{
+            position: 'absolute',
+            width: orb.width, height: orb.height,
+            borderRadius: '50%',
+            background: orb.background,
+            filter: `blur(${orb.blur}px)`,
+            top: orb.top, bottom: orb.bottom, left: orb.left, right: orb.right,
+            pointerEvents: 'none',
+          }} />
+        ))}
+        {palette.particles.map((p, i) => (
+          <div key={`particle-${i}`} style={{
+            position: 'absolute',
+            width: p.size, height: p.size,
+            borderRadius: '50%',
+            background: p.color,
+            boxShadow: p.glow,
+            top: p.top, left: p.left,
+            animation: `orb-drift ${5 + (i % 3) * 1.5}s ease-in-out ${(i * 0.8) % 3}s infinite`,
+            pointerEvents: 'none',
+          }} />
+        ))}
+      </div>
+
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        {/* Avatar */}
-        <div style={{ position: 'relative' }}>
-          <div style={{ width: 50, height: 50 }}>
+        {/* Avatar with rings */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Pulse rings */}
+          {palette.rings.map((ring, i) => (
+            <div key={`ring-${i}`} style={{
+              position: 'absolute',
+              width: ring.radius * 2, height: ring.radius * 2,
+              borderRadius: '50%',
+              border: ring.border,
+              boxShadow: ring.boxShadow,
+              top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              animation: ring.animate ? `aura-pulse ${ring.animationDuration ?? '3s'} ease-in-out infinite` : undefined,
+              pointerEvents: 'none',
+            }} />
+          ))}
+
+          <div style={{
+            width: 50, height: 50,
+            borderRadius: '50%',
+            border: palette.avatarBorder,
+            boxShadow: palette.avatarGlow,
+            overflow: 'hidden',
+          }}>
             <AvatarImage username={username} avatarUrl={avatarUrl} size="xl" />
           </div>
           {isMuted && (
             <div style={{
               position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%',
               background: 'rgba(239,68,68,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid rgba(6,14,31,0.8)',
+              border: '2px solid rgba(6,14,31,0.8)', zIndex: 2,
             }}>
               <MicOff className="h-3 w-3 text-white" />
             </div>
@@ -501,7 +611,13 @@ function SplitPanel({
 
         {/* Name */}
         <div className="text-center">
-          <span className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.90)' }}>{username}</span>
+          <span className="text-base" style={{
+            color: palette.nameColor,
+            fontWeight: palette.nameWeight,
+            textShadow: palette.nameShadow,
+          }}>
+            {username}
+          </span>
           {isMe && (
             <span className="ml-2 text-[10px] font-semibold rounded px-1.5 py-0.5"
               style={{ background: 'rgba(0,212,255,0.12)', color: 'rgba(0,212,255,0.75)' }}>You</span>
@@ -509,23 +625,61 @@ function SplitPanel({
         </div>
 
         {/* Audio bars */}
-        <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
-          {Array.from({ length: 7 }).map((_, i) => {
-            const variance = 0.6 + 0.4 * Math.sin(i * 2.1 + (isMuted ? 0 : audioLevel) * 20);
-            const barHeight = isSpeaking && !isMuted ? Math.max(4, 24 * audioLevel * variance) : 4;
+        <TierAudioBars config={palette.audioBars} level={audioLevel} speaking={isSpeaking} muted={isMuted} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Tier-aware audio bar visualizer ────────────────────────────────── */
+
+function TierAudioBars({ config, level, speaking, muted }: {
+  config: AudioBarConfig;
+  level: number;
+  speaking: boolean;
+  muted: boolean;
+}) {
+  const active = speaking && !muted;
+  const effectiveLevel = muted ? 0 : level;
+
+  if (config.style === 'simple') {
+    return (
+      <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
+        {Array.from({ length: config.count }).map((_, i) => {
+          const variance = 0.6 + 0.4 * Math.sin(i * 2.1 + effectiveLevel * 20);
+          const barHeight = active ? Math.max(4, 24 * effectiveLevel * variance) : 4;
+          return (
+            <div key={i} style={{
+              width: config.width, height: barHeight, borderRadius: 2,
+              background: active ? config.activeColor : config.silentColor,
+              transition: 'height 0.1s ease-out',
+            }} />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const bands = config.bands!;
+  let barIndex = 0;
+  return (
+    <div style={{ display: 'flex', gap: 2, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
+      {bands.map((band, bi) => (
+        <div key={bi} style={{ display: 'flex', gap: 2, marginLeft: bi > 0 ? config.bandGap : 0 }}>
+          {Array.from({ length: band.count }).map((_, i) => {
+            const idx = barIndex++;
+            const variance = 0.5 + 0.5 * Math.sin(idx * 1.8 + effectiveLevel * 25);
+            const barHeight = active ? Math.max(3, 22 * effectiveLevel * variance) : 3;
             return (
-              <div
-                key={i}
-                style={{
-                  width: 3, height: barHeight, borderRadius: 2,
-                  background: isSpeaking && !isMuted ? `rgba(0,212,255,${0.4 + audioLevel * 0.3})` : 'rgba(255,255,255,0.08)',
-                  transition: 'height 0.1s ease-out',
-                }}
-              />
+              <div key={i} style={{
+                width: config.width, height: barHeight, borderRadius: 1,
+                background: active ? band.activeColor : band.color,
+                transition: 'height 0.1s ease-out',
+              }} />
             );
           })}
         </div>
-      </div>
+      ))}
     </div>
   );
 }
