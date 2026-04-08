@@ -207,7 +207,7 @@ export function ChatLayout() {
           display: 'flex',
           alignItems: 'center',
           position: 'relative',
-          padding: '8px 16px 8px 50px',
+          padding: '4px 16px 4px 50px',
           borderRadius: 14,
           background: 'var(--sidebar-bg)',
           border: '1px solid var(--panel-divider)',
@@ -227,7 +227,7 @@ export function ChatLayout() {
               boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <AeroLogo size={84} />
+              <AeroLogo size={126} />
             </div>
           </div>
 

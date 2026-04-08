@@ -143,7 +143,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       {/* ── Header — mobile only (desktop header lives in ChatLayout top bar) ── */}
       {isMobile && (
         <div
-          className="flex items-center justify-between pl-16 pr-4 py-4"
+          className="flex items-center justify-between pl-16 pr-4 py-2"
           style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
           {/* Logo circle — overlapping left edge, same pattern as AvatarCorner level badge */}
@@ -157,7 +157,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <AeroLogo size={84} />
+              <AeroLogo size={126} />
             </div>
           </div>
           <div className="flex items-center gap-1">
