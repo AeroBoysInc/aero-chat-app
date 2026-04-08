@@ -147,7 +147,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           style={{ borderBottom: '1px solid var(--panel-divider)' }}
         >
           <div className="flex items-center gap-2">
-            <AeroLogo size={28} />
+            <AeroLogo size={48} />
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 18, color: 'var(--text-title)', letterSpacing: '-0.4px' }}>
               AeroChat
             </span>

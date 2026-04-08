@@ -1616,7 +1616,7 @@ export function ChatWindow({ contact, onBack }: Props) {
               </button>
             </>
           )}
-          <AeroLogo size={18} className="opacity-20" />
+          <AeroLogo size={28} className="opacity-20" />
           <Lock className="h-2.5 w-2.5" style={{ color: 'var(--text-muted)' }} />
         </div>
         </div> {/* /header content */}
