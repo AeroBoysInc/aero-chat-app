@@ -536,9 +536,10 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         document.body
       )}
 
-      {/* Identity Editor — self-contained modal */}
-      {identityEditorOpen && (
-        <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
+      {/* Identity Editor — portaled to body to escape sidebar stacking context */}
+      {identityEditorOpen && createPortal(
+        <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />,
+        document.body
       )}
 
       {/* ── XP Bar (premium) — connected underneath the card ── */}
