@@ -1884,7 +1884,7 @@
   animation-play-state: paused;
 }
 
-@keyframes fade-in {
+@keyframes opacity-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }

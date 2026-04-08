@@ -63,7 +63,7 @@ export function MasterSplash({ phase }: Props) {
                 fontSize: 13,
                 color: line.bright ? 'rgba(0,230,118,0.9)' : 'rgba(0,230,118,0.6)',
                 opacity: 0,
-                animation: `fade-in 0.1s ease ${line.delay}s forwards`,
+                animation: `opacity-in 0.1s ease ${line.delay}s forwards`,
                 marginBottom: 6,
                 textShadow: line.bright ? '0 0 8px rgba(0,230,118,0.4)' : undefined,
               }}
@@ -79,7 +79,7 @@ export function MasterSplash({ phase }: Props) {
         {/* Logo — fades in at 2.2s */}
         <div style={{
           opacity: 0,
-          animation: 'fade-in 0.4s ease 2.2s forwards',
+          animation: 'opacity-in 0.4s ease 2.2s forwards',
         }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
@@ -97,7 +97,7 @@ export function MasterSplash({ phase }: Props) {
           fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
           fontSize: 12, color: 'rgba(0,230,118,0.6)',
           opacity: 0,
-          animation: 'fade-in 0.1s ease 0.3s forwards',
+          animation: 'opacity-in 0.1s ease 0.3s forwards',
         }}>
           <TerminalProgressBar />
         </div>
@@ -118,7 +118,7 @@ function TerminalProgressBar() {
             key={i}
             style={{
               opacity: 0,
-              animation: `fade-in 0.05s ease ${fillDelay}s forwards`,
+              animation: `opacity-in 0.05s ease ${fillDelay}s forwards`,
               color: 'rgba(0,230,118,0.6)',
             }}
           >
