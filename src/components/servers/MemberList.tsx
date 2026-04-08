@@ -6,6 +6,8 @@ import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { useAuthStore } from '../../store/authStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { AccentName } from '../ui/AccentName';
+import { CustomStatusBadge } from '../ui/CustomStatusBadge';
 
 export const MemberList = memo(function MemberList() {
   const user = useAuthStore(s => s.user);
@@ -41,13 +43,26 @@ export const MemberList = memo(function MemberList() {
 
         return (
           <div key={member.user_id} className="flex items-center gap-3 rounded-aero px-3 py-2" style={{ border: '1px solid var(--panel-divider)' }}>
-            <AvatarImage username={member.username ?? '?'} avatarUrl={member.avatar_url} size="sm" />
+            <AvatarImage username={member.username ?? '?'} avatarUrl={member.avatar_url} size="sm" gifUrl={member.avatar_gif_url} />
             <div className="flex-1 min-w-0">
-              <p className="truncate text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{member.username}</p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: role?.color }} />
-                <span style={{ fontSize: 9, color: role?.color }}>{role?.name}</span>
+              <div className="flex items-center gap-1.5">
+                <AccentName
+                  name={member.username ?? '?'}
+                  accentColor={member.accent_color ?? null}
+                  accentColorSecondary={member.accent_color_secondary ?? null}
+                  nameEffect={member.name_effect ?? null}
+                  style={{ fontSize: 12, fontWeight: 500 }}
+                />
+                <div className="flex items-center gap-1">
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: role?.color }} />
+                  <span style={{ fontSize: 9, color: role?.color }}>{role?.name}</span>
+                </div>
               </div>
+              {(member.custom_status_emoji || member.custom_status_text) && (
+                <div style={{ marginTop: 1 }}>
+                  <CustomStatusBadge emoji={member.custom_status_emoji ?? null} text={member.custom_status_text ?? null} size="sm" />
+                </div>
+              )}
             </div>
             {canEdit && (
               <div className="flex items-center gap-2">

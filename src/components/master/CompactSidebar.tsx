@@ -102,12 +102,14 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
                 avatarUrl={friend.avatar_url}
                 size="sm"
                 status={effective}
+                gifUrl={friend.avatar_gif_url}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <AccentName
                   name={friend.username}
                   accentColor={friend.accent_color}
                   accentColorSecondary={friend.accent_color_secondary}
+                  nameEffect={friend.name_effect}
                   className="truncate"
                   style={{ fontSize: 11 }}
                 />

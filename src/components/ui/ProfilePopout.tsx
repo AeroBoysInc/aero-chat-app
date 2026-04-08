@@ -17,6 +17,8 @@ interface ProfilePopoutProps {
   direction?: 'right' | 'below';
   onClose: () => void;
   onMessage?: () => void;
+  onPopoutMouseEnter?: () => void;
+  onPopoutMouseLeave?: () => void;
 }
 
 const ProfilePopout = React.memo(function ProfilePopout({
@@ -28,9 +30,14 @@ const ProfilePopout = React.memo(function ProfilePopout({
   direction = 'right',
   onClose,
   onMessage,
+  onPopoutMouseEnter,
+  onPopoutMouseLeave,
 }: ProfilePopoutProps) {
   const popoutRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const handleMouseEnter = onPopoutMouseEnter;
+  const handleMouseLeave = onPopoutMouseLeave || onClose;
 
   useEffect(() => {
     if (direction === 'right') {
@@ -70,7 +77,8 @@ const ProfilePopout = React.memo(function ProfilePopout({
     <div
       ref={popoutRef}
       className="animate-fade-in"
-      onMouseLeave={onClose}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       style={{
         position: 'fixed',
         top: pos.top,
@@ -93,13 +101,13 @@ const ProfilePopout = React.memo(function ProfilePopout({
       {/* Avatar overlapping banner */}
       <div style={{ padding: '0 16px', marginTop: -26, position: 'relative', zIndex: 3 }}>
         <div style={{ width: 52, height: 52, borderRadius: '50%', border: '3px solid var(--card-bg)', overflow: 'hidden' }}>
-          <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="lg" status={status} playingGame={game} isInCall={isInCall} />
+          <AvatarImage username={friend.username} avatarUrl={friend.avatar_url} size="lg" status={status} playingGame={game} isInCall={isInCall} gifUrl={friend.avatar_gif_url} alwaysAnimate />
         </div>
       </div>
 
       {/* Identity info */}
       <div style={{ padding: '8px 16px 16px' }}>
-        <AccentName name={friend.username} accentColor={friend.accent_color} accentColorSecondary={friend.accent_color_secondary} style={{ fontSize: 16, fontWeight: 700 }} />
+        <AccentName name={friend.username} accentColor={friend.accent_color} accentColorSecondary={friend.accent_color_secondary} nameEffect={friend.name_effect} playing style={{ fontSize: 16, fontWeight: 700 }} />
 
         <div style={{ marginTop: 3 }}>
           <CustomStatusBadge emoji={friend.custom_status_emoji} text={friend.custom_status_text} size="md" />

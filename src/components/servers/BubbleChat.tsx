@@ -9,6 +9,7 @@ import { useServerMessageStore } from '../../store/serverMessageStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { useAudioStore } from '../../store/audioStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { AccentName } from '../ui/AccentName';
 import { ProfileTooltip } from '../ui/ProfileTooltip';
 import { MessageContent } from '../chat/MessageContent';
 import { ImageLightbox } from '../chat/ImageLightbox';
@@ -589,6 +590,10 @@ export const BubbleChat = memo(function BubbleChat() {
       cardGradient: member?.card_gradient,
       cardImageUrl: member?.card_image_url,
       cardImageParams: member?.card_image_params,
+      accentColor: member?.accent_color ?? null,
+      accentColorSecondary: member?.accent_color_secondary ?? null,
+      avatarGifUrl: member?.avatar_gif_url ?? null,
+      nameEffect: member?.name_effect ?? null,
     };
   }, [members, roles]);
 
@@ -600,7 +605,7 @@ export const BubbleChat = memo(function BubbleChat() {
       <div className="flex-1 overflow-y-auto px-4 py-3" style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1 }} />
         {messages.map((msg) => {
-          const { username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams } = getSenderInfo(msg.sender_id);
+          const { username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams, accentColor, accentColorSecondary, avatarGifUrl, nameEffect } = getSenderInfo(msg.sender_id);
           const isMine = msg.sender_id === user?.id;
           const msgReactions = reactions[msg.id] ?? {};
           const reactionEntries = Object.entries(msgReactions).filter(([, ids]) => ids.length > 0);
@@ -615,6 +620,10 @@ export const BubbleChat = memo(function BubbleChat() {
               cardGradient={cardGradient}
               cardImageUrl={cardImageUrl}
               cardImageParams={cardImageParams}
+              accentColor={accentColor}
+              accentColorSecondary={accentColorSecondary}
+              avatarGifUrl={avatarGifUrl}
+              nameEffect={nameEffect}
               isMine={isMine}
               msgReactions={reactionEntries}
               memberUsernames={memberUsernames}
@@ -743,6 +752,7 @@ export const BubbleChat = memo(function BubbleChat() {
 
 const BubbleMessageItem = memo(function BubbleMessageItem({
   msg, username, avatarUrl, role, cardGradient, cardImageUrl, cardImageParams,
+  accentColor, accentColorSecondary, avatarGifUrl, nameEffect,
   isMine: _isMine, msgReactions, memberUsernames, userId,
   outputVolume, outputDeviceId, toggleReaction, deleteMessage, setLightboxImage, setPendingLinkUrl,
 }: {
@@ -753,6 +763,10 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
   cardGradient?: string | null;
   cardImageUrl?: string | null;
   cardImageParams?: any;
+  accentColor?: string | null;
+  accentColorSecondary?: string | null;
+  avatarGifUrl?: string | null;
+  nameEffect?: string | null;
   isMine: boolean;
   msgReactions: [string, string[]][];
   memberUsernames: Set<string>;
@@ -786,13 +800,18 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
         cardImageParams,
         role: role ? { name: role.is_owner_role ? 'Owner' : role.name, color: role.color } : null,
       }}>
-        <AvatarImage username={username} avatarUrl={avatarUrl} size="sm" />
+        <AvatarImage username={username} avatarUrl={avatarUrl} size="sm" gifUrl={avatarGifUrl} />
       </ProfileTooltip>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 12, fontWeight: 500, color: role?.color ?? 'var(--text-primary)' }}>
-            {username}
-          </span>
+          <AccentName
+            name={username}
+            accentColor={accentColor ?? null}
+            accentColorSecondary={accentColorSecondary ?? null}
+            nameEffect={nameEffect}
+            animateOnHover
+            style={{ fontSize: 12, fontWeight: 500 }}
+          />
           {role && !role.is_owner_role && role.position > 1 && (
             <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: `${role.color}20`, color: role.color }}>{role.name}</span>
           )}

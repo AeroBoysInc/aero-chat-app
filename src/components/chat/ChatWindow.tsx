@@ -1523,7 +1523,7 @@ export function ChatWindow({ contact, onBack }: Props) {
           cardImageUrl: contact.card_image_url,
           cardImageParams: contact.card_image_params,
         }}>
-          <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} />
+          <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="md" status={liveStatus} playingGame={contactGame} gifUrl={contactProfile?.avatar_gif_url} alwaysAnimate />
         </ProfileTooltip>
         <div className="no-drag flex-1 min-w-0">
           {/* Name row */}
@@ -1532,6 +1532,8 @@ export function ChatWindow({ contact, onBack }: Props) {
               name={contact?.username ?? ''}
               accentColor={contactAccent}
               accentColorSecondary={contactAccentSecondary}
+              nameEffect={contactProfile?.name_effect}
+              playing
               style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif' }}
             />
             {/* Clear chat button */}

@@ -5,6 +5,10 @@ import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { AvatarImage } from '../ui/AvatarImage';
+import { AccentName } from '../ui/AccentName';
+import { CustomStatusBadge } from '../ui/CustomStatusBadge';
+import { CardEffect } from '../ui/CardEffect';
+import { getBannerCss } from '../../lib/identityConstants';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { BubbleHub } from './BubbleHub';
 import { BubbleChat } from './BubbleChat';
@@ -183,7 +187,7 @@ export const ServerView = memo(function ServerView() {
             <div className="overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
               {members.map(member => {
                 const role = roles.find(r => r.id === member.role_id);
-                const gradient = CARD_GRADIENTS.find(g => g.id === member.card_gradient);
+                const identityBanner = getBannerCss(member.banner_gradient);
                 const hasImage = !!member.card_image_url;
                 const bgStyle: React.CSSProperties = hasImage
                   ? {
@@ -193,9 +197,14 @@ export const ServerView = memo(function ServerView() {
                         ? `${member.card_image_params.x ?? 50}% ${member.card_image_params.y ?? 50}%`
                         : 'center',
                     }
-                  : {
-                      background: gradient?.css ?? 'linear-gradient(135deg, rgba(0,120,255,0.15) 0%, rgba(56,204,248,0.10) 100%)',
-                    };
+                  : identityBanner
+                    ? { background: identityBanner }
+                    : {
+                        background: CARD_GRADIENTS.find(g => g.id === member.card_gradient)?.css
+                          ?? (member.accent_color
+                            ? `linear-gradient(135deg, ${member.accent_color}30 0%, ${member.accent_color}12 100%)`
+                            : 'linear-gradient(135deg, rgba(0,120,255,0.15) 0%, rgba(56,204,248,0.10) 100%)'),
+                      };
 
                 return (
                   <div
@@ -203,21 +212,27 @@ export const ServerView = memo(function ServerView() {
                     className="overflow-hidden"
                     style={{ borderRadius: 14, border: '1px solid var(--panel-divider)' }}
                   >
-                    {/* Card background strip */}
+                    {/* Card background strip with effect */}
                     <div style={{ height: 48, position: 'relative', ...bgStyle }}>
                       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)' }} />
+                      <CardEffect effect={member.card_effect ?? null} playing={true} />
                     </div>
 
                     {/* Member info */}
                     <div className="flex items-center gap-3 px-3 py-2.5" style={{ background: 'var(--sidebar-bg)' }}>
                       <div style={{ marginTop: -20, position: 'relative', zIndex: 1, flexShrink: 0 }}>
-                        <AvatarImage username={member.username ?? '?'} avatarUrl={member.avatar_url} size="sm" />
+                        <AvatarImage username={member.username ?? '?'} avatarUrl={member.avatar_url} size="sm" gifUrl={member.avatar_gif_url} alwaysAnimate />
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div className="flex items-center gap-1.5">
-                          <span className="truncate" style={{ fontSize: 13, fontWeight: 600, color: role?.color ?? 'var(--text-primary)' }}>
-                            {member.username ?? 'Unknown'}
-                          </span>
+                          <AccentName
+                            name={member.username ?? 'Unknown'}
+                            accentColor={member.accent_color ?? null}
+                            accentColorSecondary={member.accent_color_secondary ?? null}
+                            nameEffect={member.name_effect ?? null}
+                            playing
+                            style={{ fontSize: 13, fontWeight: 600 }}
+                          />
                           {role && (
                             <span style={{
                               fontSize: 9, padding: '1px 6px', borderRadius: 4, flexShrink: 0,
@@ -227,11 +242,17 @@ export const ServerView = memo(function ServerView() {
                             </span>
                           )}
                         </div>
-                        {member.status && (
+                        {(member.custom_status_emoji || member.custom_status_text) ? (
+                          <CustomStatusBadge emoji={member.custom_status_emoji ?? null} text={member.custom_status_text ?? null} size="sm" />
+                        ) : member.bio ? (
+                          <p className="truncate" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                            {member.bio}
+                          </p>
+                        ) : member.status ? (
                           <p className="truncate" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                             {member.status}
                           </p>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>

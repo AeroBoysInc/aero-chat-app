@@ -358,10 +358,12 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             status={myStatus}
             isInCall={callStatus === 'connected'}
             playingGame={myPlayingGame}
+            gifUrl={user?.avatar_gif_url}
+            alwaysAnimate
           />
           <div className="flex-1 min-w-0">
             <p className="truncate font-bold" style={{ fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '-0.1px' }}>
-              <AccentName name={user?.username ?? '?'} accentColor={user?.accent_color} accentColorSecondary={user?.accent_color_secondary} style={{ fontSize: 14, fontWeight: 700 }} />
+              <AccentName name={user?.username ?? '?'} accentColor={user?.accent_color} accentColorSecondary={user?.accent_color_secondary} nameEffect={user?.name_effect} playing style={{ fontSize: 14, fontWeight: 700 }} />
               {callStatus === 'connected' && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -814,6 +816,8 @@ const FriendItem = memo(function FriendItem({
   const [isHovered, setIsHovered] = useState(false);
   const [showPopout, setShowPopout] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popoutHoveredRef = useRef(false);
   const cardRef = useRef<HTMLButtonElement>(null);
 
   const storedStatus = (friend.status as Status | undefined) ?? 'online';
@@ -825,6 +829,8 @@ const FriendItem = memo(function FriendItem({
   const bannerCss = getBannerCss(friend.banner_gradient);
   const cardImage = friend.card_image_url;
   const cardEffect = friend.card_effect || null;
+  const nameEffect = friend.name_effect || null;
+  const avatarGifUrl = friend.avatar_gif_url || null;
 
   // Custom status line: custom status emoji/text
   const statusLine = (friend.custom_status_emoji || friend.custom_status_text)
@@ -833,16 +839,32 @@ const FriendItem = memo(function FriendItem({
 
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     hoverTimerRef.current = setTimeout(() => setShowPopout(true), 200);
   }, []);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovered(false);
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    // Popout closes via its own onMouseLeave
+    // Close popout after delay unless mouse entered the popout
+    closeTimerRef.current = setTimeout(() => {
+      if (!popoutHoveredRef.current) setShowPopout(false);
+    }, 300);
+  }, []);
+
+  const handlePopoutMouseEnter = useCallback(() => {
+    popoutHoveredRef.current = true;
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const handlePopoutMouseLeave = useCallback(() => {
+    popoutHoveredRef.current = false;
+    setShowPopout(false);
+    setIsHovered(false);
   }, []);
 
   const handlePopoutClose = useCallback(() => {
+    popoutHoveredRef.current = false;
     setShowPopout(false);
     setIsHovered(false);
   }, []);
@@ -907,6 +929,7 @@ const FriendItem = memo(function FriendItem({
             size="sm"
             status={liveStatus}
             playingGame={playingGame}
+            gifUrl={avatarGifUrl}
           />
         </ProfileTooltip>
       </div>
@@ -917,6 +940,8 @@ const FriendItem = memo(function FriendItem({
           name={friend.username}
           accentColor={accentColor}
           accentColorSecondary={accentSecondary}
+          nameEffect={nameEffect}
+          animateOnHover
           style={{ fontSize: '12.5px', fontWeight: 600 }}
         />
         <div style={{ marginTop: 1 }}>
@@ -969,6 +994,8 @@ const FriendItem = memo(function FriendItem({
         direction="right"
         onClose={handlePopoutClose}
         onMessage={() => { handlePopoutClose(); onSelect(friend); }}
+        onPopoutMouseEnter={handlePopoutMouseEnter}
+        onPopoutMouseLeave={handlePopoutMouseLeave}
       />
     )}
     </>
