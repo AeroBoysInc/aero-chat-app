@@ -536,19 +536,19 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         document.body
       )}
 
-      {/* Identity Editor — portaled */}
-      {identityEditorOpen && createPortal(
+      {/* Identity Editor — portaled next to card */}
+      {identityEditorOpen && statusMenuRef.current && createPortal(
         <div
+          data-card-popup
           style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.45)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            position: 'fixed',
+            zIndex: 9998,
+            top: statusMenuRef.current.getBoundingClientRect().top,
+            left: statusMenuRef.current.getBoundingClientRect().left,
+            width: statusMenuRef.current.getBoundingClientRect().width,
           }}
-          onClick={() => setIdentityEditorOpen(false)}
         >
-          <div onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'relative' }}>
             <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
           </div>
         </div>,
