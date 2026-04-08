@@ -235,7 +235,7 @@ export function ChatLayout() {
               zIndex: 16,
               pointerEvents: 'none',
             }}>
-              <AeroLogo size={80} />
+              <AeroLogo size={43} />
             </div>
           </div>
 

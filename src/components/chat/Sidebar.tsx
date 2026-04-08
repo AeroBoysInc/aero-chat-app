@@ -165,7 +165,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               zIndex: 16,
               pointerEvents: 'none',
             }}>
-              <AeroLogo size={80} />
+              <AeroLogo size={43} />
             </div>
           </div>
           <div className="flex items-center gap-1">
