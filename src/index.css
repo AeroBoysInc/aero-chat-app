@@ -1668,6 +1668,34 @@
   100% { transform: scale(1);    }
 }
 
+/* ── Card effect keyframes ─────────────────────────────────────────── */
+@keyframes effect-shimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+@keyframes effect-bubble-up {
+  0% { transform: translateY(0); opacity: 0.7; }
+  100% { transform: translateY(-70px); opacity: 0; }
+}
+@keyframes effect-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes effect-aurora {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes effect-rain {
+  0% { transform: translateY(-14px); }
+  100% { transform: translateY(100px); }
+}
+@keyframes effect-firefly {
+  0%, 100% { opacity: 0.2; transform: translate(0, 0); }
+  25% { opacity: 1; transform: translate(5px, -3px); }
+  50% { opacity: 0.3; transform: translate(-3px, 4px); }
+  75% { opacity: 0.9; transform: translate(2px, -2px); }
+}
+
 /* ═══════════════════════════════════════════════
    UTILITIES
 ═══════════════════════════════════════════════ */
