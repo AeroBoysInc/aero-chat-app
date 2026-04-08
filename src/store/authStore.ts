@@ -15,6 +15,15 @@ export interface Profile {
     y: number;
   } | null;
   is_premium?: boolean;
+  // Identity fields
+  bio?: string | null;
+  custom_status_text?: string | null;
+  custom_status_emoji?: string | null;
+  accent_color?: string | null;
+  accent_color_secondary?: string | null;
+  banner_gradient?: string | null;
+  banner_image_url?: string | null;
+  card_effect?: string | null;
 }
 
 interface AuthState {
@@ -23,6 +32,7 @@ interface AuthState {
   setUser:        (user: Profile | null) => void;
   refreshProfile: () => Promise<void>;
   signOut:        () => Promise<void>;
+  updateIdentity(fields: Partial<Pick<Profile, 'bio' | 'custom_status_text' | 'custom_status_emoji' | 'accent_color' | 'accent_color_secondary' | 'banner_gradient' | 'banner_image_url' | 'card_effect'>>): Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -45,5 +55,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // and are needed to decrypt message history on next login. Removing them here
     // triggers key rotation on re-login, making all previous messages unreadable.
     set({ user: null });
+  },
+  updateIdentity: async (fields) => {
+    const user = get().user;
+    if (!user) return;
+    // Optimistic local update
+    set({ user: { ...user, ...fields } });
+    const { error } = await supabase
+      .from('profiles')
+      .update(fields)
+      .eq('id', user.id);
+    if (error) {
+      console.error('[Identity] Failed to update:', error);
+      // Revert on failure
+      set({ user });
+    }
   },
 }));
