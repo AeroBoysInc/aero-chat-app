@@ -148,14 +148,15 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         >
           {/* Logo — protruding circle, top-left */}
           <div style={{
-            position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
-            width: 80, height: 80, borderRadius: '50%',
-            background: 'var(--panel-header-bg, var(--sidebar-bg))',
+            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
+            width: 60, height: 60, borderRadius: '50%',
+            background: 'var(--sidebar-bg)',
             border: '2px solid var(--panel-divider)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
           }}>
-            <AeroLogo size={88} />
+            <AeroLogo size={42} />
           </div>
           <div className="flex items-center gap-1">
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 18, color: 'var(--text-title)', letterSpacing: '-0.4px' }}>
