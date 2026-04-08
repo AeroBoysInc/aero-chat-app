@@ -76,19 +76,13 @@ export function PremiumAuthShell({ children }: Props) {
         }}
       />
 
-      {/* ── Right panel: Glass Form (45%) ── */}
+      {/* ── Right panel: Glass Form (45% on desktop, full on mobile) ── */}
       <div
-        className="flex flex-1 items-center justify-center p-8"
+        className="relative flex flex-1 items-center justify-center p-8"
         style={{ background: 'var(--sidebar-bg)', backdropFilter: 'blur(20px)' }}
       >
-        <div className="w-full max-w-sm animate-fade-in">
-          {children}
-        </div>
-      </div>
-
-      {/* ── Mobile fallback: centered card (uses premium orb colors) ── */}
-      <div className="flex md:hidden min-h-screen items-center justify-center p-4 absolute inset-0">
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        {/* Mobile: ambient orbs behind the form (replaces left panel visuals) */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden md:hidden">
           <div className="orb" style={{
             position: 'absolute', width: 200, height: 200, top: '15%', left: '5%',
             background: 'radial-gradient(circle, var(--input-focus-border) 0%, transparent 70%)',
@@ -100,8 +94,10 @@ export function PremiumAuthShell({ children }: Props) {
             opacity: 0.2, animation: 'orb-drift 9s ease-in-out 2s infinite',
           }} />
         </div>
-        <div className="glass-elevated w-full max-w-sm p-8 animate-fade-in relative z-10">
-          <div className="mb-8 text-center">
+
+        <div className="w-full max-w-sm animate-fade-in relative z-10">
+          {/* Mobile: show logo + title (left panel hidden on mobile) */}
+          <div className="md:hidden mb-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center animate-float">
               <AeroLogo size={58} />
             </div>
