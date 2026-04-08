@@ -9,6 +9,9 @@ import { IncomingGroupCallModal } from './IncomingGroupCallModal';
 import { CameraFeed } from './CameraFeed';
 import { AvatarImage } from '../ui/AvatarImage';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
+import { getCallTier, getGroupTierPalette, type TierPalette, type AudioBarConfig } from '../../lib/callTierVisuals';
+import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const MAX_PARTICIPANTS = 4;
 
@@ -19,20 +22,25 @@ function formatDuration(startedAt: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Builds a CSS background for a participant's panel using their card settings */
-function panelBackground(p: GroupParticipant): React.CSSProperties {
-  if (p.cardImageUrl) {
+/** Builds a CSS background for a participant's panel using their card settings and tier palette */
+function panelBackground(p: GroupParticipant, palette: TierPalette): React.CSSProperties {
+  if (palette.tier === 'free') {
+    return { background: palette.bg };
+  }
+  if (palette.tier === 'premium') {
+    if (p.cardImageUrl) {
+      return {
+        backgroundImage: `url(${p.cardImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: `${p.cardImageParams?.x ?? 50}% ${p.cardImageParams?.y ?? 50}%`,
+      };
+    }
+    const preset = CARD_GRADIENTS.find(g => g.id === (p.cardGradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
     return {
-      backgroundImage: `url(${p.cardImageUrl})`,
-      backgroundSize: 'cover',
-      backgroundPosition: `${p.cardImageParams?.x ?? 50}% ${p.cardImageParams?.y ?? 50}%`,
+      background: `linear-gradient(180deg, ${preset.preview}40 0%, ${preset.preview}18 40%, rgba(6,14,31,0.95) 100%)`,
     };
   }
-  const preset = CARD_GRADIENTS.find(g => g.id === (p.cardGradient ?? 'ocean')) ?? CARD_GRADIENTS[0];
-  // Use the preview hex to build a vivid full-panel gradient
-  return {
-    background: `linear-gradient(180deg, ${preset.preview}40 0%, ${preset.preview}18 40%, rgba(6,14,31,0.95) 100%)`,
-  };
+  return { background: palette.bg };
 }
 
 export function GroupCallView() {
@@ -42,6 +50,11 @@ export function GroupCallView() {
     callStartedAt, invitedUserIds,
     leaveCall, toggleMute, toggleDeafen, startScreenShare, stopScreenShare,
   } = useGroupCallStore();
+
+  const user = useAuthStore(s => s.user);
+  const activeTheme = useThemeStore(s => s.theme);
+  const myTier = getCallTier(user, activeTheme);
+  const myPalette = getGroupTierPalette(myTier);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [duration, setDuration] = useState('0:00');
@@ -159,7 +172,7 @@ export function GroupCallView() {
                     <div style={{
                       position: 'absolute',
                       inset: -20,
-                      ...panelBackground(p),
+                      ...panelBackground(p, myPalette),
                       opacity: 0.85,
                       filter: 'blur(12px)',
                       transform: 'scale(1.05)',
@@ -172,27 +185,81 @@ export function GroupCallView() {
                       background: 'radial-gradient(ellipse at center 40%, rgba(6,14,31,0.3) 0%, rgba(6,14,31,0.75) 100%)',
                     }} />
 
+                    {/* Ambient orbs and particles — pointer-events-none */}
+                    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                      {myPalette.orbs.map((orb, oi) => (
+                        <div key={oi} style={{
+                          position: 'absolute',
+                          width: orb.width,
+                          height: orb.height,
+                          background: orb.background,
+                          filter: `blur(${orb.blur}px)`,
+                          borderRadius: '50%',
+                          top: orb.top,
+                          bottom: orb.bottom,
+                          left: orb.left,
+                          right: orb.right,
+                          transform: 'translate(-50%, -50%)',
+                        }} />
+                      ))}
+                      {myPalette.particles.map((pt, pi) => (
+                        <div key={pi} style={{
+                          position: 'absolute',
+                          width: pt.size,
+                          height: pt.size,
+                          borderRadius: '50%',
+                          background: pt.color,
+                          boxShadow: pt.glow,
+                          top: pt.top,
+                          left: pt.left,
+                        }} />
+                      ))}
+                    </div>
+
                     {/* Content */}
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                      {/* Avatar */}
-                      <div style={{ position: 'relative' }}>
-                        <div style={{ width: 50, height: 50 }}>
+                      {/* Avatar with pulse rings */}
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {/* Pulse rings behind avatar */}
+                        {myPalette.rings.map((ring, ri) => (
+                          <div key={ri} style={{
+                            position: 'absolute',
+                            width: ring.radius * 2,
+                            height: ring.radius * 2,
+                            borderRadius: '50%',
+                            border: ring.border,
+                            boxShadow: ring.boxShadow,
+                            pointerEvents: 'none',
+                          }} />
+                        ))}
+                        <div style={{
+                          position: 'relative',
+                          width: 40,
+                          height: 40,
+                          borderRadius: '50%',
+                          border: myPalette.avatarBorder,
+                          boxShadow: myPalette.avatarGlow,
+                        }}>
                           <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="xl" />
                         </div>
                         {muted && (
                           <div style={{
-                            position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%',
+                            position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: '50%',
                             background: 'rgba(239,68,68,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             border: '2px solid rgba(6,14,31,0.8)',
                           }}>
-                            <MicOff className="h-3 w-3 text-white" />
+                            <MicOff className="h-2.5 w-2.5 text-white" />
                           </div>
                         )}
                       </div>
 
                       {/* Name + You badge */}
                       <div className="text-center">
-                        <span className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.90)' }}>
+                        <span className="text-sm font-bold" style={{
+                          color: myPalette.nameColor,
+                          fontWeight: myPalette.nameWeight,
+                          textShadow: myPalette.nameShadow,
+                        }}>
                           {p.username}
                         </span>
                         {isMe && (
@@ -202,7 +269,20 @@ export function GroupCallView() {
                       </div>
 
                       {/* Audio bars */}
-                      <AudioBars level={muted ? 0 : p.audioLevel} active={p.isSpeaking} />
+                      <GroupTierAudioBars config={myPalette.audioBars} level={muted ? 0 : p.audioLevel} active={p.isSpeaking} />
+
+                      {/* Tier badge */}
+                      {myPalette.tierLabel && (
+                        <div style={{
+                          fontSize: 8,
+                          letterSpacing: '0.05em',
+                          color: myPalette.tierLabelColor,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                        }}>
+                          {myPalette.tierLabel}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -337,29 +417,51 @@ export function GroupCallView() {
   );
 }
 
-/* ── Audio Bars ──────────────────────────────────────────────────────────── */
+/* ── Group Tier Audio Bars ───────────────────────────────────────────────── */
 
-function AudioBars({ level, active }: { level: number; active: boolean }) {
-  return (
-    <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 24, alignItems: 'flex-end' }}>
-      {Array.from({ length: 7 }).map((_, i) => {
-        const variance = 0.6 + 0.4 * Math.sin(i * 2.1 + level * 20);
-        const barHeight = active ? Math.max(4, 24 * level * variance) : 4;
-        return (
-          <div
-            key={i}
-            style={{
-              width: 3,
-              height: barHeight,
-              borderRadius: 2,
-              background: active
-                ? `rgba(0,212,255,${0.4 + level * 0.3})`
-                : 'rgba(255,255,255,0.08)',
+function GroupTierAudioBars({ config, level, active }: {
+  config: AudioBarConfig;
+  level: number;
+  active: boolean;
+}) {
+  if (config.style === 'simple') {
+    return (
+      <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: 20, alignItems: 'flex-end' }}>
+        {Array.from({ length: config.count }).map((_, i) => {
+          const variance = 0.6 + 0.4 * Math.sin(i * 2.1 + level * 20);
+          const barHeight = active ? Math.max(3, 20 * level * variance) : 3;
+          return (
+            <div key={i} style={{
+              width: config.width, height: barHeight, borderRadius: 2,
+              background: active ? config.activeColor : config.silentColor,
               transition: 'height 0.1s ease-out',
-            }}
-          />
-        );
-      })}
+            }} />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const bands = config.bands!;
+  let barIndex = 0;
+  return (
+    <div style={{ display: 'flex', gap: 2, justifyContent: 'center', height: 20, alignItems: 'flex-end' }}>
+      {bands.map((band, bi) => (
+        <div key={bi} style={{ display: 'flex', gap: 1.5, marginLeft: bi > 0 ? config.bandGap : 0 }}>
+          {Array.from({ length: band.count }).map((_, i) => {
+            const idx = barIndex++;
+            const variance = 0.5 + 0.5 * Math.sin(idx * 1.8 + level * 25);
+            const barHeight = active ? Math.max(3, 18 * level * variance) : 3;
+            return (
+              <div key={i} style={{
+                width: config.width, height: barHeight, borderRadius: 1,
+                background: active ? band.activeColor : band.color,
+                transition: 'height 0.1s ease-out',
+              }} />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
