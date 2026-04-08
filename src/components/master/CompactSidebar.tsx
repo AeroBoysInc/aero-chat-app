@@ -6,6 +6,7 @@ import { useFriendStore } from '../../store/friendStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useUnreadStore } from '../../store/unreadStore';
 import type { Profile } from '../../store/authStore';
+import { AccentName } from '../ui/AccentName';
 
 interface CompactSidebarProps {
   selectedUserId: string | null;
@@ -103,13 +104,13 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
                 status={effective}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 10, fontWeight: 600,
-                  color: isActive ? 'rgba(255,255,255,0.70)' : 'rgba(255,255,255,0.50)',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {friend.username}
-                </div>
+                <AccentName
+                  name={friend.username}
+                  accentColor={friend.accent_color}
+                  accentColorSecondary={friend.accent_color_secondary}
+                  className="truncate"
+                  style={{ fontSize: 11 }}
+                />
               </div>
               {unread > 0 && (
                 <span style={{
