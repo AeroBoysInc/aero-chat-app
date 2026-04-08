@@ -220,7 +220,7 @@ export function ChatLayout() {
           <div style={{
             position: 'absolute', left: -4, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
             width: 60, height: 60, borderRadius: '50%',
-            background: 'var(--sidebar-bg)',
+            background: 'var(--bg-solid, #e8f4fc)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>

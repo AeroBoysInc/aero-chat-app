@@ -16,6 +16,7 @@
     linear-gradient(170deg, #72d8fa 0%, #3dbce8 40%, #1aa8de 100%);
 
   --sidebar-bg:      rgba(255,255,255,0.86);
+  --bg-solid:        #dceefb;
   --sidebar-border:  rgba(150,200,235,0.70);
   --sidebar-shadow:  0 8px 32px rgba(0,80,160,0.18), inset 0 1px 0 rgba(255,255,255,1);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.28) 40%, rgba(255,255,255,0) 65%);
@@ -139,6 +140,7 @@
     linear-gradient(165deg, #0d1b3e 0%, #08142a 55%, #040e1e 100%);
 
   --sidebar-bg:      rgba(12,25,58,0.92);
+  --bg-solid:        #0c1938;
   --sidebar-border:  rgba(80,145,255,0.22);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(100,160,255,0.15);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 38%, rgba(255,255,255,0) 60%);
@@ -265,6 +267,7 @@
     linear-gradient(165deg, #062a3e 0%, #041e30 55%, #021520 100%);
 
   --sidebar-bg:      rgba(4,30,48,0.94);
+  --bg-solid:        #041e30;
   --sidebar-border:  rgba(0,180,200,0.20);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(0,200,220,0.12);
   --sidebar-gloss:   linear-gradient(180deg, rgba(0,220,200,0.08) 0%, rgba(0,180,200,0.02) 38%, rgba(0,0,0,0) 60%);
@@ -380,6 +383,7 @@
     linear-gradient(165deg, #3a1a0e 0%, #2a1008 55%, #1e0a04 100%);
 
   --sidebar-bg:      rgba(42,16,8,0.94);
+  --bg-solid:        #2a1008;
   --sidebar-border:  rgba(255,140,60,0.20);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,160,80,0.12);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,160,80,0.08) 0%, rgba(255,120,50,0.02) 38%, rgba(0,0,0,0) 60%);
@@ -495,6 +499,7 @@
     linear-gradient(165deg, #0e0a2a 0%, #080620 55%, #04031a 100%);
 
   --sidebar-bg:      rgba(8,6,32,0.94);
+  --bg-solid:        #080620;
   --sidebar-border:  rgba(120,60,255,0.22);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(140,80,255,0.12);
   --sidebar-gloss:   linear-gradient(180deg, rgba(120,60,255,0.08) 0%, rgba(80,0,200,0.02) 38%, rgba(0,0,0,0) 60%);
@@ -610,6 +615,7 @@
     linear-gradient(165deg, #2a0e22 0%, #1e081a 55%, #140512 100%);
 
   --sidebar-bg:      rgba(30,8,26,0.94);
+  --bg-solid:        #1e081a;
   --sidebar-border:  rgba(255,120,180,0.20);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,140,200,0.12);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,140,200,0.08) 0%, rgba(220,100,180,0.02) 38%, rgba(0,0,0,0) 60%);
@@ -725,6 +731,7 @@
     linear-gradient(170deg, #b8ecff 0%, #5ec8f5 20%, #0098e0 50%, #0068b8 80%, #004a90 100%);
 
   --sidebar-bg:      rgba(255,255,255,0.18);
+  --bg-solid:        #c8dff0;
   --sidebar-border:  rgba(255,255,255,0.30);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.50);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 38%, rgba(0,0,0,0) 60%);
@@ -840,6 +847,7 @@
     linear-gradient(180deg, #1a0a2e 0%, #2d1045 12%, #5c1a3a 25%, #8b3a2a 38%, #c45e1a 55%, #e88a20 68%, #f5a623 80%, #ffe680 100%);
 
   --sidebar-bg:      rgba(60,30,10,0.55);
+  --bg-solid:        #4a2510;
   --sidebar-border:  rgba(255,180,80,0.22);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,220,150,0.20);
   --sidebar-gloss:   linear-gradient(180deg, rgba(255,200,120,0.12) 0%, rgba(255,160,60,0.03) 38%, rgba(0,0,0,0) 60%);
@@ -950,6 +958,7 @@
   --body-bg: #050505;
 
   --sidebar-bg:      rgba(0,230,118,0.06);
+  --bg-solid:        #070e0c;
   --sidebar-border:  rgba(0,230,118,0.14);
   --sidebar-shadow:  0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,230,118,0.08);
   --sidebar-gloss:   linear-gradient(180deg, rgba(0,230,118,0.06) 0%, transparent 50%);
