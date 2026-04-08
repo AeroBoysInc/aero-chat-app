@@ -143,11 +143,21 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       {/* ── Header — mobile only (desktop header lives in ChatLayout top bar) ── */}
       {isMobile && (
         <div
-          className="flex items-center justify-between px-4 py-4"
-          style={{ borderBottom: '1px solid var(--panel-divider)' }}
+          className="flex items-center justify-between pl-16 pr-4 py-4"
+          style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
-          <div className="flex items-center gap-2">
-            <AeroLogo size={48} />
+          {/* Logo — protruding circle, top-left */}
+          <div style={{
+            position: 'absolute', left: -10, top: -10, zIndex: 10,
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'var(--sidebar-bg)',
+            border: '1px solid var(--panel-divider)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <AeroLogo size={44} />
+          </div>
+          <div className="flex items-center gap-1">
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 18, color: 'var(--text-title)', letterSpacing: '-0.4px' }}>
               AeroChat
             </span>
@@ -156,7 +166,6 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 fontWeight: 900, fontSize: 20,
                 background: 'linear-gradient(135deg, #FFD700, #FFA500)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                marginLeft: -4,
               }}>
                 +
               </span>
