@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 export type Status = 'online' | 'busy' | 'away' | 'offline';
 
 type AuraVariant = 'online' | 'gaming' | 'incall' | 'busy' | 'away' | 'offline' | 'none';
@@ -9,6 +11,8 @@ interface Props {
   status?: Status | null;
   playingGame?: string | null;
   isInCall?: boolean;
+  gifUrl?: string | null;
+  alwaysAnimate?: boolean;
 }
 
 const sizeClass = {
@@ -56,12 +60,23 @@ const auraStyles: Record<AuraVariant, { border: string; boxShadow: string; anima
   none:    { border: '2px solid transparent',         boxShadow: 'none' },
 };
 
-export function AvatarImage({ username, avatarUrl, size = 'md', status, playingGame, isInCall }: Props) {
+export function AvatarImage({ username, avatarUrl, size = 'md', status, playingGame, isInCall, gifUrl, alwaysAnimate }: Props) {
   const variant = getAuraVariant(status, playingGame, isInCall);
   const ring = auraStyles[variant];
 
-  const avatarInner = avatarUrl
-    ? <img src={avatarUrl} alt={username} className={`shrink-0 rounded-full object-cover ${sizeClass[size]}`} style={{ display: 'block' }} />
+  const [hovered, setHovered] = useState(false);
+  const showGif = gifUrl && (alwaysAnimate || hovered);
+  const effectiveSrc = showGif ? gifUrl : avatarUrl;
+
+  const avatarInner = effectiveSrc
+    ? <img
+        src={effectiveSrc}
+        alt={username}
+        className={`shrink-0 rounded-full object-cover ${sizeClass[size]}`}
+        style={{ display: 'block' }}
+        onMouseEnter={gifUrl && !alwaysAnimate ? () => setHovered(true) : undefined}
+        onMouseLeave={gifUrl && !alwaysAnimate ? () => setHovered(false) : undefined}
+      />
     : (
       <div
         className={`${sizeClass[size]} flex items-center justify-center rounded-full font-bold text-white`}
