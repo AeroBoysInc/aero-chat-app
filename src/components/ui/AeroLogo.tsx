@@ -9,10 +9,8 @@ export function AeroLogo({ size = 40, className = '' }: Props) {
     <img
       src="/logo.png"
       alt="AeroChat"
-      width={size}
-      height={size}
       className={className}
-      style={{ objectFit: 'contain' }}
+      style={{ width: size, height: size, objectFit: 'contain' }}
       draggable={false}
     />
   );
