@@ -311,7 +311,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
             : '1px solid var(--panel-divider)',
           padding: '10px 12px',
           flexShrink: 0,
-          ...(cardHeight != null ? { height: cardHeight, overflow: 'hidden' } : {}),
+          ...(cardHeight != null ? { height: cardHeight } : {}),
           ...(cardImage
             ? {
                 backgroundImage: `url(${cardImage})`,
