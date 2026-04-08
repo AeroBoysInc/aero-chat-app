@@ -536,23 +536,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         document.body
       )}
 
-      {/* Identity Editor — portaled next to card */}
-      {identityEditorOpen && statusMenuRef.current && createPortal(
-        <div
-          data-card-popup
-          style={{
-            position: 'fixed',
-            zIndex: 9998,
-            top: statusMenuRef.current.getBoundingClientRect().top,
-            left: statusMenuRef.current.getBoundingClientRect().left,
-            width: statusMenuRef.current.getBoundingClientRect().width,
-          }}
-        >
-          <div style={{ position: 'relative' }}>
-            <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
-          </div>
-        </div>,
-        document.body
+      {/* Identity Editor — self-contained modal */}
+      {identityEditorOpen && (
+        <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
       )}
 
       {/* ── XP Bar (premium) — connected underneath the card ── */}
