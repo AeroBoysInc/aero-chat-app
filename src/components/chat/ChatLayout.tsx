@@ -21,6 +21,8 @@ import { ServerView } from '../servers/ServerView';
 import { CreateServerWizard } from '../servers/CreateServerWizard';
 import { JoinServerModal } from '../servers/JoinServerModal';
 import { PremiumModal } from '../ui/PremiumModal';
+import { PremiumTour } from '../ui/PremiumTour';
+import { useTourStore } from '../../store/tourStore';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { playSwoosh } from '../../lib/swooshSound';
 import { useChatStore } from '../../store/chatStore';
@@ -64,10 +66,35 @@ export function ChatLayout() {
   const isPremium = user?.is_premium === true;
   const activeTheme = useThemeStore(s => s.theme);
 
+  // Tour state
+  const tourOpen = useTourStore(s => s.open);
+  const openTour = useTourStore(s => s.openTour);
+  const closeTour = useTourStore(s => s.closeTour);
+  const tourPendingAction = useTourStore(s => s.pendingAction);
+  const clearPendingAction = useTourStore(s => s.clearPendingAction);
+  const themeSwitcherRef = useRef<HTMLDivElement>(null);
+
   // Load ultra theme ownership on mount
   useEffect(() => {
     if (user?.id) useThemeStore.getState().loadOwnership(user.id);
   }, [user?.id]);
+
+  // Auto-trigger premium tour for first-time premium users
+  useEffect(() => {
+    if (isPremium && user?.id && !useTourStore.getState().hasSeen(user.id)) {
+      openTour();
+    }
+  }, [isPremium, user?.id, openTour]);
+
+  // Consume pendingAction: theme-switcher
+  useEffect(() => {
+    if (tourPendingAction === 'theme-switcher') {
+      clearPendingAction();
+      // Click the ThemeSwitcher button to open it
+      const btn = themeSwitcherRef.current?.querySelector('button');
+      if (btn) btn.click();
+    }
+  }, [tourPendingAction, clearPendingAction]);
 
   // If user loses premium, fall back from ultra theme
   useEffect(() => {
@@ -217,10 +244,14 @@ export function ChatLayout() {
           overflow: 'visible',
         }}>
           {/* Logo circle + logo layered separately so logo isn't clipped */}
-          <div style={{
-            position: 'absolute', left: -30, top: -6, zIndex: 15,
-            width: 52, height: 52,
-          }}>
+          <div
+            onClick={() => isPremium ? openTour() : setPremiumModalOpen(true)}
+            style={{
+              position: 'absolute', left: -30, top: -6, zIndex: 15,
+              width: 52, height: 52, cursor: 'pointer',
+            }}
+            title={isPremium ? 'Premium Tour' : 'Unlock Aero+'}
+          >
             {/* Circle backdrop */}
             <div style={{
               width: 52, height: 52, borderRadius: '50%',
@@ -308,12 +339,15 @@ export function ChatLayout() {
             >
               <LogOut className="h-4 w-4" />
             </button>
-            <ThemeSwitcher />
+            <div ref={themeSwitcherRef}>
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
 
         {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
         <PremiumModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />
+        <PremiumTour open={tourOpen} onClose={closeTour} />
       </div>
 
       <div

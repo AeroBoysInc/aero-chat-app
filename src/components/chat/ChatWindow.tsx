@@ -30,6 +30,7 @@ import { BubbleLayer, type BubbleInstance } from './BubbleLayer';
 import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { BubbleStylePicker } from '../ui/BubbleStylePicker';
 import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStore';
+import { useTourStore } from '../../store/tourStore';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AccentName } from '../ui/AccentName';
 import { CustomStatusBadge } from '../ui/CustomStatusBadge';
@@ -865,6 +866,16 @@ export function ChatWindow({ contact, onBack }: Props) {
   const [bubblePickerOpen,  setBubblePickerOpen]  = useState(false);
   const bubbleStyle = useBubbleStyleStore(s => s.styleId);
   const activeBubble = getBubbleStyle(bubbleStyle);
+
+  // Consume tour pendingAction for bubble-picker
+  const tourPendingAction = useTourStore(s => s.pendingAction);
+  const clearPendingAction = useTourStore(s => s.clearPendingAction);
+  useEffect(() => {
+    if (tourPendingAction === 'bubble-picker') {
+      clearPendingAction();
+      setBubblePickerOpen(true);
+    }
+  }, [tourPendingAction, clearPendingAction]);
 
   const pickerAnchorRef = useRef<HTMLDivElement>(null);
   const bubblePickerAnchorRef = useRef<HTMLButtonElement>(null);

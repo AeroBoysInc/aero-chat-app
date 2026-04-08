@@ -27,6 +27,7 @@ import { CardEffect } from '../ui/CardEffect';
 import { ProfilePopout } from '../ui/ProfilePopout';
 import { IdentityEditor } from '../ui/IdentityEditor';
 import { useThemeStore, FREE_THEMES } from '../../store/themeStore';
+import { useTourStore } from '../../store/tourStore';
 import { useParallax } from '../../hooks/useParallax';
 
 
@@ -84,6 +85,21 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [isOwnCardHovered,    setIsOwnCardHovered]    = useState(false);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
   const asideRef       = useRef<HTMLElement>(null);
+
+  // Consume tour pendingAction for identity-editor and settings
+  const tourPendingAction = useTourStore(s => s.pendingAction);
+  const clearPendingAction = useTourStore(s => s.clearPendingAction);
+  const openTour = useTourStore(s => s.openTour);
+
+  useEffect(() => {
+    if (tourPendingAction === 'identity-editor') {
+      clearPendingAction();
+      setIdentityEditorOpen(true);
+    } else if (tourPendingAction === 'settings') {
+      clearPendingAction();
+      setSettingsView('profile');
+    }
+  }, [tourPendingAction, clearPendingAction]);
 
   const cardGradient = user?.card_gradient ?? 'ocean';
   const cardImage = user?.card_image_url ?? null;
@@ -147,10 +163,15 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
           {/* Logo circle + logo layered separately so logo isn't clipped */}
-          <div style={{
-            position: 'absolute', left: -16, top: -2, zIndex: 15,
-            width: 52, height: 52,
-          }}>
+          <div
+            onClick={() => user?.is_premium ? openTour() : undefined}
+            style={{
+              position: 'absolute', left: -16, top: -2, zIndex: 15,
+              width: 52, height: 52,
+              cursor: user?.is_premium ? 'pointer' : 'default',
+            }}
+            title={user?.is_premium ? 'Premium Tour' : undefined}
+          >
             {/* Circle backdrop */}
             <div style={{
               width: 52, height: 52, borderRadius: '50%',
