@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { getThemeTier } from './themeStore';
-import type { Theme } from './themeStore';
 
 describe('getThemeTier', () => {
   it('maps free themes to free', () => {

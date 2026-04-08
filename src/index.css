@@ -1872,10 +1872,14 @@
   background: linear-gradient(180deg, rgba(0,230,118,0.35), rgba(0,230,118,0.22));
 }
 
-/* Pause tiered login animations when idle */
+/* Pause tiered login animations when idle.
+   Class names group related keyframes: .curtain-anim covers curtain-left + curtain-right,
+   .scan-line-anim covers scan-line-sweep, etc. */
 .paused .particle-rise-anim,
 .paused .scan-line-anim,
 .paused .divider-pulse-anim,
-.paused .curtain-anim {
+.paused .curtain-anim,
+.paused .typewriter-cursor-anim,
+.paused .glitch-cut-anim {
   animation-play-state: paused;
 }
