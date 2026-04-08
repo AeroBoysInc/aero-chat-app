@@ -810,6 +810,7 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
             accentColorSecondary={accentColorSecondary ?? null}
             nameEffect={nameEffect}
             animateOnHover
+            playing={hovered}
             style={{ fontSize: 12, fontWeight: 500 }}
           />
           {role && !role.is_owner_role && role.position > 1 && (

@@ -51,6 +51,7 @@ export const MemberList = memo(function MemberList() {
                   accentColor={member.accent_color ?? null}
                   accentColorSecondary={member.accent_color_secondary ?? null}
                   nameEffect={member.name_effect ?? null}
+                  animateOnHover={false}
                   style={{ fontSize: 12, fontWeight: 500 }}
                 />
                 <div className="flex items-center gap-1">

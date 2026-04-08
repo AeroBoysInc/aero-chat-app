@@ -942,6 +942,7 @@ const FriendItem = memo(function FriendItem({
           accentColorSecondary={accentSecondary}
           nameEffect={nameEffect}
           animateOnHover
+          playing={isHovered}
           style={{ fontSize: '12.5px', fontWeight: 600 }}
         />
         <div style={{ marginTop: 1 }}>

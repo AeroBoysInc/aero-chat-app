@@ -110,6 +110,7 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
                   accentColor={friend.accent_color}
                   accentColorSecondary={friend.accent_color_secondary}
                   nameEffect={friend.name_effect}
+                  animateOnHover={false}
                   className="truncate"
                   style={{ fontSize: 11 }}
                 />
