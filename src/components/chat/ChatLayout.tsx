@@ -216,17 +216,15 @@ export function ChatLayout() {
           boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.10)',
           overflow: 'visible',
         }}>
-          {/* Logo — protruding circle, top-left */}
+          {/* Logo — integrated circle, left edge */}
           <div style={{
-            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
+            position: 'absolute', left: -4, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
             width: 60, height: 60, borderRadius: '50%',
             background: 'var(--sidebar-bg)',
-            border: '2px solid var(--panel-divider)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.18)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden',
           }}>
-            <AeroLogo size={42} />
+            <AeroLogo size={84} />
           </div>
 
           {/* Left side — Unlock Aero+ button for free users */}

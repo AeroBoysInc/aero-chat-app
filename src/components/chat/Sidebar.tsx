@@ -146,17 +146,15 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           className="flex items-center justify-between pl-20 pr-4 py-4"
           style={{ borderBottom: '1px solid var(--panel-divider)', position: 'relative', overflow: 'visible' }}
         >
-          {/* Logo — protruding circle, top-left */}
+          {/* Logo — integrated circle, left edge */}
           <div style={{
-            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
+            position: 'absolute', left: -4, top: '50%', transform: 'translateY(-50%)', zIndex: 10,
             width: 60, height: 60, borderRadius: '50%',
             background: 'var(--sidebar-bg)',
-            border: '2px solid var(--panel-divider)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.18)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden',
           }}>
-            <AeroLogo size={42} />
+            <AeroLogo size={84} />
           </div>
           <div className="flex items-center gap-1">
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 18, color: 'var(--text-title)', letterSpacing: '-0.4px' }}>
