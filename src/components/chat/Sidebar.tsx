@@ -146,15 +146,20 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
 
   const isPanelOpen = settingsView === 'profile' || settingsView === 'general' || settingsView === 'security';
 
-  // Close status menu on outside click
+  // Close menus on outside click (portaled menus use data-attr to self-identify)
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node))
+      const t = e.target as HTMLElement;
+      const inCard = statusMenuRef.current?.contains(t);
+      const inPortaledMenu = t.closest?.('[data-card-popup]');
+      if (!inCard && !inPortaledMenu) {
         setStatusMenuOpen(false);
+        if (settingsView === 'menu') setSettingsView(null);
+      }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [settingsView]);
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
@@ -461,95 +466,120 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           </svg>
         </div>
 
-        {/* Status menu — opens downward */}
-        {statusMenuOpen && (
-          <div
-            className="absolute left-0 right-0 mt-2 rounded-[14px] overflow-hidden animate-fade-in"
-            style={{
-              top: '100%',
-              zIndex: 20,
-              background: 'var(--sidebar-bg)',
-              border: '1px solid var(--panel-divider)',
-              boxShadow: '0 8px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.50)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-label)' }}>
-              Set Status
-            </p>
-            {ALL_STATUSES.map(s => (
-              <button
-                key={s}
-                onClick={() => { setMyStatus(s); setStatusMenuOpen(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors"
-                style={{ color: 'var(--text-primary)' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
-              >
-                <span className="h-2.5 w-2.5 rounded-full shrink-0"
-                  style={{ background: statusColor[s], boxShadow: `0 0 6px ${statusColor[s]}bb` }} />
-                <span style={{ fontFamily: 'Inter, system-ui, sans-serif', textTransform: 'capitalize' }}>
-                  {statusLabel[s]}
-                </span>
-                {myStatus === s && <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Settings dropdown menu */}
-        {settingsView === 'menu' && (
-          <div
-            className="absolute right-0 mt-2 z-50 w-52 py-1.5 shadow-xl animate-fade-in"
-            style={{
-              top: '100%',
-              borderRadius: 16,
-              border: '1px solid var(--popup-border)',
-              background: 'var(--popup-bg)',
-              boxShadow: 'var(--popup-shadow)',
-              backdropFilter: 'blur(28px)',
-            }}
-          >
-            <button
-              onClick={() => setSettingsView('profile')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{ color: 'var(--popup-text-secondary)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
-            >
-              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-              Profile Settings
-            </button>
-            <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
-            <button
-              onClick={() => setSettingsView('general')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{ color: 'var(--popup-text-secondary)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
-            >
-              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 18v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
-              General
-            </button>
-            <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
-            <button
-              onClick={() => setSettingsView('security')}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-              style={{ color: 'var(--popup-text-secondary)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
-            >
-              <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Security
-            </button>
-          </div>
-        )}
-
-        {/* Identity Editor — opens below profile card */}
-        {identityEditorOpen && (
-          <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
-        )}
       </div>
+
+      {/* Status menu — portaled to escape 3D card transform */}
+      {statusMenuOpen && statusMenuRef.current && createPortal(
+        <div
+          data-card-popup
+          className="rounded-[14px] overflow-hidden animate-fade-in"
+          style={{
+            position: 'fixed',
+            zIndex: 9998,
+            top: statusMenuRef.current.getBoundingClientRect().bottom + 8,
+            left: statusMenuRef.current.getBoundingClientRect().left,
+            width: statusMenuRef.current.getBoundingClientRect().width,
+            background: 'var(--sidebar-bg)',
+            border: '1px solid var(--panel-divider)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.50)',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-label)' }}>
+            Set Status
+          </p>
+          {ALL_STATUSES.map(s => (
+            <button
+              key={s}
+              onClick={() => { setMyStatus(s); setStatusMenuOpen(false); }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors"
+              style={{ color: 'var(--text-primary)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+            >
+              <span className="h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ background: statusColor[s], boxShadow: `0 0 6px ${statusColor[s]}bb` }} />
+              <span style={{ fontFamily: 'Inter, system-ui, sans-serif', textTransform: 'capitalize' }}>
+                {statusLabel[s]}
+              </span>
+              {myStatus === s && <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>✓</span>}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+
+      {/* Settings dropdown menu — portaled */}
+      {settingsView === 'menu' && statusMenuRef.current && createPortal(
+        <div
+          data-card-popup
+          className="w-52 py-1.5 shadow-xl animate-fade-in"
+          style={{
+            position: 'fixed',
+            zIndex: 9998,
+            top: statusMenuRef.current.getBoundingClientRect().bottom + 8,
+            right: window.innerWidth - statusMenuRef.current.getBoundingClientRect().right,
+            borderRadius: 16,
+            border: '1px solid var(--popup-border)',
+            background: 'var(--popup-bg)',
+            boxShadow: 'var(--popup-shadow)',
+            backdropFilter: 'blur(28px)',
+          }}
+        >
+          <button
+            onClick={() => setSettingsView('profile')}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+            style={{ color: 'var(--popup-text-secondary)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
+          >
+            <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Profile Settings
+          </button>
+          <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
+          <button
+            onClick={() => setSettingsView('general')}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+            style={{ color: 'var(--popup-text-secondary)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
+          >
+            <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 18v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/><path d="M9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+            General
+          </button>
+          <div className="mx-3 h-px" style={{ background: 'var(--popup-divider)' }} />
+          <button
+            onClick={() => setSettingsView('security')}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+            style={{ color: 'var(--popup-text-secondary)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--popup-text-secondary)'; }}
+          >
+            <svg className="h-4 w-4" style={{ opacity: 0.55, color: 'var(--popup-icon)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Security
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* Identity Editor — portaled */}
+      {identityEditorOpen && createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setIdentityEditorOpen(false)}
+        >
+          <div onClick={e => e.stopPropagation()}>
+            <IdentityEditor onClose={() => setIdentityEditorOpen(false)} />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── XP Bar (premium) — connected underneath the card ── */}
       {user?.is_premium && (
