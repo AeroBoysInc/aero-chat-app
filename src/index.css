@@ -1674,7 +1674,9 @@
   100% { left: 200%; }
 }
 @keyframes effect-bubble-up {
-  0% { transform: translateY(0); opacity: 0.7; }
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 0.08; }
+  80% { opacity: 0.06; }
   100% { transform: translateY(-70px); opacity: 0; }
 }
 @keyframes effect-sparkle {
