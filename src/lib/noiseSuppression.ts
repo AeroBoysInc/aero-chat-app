@@ -95,19 +95,19 @@ function createVoiceEQ(ctx: AudioContext): VoiceEQ {
   mudCut.type = 'peaking';
   mudCut.frequency.value = 250;
   mudCut.Q.value = 1.2;
-  mudCut.gain.value = -4;
+  mudCut.gain.value = -3;
 
   const honkCut = ctx.createBiquadFilter();
   honkCut.type = 'peaking';
   honkCut.frequency.value = 400;
   honkCut.Q.value = 1.0;
-  honkCut.gain.value = -2;
+  honkCut.gain.value = -3;
 
   const presence = ctx.createBiquadFilter();
   presence.type = 'peaking';
   presence.frequency.value = 3000;
   presence.Q.value = 0.8;
-  presence.gain.value = 3;
+  presence.gain.value = 3.5;
 
   const air = ctx.createBiquadFilter();
   air.type = 'peaking';
