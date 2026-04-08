@@ -242,7 +242,7 @@ export function ChatLayout() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             pointerEvents: 'none',
           }}>
-            <AeroLogo size={56} />
+            <AeroLogo size={112} />
             <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800, fontSize: 15, color: 'var(--text-title)', letterSpacing: '-0.3px' }}>
               AeroChat
             </span>
