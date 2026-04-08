@@ -33,10 +33,12 @@ export const useFriendStore = create<FriendState>((set, get) => ({
   loadFriends: async (userId) => {
     set({ loading: true });
 
+    const PROFILE_FIELDS = 'id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params,is_premium,bio,custom_status_text,custom_status_emoji,accent_color,accent_color_secondary,banner_gradient,banner_image_url,card_effect';
+
     // Accepted requests (both directions)
     const { data: accepted } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params), receiver:profiles!receiver_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
+      .select(`*, sender:profiles!sender_id(${PROFILE_FIELDS}), receiver:profiles!receiver_id(${PROFILE_FIELDS})`)
       .eq('status', 'accepted')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
@@ -47,14 +49,14 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     // Pending incoming
     const { data: incoming } = await supabase
       .from('friend_requests')
-      .select('*, sender:profiles!sender_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
+      .select(`*, sender:profiles!sender_id(${PROFILE_FIELDS})`)
       .eq('receiver_id', userId)
       .eq('status', 'pending');
 
     // Pending sent
     const { data: sent } = await supabase
       .from('friend_requests')
-      .select('*, receiver:profiles!receiver_id(id,username,public_key,avatar_url,status,card_gradient,card_image_url,card_image_params)')
+      .select(`*, receiver:profiles!receiver_id(${PROFILE_FIELDS})`)
       .eq('sender_id', userId)
       .eq('status', 'pending');
 
@@ -156,3 +158,8 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     };
   },
 }));
+
+/** Get a friend's full profile including identity fields by ID. */
+export function getFriendProfile(friendId: string): Profile | undefined {
+  return useFriendStore.getState().friends.find(f => f.id === friendId);
+}
