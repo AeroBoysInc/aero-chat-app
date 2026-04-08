@@ -24,8 +24,8 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
   const sortedFriends = useMemo(() => {
     const arr = [...friends];
     arr.sort((a, b) => {
-      const aOnline = presenceReady ? onlineIds.has(a.id) : true;
-      const bOnline = presenceReady ? onlineIds.has(b.id) : true;
+      const aOnline = presenceReady && onlineIds.has(a.id);
+      const bOnline = presenceReady && onlineIds.has(b.id);
       if (aOnline !== bOnline) return aOnline ? -1 : 1;
       const aUnread = unreads[a.id] ?? 0;
       const bUnread = unreads[b.id] ?? 0;
@@ -78,7 +78,7 @@ export const CompactSidebar = memo(function CompactSidebar({ selectedUserId, onS
         {sortedFriends.map(friend => {
           const isActive = friend.id === selectedUserId;
           const unread = unreads[friend.id] ?? 0;
-          const isOnline = presenceReady ? onlineIds.has(friend.id) : true;
+          const isOnline = presenceReady && onlineIds.has(friend.id);
           const effective: Status = isOnline ? ((friend.status as Status) ?? 'online') : 'offline';
 
           return (

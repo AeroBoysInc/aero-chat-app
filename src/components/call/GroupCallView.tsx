@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus, Headphones, HeadphoneOff } from 'lucide-react';
 import { useGroupCallStore, _getRemoteStream, type GroupParticipant } from '../../store/groupCallStore';
+import { useAudioStore } from '../../store/audioStore';
 import { ParticipantCard } from './ParticipantCard';
 import { AddToCallModal } from './AddToCallModal';
 import { IncomingGroupCallModal } from './IncomingGroupCallModal';
@@ -367,6 +368,8 @@ function AudioBars({ level, active }: { level: number; active: boolean }) {
 
 function RemoteAudio({ userId }: { userId: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const outputDeviceId = useAudioStore(s => s.outputDeviceId);
+  const outputVolume = useAudioStore(s => s.outputVolume);
 
   useEffect(() => {
     const checkStream = setInterval(() => {
@@ -376,10 +379,30 @@ function RemoteAudio({ userId }: { userId: string }) {
       if (stream && el.srcObject !== stream) {
         el.srcObject = stream;
         el.play().catch(() => {});
+        // Apply output device
+        if (outputDeviceId && 'setSinkId' in el) {
+          (el as any).setSinkId(outputDeviceId).catch(() => {});
+        }
       }
     }, 500);
     return () => clearInterval(checkStream);
-  }, [userId]);
+  }, [userId, outputDeviceId]);
+
+  // Apply output device when setting changes
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !outputDeviceId) return;
+    if ('setSinkId' in el) {
+      (el as any).setSinkId(outputDeviceId).catch(() => {});
+    }
+  }, [outputDeviceId]);
+
+  // Apply output volume
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.volume = outputVolume / 100;
+  }, [outputVolume]);
 
   return <audio ref={audioRef} autoPlay style={{ display: 'none' }} />;
 }

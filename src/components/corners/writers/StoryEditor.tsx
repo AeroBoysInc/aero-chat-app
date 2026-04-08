@@ -39,7 +39,9 @@ export function StoryEditor() {
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 5 * 1024 * 1024) { alert('Max 5 MB'); return; }
+    const isPrem = user.is_premium === true;
+    const maxBytes = isPrem ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxBytes) { alert(`Max ${isPrem ? '50' : '5'} MB`); return; }
 
     setUploading(true);
     const ext = file.name.split('.').pop() ?? 'jpg';

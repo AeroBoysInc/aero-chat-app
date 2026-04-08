@@ -19,22 +19,32 @@ export function XpMiniBar({ bar }: Props) {
   const progress = level >= 100 ? 100 : nextXp > 0 ? Math.round((currentXp / nextXp) * 100) : 0;
 
   // ── Floating "+N XP" animation state ──
-  const [floater, setFloater] = useState<{ amount: number; key: number } | null>(null);
-  const [glowing, setGlowing] = useState(false);
-  const prevTs = useRef(0);
+  // gainKey is an incrementing counter that forces React to remount the floater span
+  const [gainKey, setGainKey] = useState<number>(0);
+  const [gainAmount, setGainAmount] = useState<number>(0);
+  const [glowKey, setGlowKey] = useState<number>(0);
+  const prevSeq = useRef(0);
+  const glowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const floatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!lastGain || lastGain.bar !== bar || lastGain.ts === prevTs.current) return;
-    prevTs.current = lastGain.ts;
+    if (!lastGain || lastGain.bar !== bar || lastGain.ts === prevSeq.current) return;
+    prevSeq.current = lastGain.ts;
 
-    // Trigger glow + floater
-    setGlowing(true);
-    setFloater({ amount: lastGain.amount, key: lastGain.ts });
+    // Cancel any pending cleanup timers — new gain takes priority
+    if (glowTimer.current) clearTimeout(glowTimer.current);
+    if (floatTimer.current) clearTimeout(floatTimer.current);
 
-    const t1 = setTimeout(() => setGlowing(false), 800);
-    const t2 = setTimeout(() => setFloater(null), 1200);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // Bump counters to force React to re-create elements (restarts CSS animations)
+    setGlowKey(k => k + 1);
+    setGainAmount(lastGain.amount);
+    setGainKey(k => k + 1);
+
+    glowTimer.current = setTimeout(() => setGlowKey(0), 250);
+    floatTimer.current = setTimeout(() => setGainKey(0), 450);
   }, [lastGain, bar]);
+
+  const isGlowing = glowKey > 0;
 
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -53,24 +63,24 @@ export function XpMiniBar({ bar }: Props) {
         background: 'rgba(255,255,255,0.08)',
         overflow: 'hidden',
         position: 'relative',
-        boxShadow: glowing ? `0 0 10px ${meta.color}60, 0 0 20px ${meta.color}30` : 'none',
-        transition: 'box-shadow 0.3s ease',
+        boxShadow: isGlowing ? `0 0 10px ${meta.color}60, 0 0 20px ${meta.color}30` : 'none',
+        transition: 'box-shadow 0.05s ease',
       }}>
         {/* Fill */}
         <div style={{
           height: '100%', borderRadius: 3,
           background: `linear-gradient(90deg, ${meta.color}aa, ${meta.color})`,
           width: `${progress}%`,
-          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'width 0.05s linear',
           position: 'relative',
           overflow: 'hidden',
         }}>
-          {/* Shimmer sweep on gain */}
-          {glowing && (
-            <div style={{
+          {/* Shimmer sweep on gain — keyed to force animation restart */}
+          {isGlowing && (
+            <div key={glowKey} style={{
               position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
               background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
-              animation: 'xp-shimmer 0.6s ease-out',
+              animation: 'xp-shimmer 0.25s ease-out',
             }} />
           )}
         </div>
@@ -80,16 +90,16 @@ export function XpMiniBar({ bar }: Props) {
       <span style={{
         fontSize: 10, fontWeight: 800, color: meta.color,
         minWidth: 16, textAlign: 'right',
-        transform: glowing ? 'scale(1.2)' : 'scale(1)',
-        transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transform: isGlowing ? 'scale(1.2)' : 'scale(1)',
+        transition: 'transform 0.05s ease-out',
       }}>
         {level}
       </span>
 
-      {/* Floating "+N XP" */}
-      {floater && (
+      {/* Floating "+N XP" — keyed to force remount and restart animation */}
+      {gainKey > 0 && (
         <span
-          key={floater.key}
+          key={gainKey}
           style={{
             position: 'absolute',
             right: 0, top: -2,
@@ -97,11 +107,11 @@ export function XpMiniBar({ bar }: Props) {
             color: meta.color,
             textShadow: `0 0 8px ${meta.color}80`,
             pointerEvents: 'none',
-            animation: 'xp-float-up 1.2s ease-out forwards',
+            animation: 'xp-float-up 0.45s ease-out forwards',
             whiteSpace: 'nowrap',
           }}
         >
-          +{floater.amount} XP
+          +{gainAmount} XP
         </span>
       )}
     </div>

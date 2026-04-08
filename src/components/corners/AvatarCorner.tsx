@@ -74,7 +74,7 @@ const StatBar = React.memo(function StatBar({ bar, isPremium }: { bar: XpBar; is
             `,
             backgroundBlendMode: 'screen',
             width: `${progress}%`,
-            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'width 0.05s linear',
             boxShadow: `0 0 16px ${meta.color}35, inset 0 -2px 4px rgba(0,0,0,0.12), inset 0 2px 4px rgba(255,255,255,0.20)`,
             position: 'relative',
             minWidth: progress > 0 ? 20 : 0,

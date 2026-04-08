@@ -447,7 +447,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     const myUserId = user.id;
 
     // Audio settings
-    const { noiseCancellation, inputVolume } = useAudioStore.getState();
+    const { noiseCancellation, inputVolume, inputDeviceId } = useAudioStore.getState();
 
     // Generate call ID
     const callId = `group-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -459,6 +459,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
           echoCancellation: true,
           noiseSuppression: false,
           autoGainControl: false,
+          ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
         },
         video: false,
       });
@@ -687,11 +688,16 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     if (!user) return;
     const myUserId = user.id;
 
-    const { noiseCancellation, inputVolume } = useAudioStore.getState();
+    const { noiseCancellation, inputVolume, inputDeviceId } = useAudioStore.getState();
 
     try {
       _rawAudioStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+          ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+        },
         video: false,
       });
     } catch {

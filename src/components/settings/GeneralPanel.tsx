@@ -1,8 +1,9 @@
 import { X, Mic, Volume2, Headphones, Waves, Gamepad2, MessageSquare } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAudioStore } from '../../store/audioStore';
 import { useStatusStore } from '../../store/statusStore';
 import { useCallStore } from '../../store/callStore';
+import { getLiveMicLevel } from '../../lib/noiseSuppression';
 
 interface Props { onClose: () => void; }
 
@@ -20,7 +21,7 @@ const panelStyle: React.CSSProperties = {
 };
 
 export function GeneralPanel({ onClose }: Props) {
-  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume, chatPosition, set } = useAudioStore();
+  const { inputDeviceId, outputDeviceId, noiseCancellation, inputVolume, outputVolume, inputSensitivity, chatPosition, set } = useAudioStore();
   const { showGameActivity, setShowGameActivity } = useStatusStore();
   const [inputs,  setInputs]  = useState<DeviceEntry[]>([]);
   const [outputs, setOutputs] = useState<DeviceEntry[]>([]);
@@ -137,6 +138,26 @@ export function GeneralPanel({ onClose }: Props) {
           </button>
         </div>
 
+        {/* Input sensitivity */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold" style={{ color: 'var(--popup-text-label)' }}>Input Sensitivity</p>
+            <span className="text-[10px]" style={{ color: 'var(--popup-text-muted)' }}>
+              {inputSensitivity === 0 ? 'Off' : `${inputSensitivity}%`}
+            </span>
+          </div>
+          <SensitivityMeter sensitivity={inputSensitivity} />
+          <input
+            type="range" min={0} max={100}
+            value={inputSensitivity}
+            onChange={e => set({ inputSensitivity: Number(e.target.value) })}
+            className="aero-slider w-full mt-1.5"
+          />
+          <p className="text-[10px] mt-1" style={{ color: 'var(--popup-text-muted)' }}>
+            Adjust so background noise stays below the threshold line
+          </p>
+        </div>
+
         <div className="h-px" style={{ background: 'var(--popup-divider)' }} />
 
         {/* Output device */}
@@ -228,6 +249,130 @@ export function GeneralPanel({ onClose }: Props) {
         </div>
 
       </div>
+    </div>
+  );
+}
+
+/* ── Input sensitivity meter ─────────────────────────────────────────────── */
+// Shows a real-time bar of mic input level with a threshold line overlay.
+// Grabs mic stream when no active pipeline exists (e.g. not in a call),
+// or reads from the active pipeline's analyser when in a call/recording.
+
+function SensitivityMeter({ sensitivity }: { sensitivity: number }) {
+  const [level, setLevel] = useState(0);
+  const rafRef = useRef<number>(0);
+  const streamRef = useRef<MediaStream | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const inputDeviceId = useAudioStore(s => s.inputDeviceId);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function start() {
+      try {
+        // Use the same audio constraints as calls/recordings so the meter
+        // shows levels that match what the noise gate actually sees.
+        // AGC boosts quiet signals — without it, the meter would show lower
+        // noise levels than the gate gets, making the threshold useless.
+        const constraints: MediaTrackConstraints = {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+          ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+        };
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+
+        const ctx = new AudioContext();
+        ctxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.6;
+        analyserRef.current = analyser;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          if (cancelled) return;
+          // Prefer active pipeline level if available (shows post-processing level)
+          const pipelineLevel = getLiveMicLevel();
+          if (pipelineLevel > 0) {
+            setLevel(pipelineLevel);
+          } else {
+            analyser.getByteFrequencyData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i];
+            setLevel(sum / buf.length / 255);
+          }
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+      } catch {
+        // No mic access — fall back to pipeline level polling
+        const tick = () => {
+          if (cancelled) return;
+          setLevel(getLiveMicLevel());
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+      }
+    }
+
+    start();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+      ctxRef.current?.close().catch(() => {});
+      ctxRef.current = null;
+    };
+  }, [inputDeviceId]);
+
+  // Map sensitivity to the same threshold used by the noise gate
+  const thresholdNorm = 0.002 + (0.08 - 0.002) * ((sensitivity / 100) ** 2);
+  // Scale for display: threshold and level are both 0–~0.1 range, map to 0–100%
+  const displayScale = 0.12; // max expected level for display purposes
+  const levelPct = Math.min(100, (level / displayScale) * 100);
+  const thresholdPct = sensitivity === 0 ? 0 : Math.min(100, (thresholdNorm / displayScale) * 100);
+
+  const isAbove = level > thresholdNorm;
+
+  return (
+    <div style={{
+      position: 'relative',
+      height: 18,
+      borderRadius: 6,
+      background: 'var(--popup-select-bg)',
+      border: '1px solid var(--popup-select-border)',
+      overflow: 'hidden',
+    }}>
+      {/* Level bar */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, bottom: 0,
+        width: `${levelPct}%`,
+        background: isAbove
+          ? 'linear-gradient(90deg, rgba(0,212,255,0.35), rgba(0,212,255,0.55))'
+          : 'linear-gradient(90deg, rgba(255,160,0,0.25), rgba(255,160,0,0.40))',
+        borderRadius: 5,
+        transition: 'width 0.06s linear',
+      }} />
+      {/* Threshold line */}
+      {sensitivity > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 0, bottom: 0,
+          left: `${thresholdPct}%`,
+          width: 2,
+          background: isAbove ? 'rgba(0,212,255,0.8)' : 'rgba(255,100,50,0.7)',
+          borderRadius: 1,
+          boxShadow: isAbove ? '0 0 4px rgba(0,212,255,0.5)' : '0 0 4px rgba(255,100,50,0.4)',
+          transition: 'left 0.15s ease, background 0.2s ease',
+        }} />
+      )}
     </div>
   );
 }

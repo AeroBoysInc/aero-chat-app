@@ -8,6 +8,7 @@ export interface AudioSettings {
   noiseCancellation: boolean;
   inputVolume:  number;     // 0–100
   outputVolume: number;     // 0–100
+  inputSensitivity: number; // 0–100 — noise gate threshold (0 = most sensitive, 100 = least)
   chatPosition: 'right' | 'bottom'; // where chat panel appears during calls
   chatSizeRight: number;  // width in px when position=right  (min 320, max 800)
   chatSizeBottom: number; // height in px when position=bottom (min 200, max 600)
@@ -25,7 +26,7 @@ function load(): AudioSettings {
 }
 
 function defaults(): AudioSettings {
-  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100, chatPosition: 'right' as const, chatSizeRight: 572, chatSizeBottom: 320 };
+  return { inputDeviceId: '', outputDeviceId: '', noiseCancellation: true, inputVolume: 80, outputVolume: 100, inputSensitivity: 50, chatPosition: 'right' as const, chatSizeRight: 572, chatSizeBottom: 320 };
 }
 
 function save(s: AudioSettings) {

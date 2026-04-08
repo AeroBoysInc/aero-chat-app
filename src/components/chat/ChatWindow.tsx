@@ -821,7 +821,7 @@ export function ChatWindow({ contact, onBack }: Props) {
   // Mirror the same logic as Sidebar: presence channel overrides stored status to 'offline'
   // when the contact is not in the live online set (covers app-close / tab-close / logout).
   const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
-  const liveStatus: Status = presenceReady && !contactOnline ? 'offline' : storedStatus;
+  const liveStatus: Status = !presenceReady ? 'offline' : !contactOnline ? 'offline' : storedStatus;
 
   // Contact card bleed — gradient preset or photo background
   // For gradients: use the preview hex color to build a vivid directional bleed.
@@ -1271,27 +1271,26 @@ export function ChatWindow({ contact, onBack }: Props) {
       const audioConstraints: MediaTrackConstraints = {
         noiseSuppression: false,
         echoCancellation: true,
+        autoGainControl: false,
         ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
       };
       const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       rawStreamRef.current = rawStream;
 
-      // Route through pipeline for noise cancellation and/or input gain control
-      let recordStream = rawStream;
-      if (noiseCancellation || inputVolume !== 100) {
-        const pipeline = noiseCancellation
-          ? await createNoisePipeline(rawStream)
-          : await createGainPipeline(rawStream);
-        // If cancelRecording() fired during the await, rawStreamRef was cleared — bail out
-        if (!rawStreamRef.current) {
-          pipeline.dispose();
-          rawStream.getTracks().forEach(t => t.stop());
-          return;
-        }
-        pipeline.setInputGain(inputVolume / 100);
-        recordingPipelineRef.current = pipeline;
-        recordStream = pipeline.processedStream;
+      // Always route through a pipeline — noise gate + compressor are always active,
+      // RNNoise is added when noise cancellation is on.
+      const pipeline = noiseCancellation
+        ? await createNoisePipeline(rawStream)
+        : await createGainPipeline(rawStream);
+      // If cancelRecording() fired during the await, rawStreamRef was cleared — bail out
+      if (!rawStreamRef.current) {
+        pipeline.dispose();
+        rawStream.getTracks().forEach(t => t.stop());
+        return;
       }
+      pipeline.setInputGain(inputVolume / 100);
+      recordingPipelineRef.current = pipeline;
+      const recordStream = pipeline.processedStream;
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus' : 'audio/webm';

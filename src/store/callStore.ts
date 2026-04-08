@@ -33,6 +33,7 @@ export interface CallState {
 
   contactIsRinging: boolean; // true when call:ringing received from callee (shows "Ringing…")
   contactIsSharing: boolean; // true when remote user is screen sharing (drives screen-dominant UI)
+  contactIsMuted: boolean;   // true when remote user has muted their mic
 
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
@@ -80,6 +81,7 @@ export const INITIAL_CALL_STATE = {
   callType: 'audio' as const,
   contactIsRinging: false,
   contactIsSharing: false,
+  contactIsMuted: false,
   localStream: null,
   remoteStream: null,
   screenStream: null,
@@ -260,6 +262,10 @@ export const useCallStore = create<CallState>((set, get) => ({
         if (payload.callId !== callId) return;
         set({ contactIsSharing: false });
       })
+      .on('broadcast', { event: 'call:mute' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsMuted: payload.muted });
+      })
       // ICE restart: caller sends a new call:offer on the session channel (not ring channel)
       .on('broadcast', { event: 'call:offer' }, async ({ payload }) => {
         if (payload.callId !== callId || !_peerConnection) return;
@@ -302,8 +308,13 @@ export const useCallStore = create<CallState>((set, get) => ({
     const myUserId = authData.data.user?.id;
     if (!myUserId) return;
 
-    const nc = useAudioStore.getState().noiseCancellation;
-    const audioConstraints = { echoCancellation: true, noiseSuppression: false, autoGainControl: false };
+    const { noiseCancellation: nc, inputDeviceId } = useAudioStore.getState();
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: false,
+      autoGainControl: false,
+      ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+    };
 
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
@@ -415,6 +426,10 @@ export const useCallStore = create<CallState>((set, get) => ({
       .on('broadcast', { event: 'call:screenshare-stop' }, ({ payload }) => {
         if (payload.callId !== callId) return;
         set({ contactIsSharing: false });
+      })
+      .on('broadcast', { event: 'call:mute' }, ({ payload }) => {
+        if (payload.callId !== callId) return;
+        set({ contactIsMuted: payload.muted });
       });
 
     // Wait for the channel to be fully SUBSCRIBED before proceeding
@@ -566,8 +581,13 @@ export const useCallStore = create<CallState>((set, get) => ({
     const { callId, contact, callType } = get();
     if (!callId || !contact || !_pendingOffer || !_signalingChannel) return;
 
-    const nc = useAudioStore.getState().noiseCancellation;
-    const audioConstraints = { echoCancellation: true, noiseSuppression: false, autoGainControl: false };
+    const { noiseCancellation: nc, inputDeviceId } = useAudioStore.getState();
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: false,
+      autoGainControl: false,
+      ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
+    };
 
     // ── Get local media ───────────────────────────────────────────────────
     let stream: MediaStream;
@@ -814,29 +834,48 @@ export const useCallStore = create<CallState>((set, get) => ({
     useCallStore.setState(INITIAL_CALL_STATE);
   },
   toggleMute: () => {
-    const { localStream, isMuted } = get();
+    const { localStream, isMuted, callId } = get();
     if (!localStream) return;
     const next = !isMuted;
     localStream.getAudioTracks().forEach(t => { t.enabled = !next; });
     set({ isMuted: next });
+    // Broadcast mute state to remote peer
+    if (_signalingChannel && callId) {
+      _signalingChannel.send({
+        type: 'broadcast',
+        event: 'call:mute',
+        payload: { callId, muted: next },
+      });
+    }
   },
   toggleDeafen: () => {
-    const { remoteStream, isDeafened } = get();
+    const { remoteStream, isDeafened, callId } = get();
     if (!remoteStream) return;
     const next = !isDeafened;
     remoteStream.getAudioTracks().forEach(t => { t.enabled = !next; });
     // Deafening also mutes you (standard Discord/voice chat behavior)
+    let muteChanged = false;
     if (next && !get().isMuted) {
       const { localStream } = get();
       localStream?.getAudioTracks().forEach(t => { t.enabled = false; });
       set({ isDeafened: next, isMuted: true });
+      muteChanged = true;
     } else if (!next && get().isMuted) {
       // Undeafening unmutes you too
       const { localStream } = get();
       localStream?.getAudioTracks().forEach(t => { t.enabled = true; });
       set({ isDeafened: next, isMuted: false });
+      muteChanged = true;
     } else {
       set({ isDeafened: next });
+    }
+    // Broadcast mute state change to remote peer
+    if (muteChanged && _signalingChannel && callId) {
+      _signalingChannel.send({
+        type: 'broadcast',
+        event: 'call:mute',
+        payload: { callId, muted: get().isMuted },
+      });
     }
   },
 

@@ -47,6 +47,7 @@ export function CallView() {
     contactIsSharing,
     isScreenSharing,
     contactIsRinging,
+    contactIsMuted,
     isCaller,
     isMuted,
     callStartedAt,
@@ -62,14 +63,33 @@ export function CallView() {
   const [showAddToCall, setShowAddToCall] = useState(false);
   const [duration, setDuration] = useState('0:00');
 
-  // Hidden audio output for audio-only calls
+  // Hidden audio output for calls
   const audioRef = useRef<HTMLAudioElement>(null);
+  const outputDeviceId = useAudioStore(s => s.outputDeviceId);
+  const outputVolume = useAudioStore(s => s.outputVolume);
+
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !remoteStream) return;
     el.srcObject = remoteStream;
     el.play().catch(() => {});
   }, [remoteStream]);
+
+  // Apply output device selection
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !outputDeviceId) return;
+    if ('setSinkId' in el) {
+      (el as any).setSinkId(outputDeviceId).catch(() => {});
+    }
+  }, [outputDeviceId, remoteStream]);
+
+  // Apply output volume
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.volume = outputVolume / 100;
+  }, [outputVolume]);
 
   // Duration timer
   useEffect(() => {
@@ -87,6 +107,20 @@ export function CallView() {
   // ── Audio level visualizer ───────────────────────────────────────────
   const [localLevel, setLocalLevel] = useState(0);
   const [remoteLevel, setRemoteLevel] = useState(0);
+
+  // Track when remote audio tracks arrive (same-ref object won't re-trigger effects)
+  const [remoteTrackCount, setRemoteTrackCount] = useState(0);
+  useEffect(() => {
+    if (!remoteStream) return;
+    const update = () => setRemoteTrackCount(remoteStream.getAudioTracks().length);
+    update();
+    remoteStream.addEventListener('addtrack', update);
+    remoteStream.addEventListener('removetrack', update);
+    return () => {
+      remoteStream.removeEventListener('addtrack', update);
+      remoteStream.removeEventListener('removetrack', update);
+    };
+  }, [remoteStream]);
 
   useEffect(() => {
     if (!localStream || localStream.getAudioTracks().length === 0) { setLocalLevel(0); return; }
@@ -120,7 +154,7 @@ export function CallView() {
     };
     tick();
     return () => { cancelAnimationFrame(rafId); ctx.close().catch(() => {}); setRemoteLevel(0); };
-  }, [remoteStream]);
+  }, [remoteStream, remoteTrackCount]);
 
   // ── PiP drag state (for video calls) ────────────────────────────────
   const pipRef = useRef<HTMLDivElement>(null);
@@ -213,8 +247,8 @@ export function CallView() {
       borderRadius: 16,
       overflow: 'hidden',
     }}>
-      {/* Hidden audio output */}
-      {callType === 'audio' && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
+      {/* Hidden audio output — always rendered so setSinkId + volume work for all call types */}
+      <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
 
       {/* ── Main call area ── */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex' }}>
@@ -331,7 +365,7 @@ export function CallView() {
                   avatarUrl={contact?.avatar_url ?? null}
                   isSpeaking={remoteSpeaking}
                   audioLevel={remoteLevel}
-                  isMuted={false}
+                  isMuted={contactIsMuted}
                   isMe={false}
                 />
 

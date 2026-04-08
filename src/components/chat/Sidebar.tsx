@@ -77,7 +77,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     const groups: Record<Status, Profile[]> = { online: [], busy: [], away: [], offline: [] };
     for (const f of friends) {
       const storedStatus = (f.status as Status | undefined) ?? 'online';
-      const effective: Status = presenceReady && !onlineIds.has(f.id) ? 'offline' : storedStatus;
+      const effective: Status = !presenceReady ? 'offline' : !onlineIds.has(f.id) ? 'offline' : storedStatus;
       groups[effective].push(f);
     }
     return groups;
@@ -777,7 +777,7 @@ const FriendItem = memo(function FriendItem({
   const [isHovered, setIsHovered] = useState(false);
 
   const storedStatus = (friend.status as Status | undefined) ?? 'online';
-  const effectiveStatus: Status = presenceReady && !isOnline ? 'offline' : storedStatus;
+  const effectiveStatus: Status = !presenceReady ? 'offline' : !isOnline ? 'offline' : storedStatus;
 
   return (
     <button

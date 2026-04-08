@@ -28,7 +28,7 @@ const FREE_LIMITS = [
 const PLUS_FEATURES = [
   'Everything in Free',
   'Unlimited daily XP',
-  '100 MB file uploads',
+  '50 MB file uploads',
   'Full gradient library + custom colors',
   'Animated profile card effects',
   'Custom aura ring colors',

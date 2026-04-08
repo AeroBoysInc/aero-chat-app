@@ -37,6 +37,9 @@ type XpStore = XpState & XpActions;
 const lastAwardTime: Record<string, number> = {};
 const RATE_LIMIT_MS = 5000; // 5 seconds per bar
 
+// Monotonic counter for lastGain — guarantees unique IDs even within same millisecond
+let _gainSeq = 0;
+
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -99,7 +102,7 @@ export const useXpStore = create<XpStore>()((set, get) => ({
     // ── Anti-abuse: rate limit (skip for chatter, 1s for gamer, 5s for writer) ──
     const key = bar;
     const now = Date.now();
-    const barRateLimit = bar === 'chatter' ? 0 : bar === 'gamer' ? 1000 : RATE_LIMIT_MS;
+    const barRateLimit = bar === 'chatter' ? 0 : bar === 'gamer' ? 100 : RATE_LIMIT_MS;
     if (barRateLimit > 0 && lastAwardTime[key] && now - lastAwardTime[key] < barRateLimit) return;
 
     // ── Anti-abuse: duplicate message detection ──
@@ -139,8 +142,8 @@ export const useXpStore = create<XpStore>()((set, get) => ({
     }
     set(updates);
 
-    // Emit gain event for UI animation (separate set so React sees a new object ref)
-    set({ lastGain: { bar, amount: effectiveAmount, ts: now } });
+    // Emit gain event for UI animation (monotonic seq guarantees unique ID per gain)
+    set({ lastGain: { bar, amount: effectiveAmount, ts: ++_gainSeq } });
 
     // ── Persist to Supabase ──
     const dbUpdates: Record<string, unknown> = {

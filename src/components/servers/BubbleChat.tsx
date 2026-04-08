@@ -441,22 +441,19 @@ export const BubbleChat = memo(function BubbleChat() {
   async function startRecording() {
     try {
       const audioConstraints: MediaTrackConstraints = {
-        noiseSuppression: false, echoCancellation: true,
+        noiseSuppression: false, echoCancellation: true, autoGainControl: false,
         ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {}),
       };
       const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       rawStreamRef.current = rawStream;
 
-      let recordStream = rawStream;
-      if (noiseCancellation || inputVolume !== 100) {
-        const pipeline = noiseCancellation
-          ? await createNoisePipeline(rawStream)
-          : await createGainPipeline(rawStream);
-        if (!rawStreamRef.current) { pipeline.dispose(); rawStream.getTracks().forEach(t => t.stop()); return; }
-        pipeline.setInputGain(inputVolume / 100);
-        recordingPipelineRef.current = pipeline;
-        recordStream = pipeline.processedStream;
-      }
+      const pipeline = noiseCancellation
+        ? await createNoisePipeline(rawStream)
+        : await createGainPipeline(rawStream);
+      if (!rawStreamRef.current) { pipeline.dispose(); rawStream.getTracks().forEach(t => t.stop()); return; }
+      pipeline.setInputGain(inputVolume / 100);
+      recordingPipelineRef.current = pipeline;
+      const recordStream = pipeline.processedStream;
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
       const mr = new MediaRecorder(recordStream, { mimeType });
@@ -519,14 +516,17 @@ export const BubbleChat = memo(function BubbleChat() {
 
   async function uploadAndSendFile(file: File) {
     if (!user) return;
-    if (file.size > 10 * 1024 * 1024) { setSendError('File too large (max 10 MB).'); return; }
+    const isPrem = user?.is_premium === true;
+    const maxBytes = isPrem ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxBytes) { setSendError(`File too large (max ${isPrem ? '50' : '10'} MB).${!isPrem ? ' Upgrade for 50 MB.' : ''}`); return; }
     setIsUploading(true);
     setSendError('');
+    const bucket = isPrem ? 'chat-files-premium' : 'chat-files';
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
     const path = `${user.id}/bubbles/${selectedBubbleId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('chat-files').upload(path, file, { contentType: file.type });
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type });
     if (uploadError) { setSendError('Upload failed.'); setIsUploading(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     await sendContent(JSON.stringify({ _file: true, url: publicUrl, name: file.name, size: file.size, mime: file.type || 'application/octet-stream' }));
     setIsUploading(false);
   }
@@ -684,7 +684,7 @@ export const BubbleChat = memo(function BubbleChat() {
             >
               <Smile className="h-4 w-4" />
             </button>
-            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.txt,.doc,.docx,.zip,.csv" onChange={handleFileSelect} />
+            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.txt,.doc,.docx,.zip,.csv,.mp4,.mov,.webm,.avi,.mkv" onChange={handleFileSelect} />
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={sending || isUploading}

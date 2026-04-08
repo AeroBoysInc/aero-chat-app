@@ -12,6 +12,12 @@ const AeroChess = lazy(() =>
   import('../chess/AeroChess').then(m => ({ default: m.AeroChess }))
 );
 
+// 2048 loaded locally (needs app store access for XP + navigation)
+const TwentyFortyEight = lazy(() => import('./games/TwentyFortyEight'));
+
+// Set of games that are loaded locally instead of from the bundle system
+const LOCAL_GAMES = new Set<SelectedGame>(['chess', 'twentyfortyeight']);
+
 interface GameEntry {
   id: SelectedGame;
   icon: string | React.FC<{ className?: string; style?: React.CSSProperties }>;
@@ -564,9 +570,9 @@ export function GamesCorner() {
     if (user) setInstalledGames(getInstalledGames(user.id));
   }, [user?.id]);
 
-  // When selectedGame changes, load the game dynamically (except chess)
+  // When selectedGame changes, load the game dynamically (skip locally-loaded games)
   useEffect(() => {
-    if (!selectedGame || selectedGame === 'chess') {
+    if (!selectedGame || LOCAL_GAMES.has(selectedGame)) {
       setLoadedGame(null);
       return;
     }
@@ -622,17 +628,18 @@ export function GamesCorner() {
           )}
           <div className="flex-1 min-h-0">
             {selectedGame === 'chess' && (
-              <Suspense fallback={
-                <div className="flex h-full items-center justify-center" style={{ color: 'rgba(0,212,255,0.7)', fontSize: 13 }}>
-                  Loading chess…
-                </div>
-              }>
+              <Suspense fallback={<GameLoadingSpinner />}>
                 <AeroChess />
               </Suspense>
             )}
-            {selectedGame !== 'chess' && gameLoading && <GameLoadingSpinner />}
-            {selectedGame !== 'chess' && !gameLoading && LoadedGame && <LoadedGame />}
-            {selectedGame !== 'chess' && !gameLoading && !LoadedGame && (
+            {selectedGame === 'twentyfortyeight' && (
+              <Suspense fallback={<GameLoadingSpinner />}>
+                <TwentyFortyEight />
+              </Suspense>
+            )}
+            {!LOCAL_GAMES.has(selectedGame) && gameLoading && <GameLoadingSpinner />}
+            {!LOCAL_GAMES.has(selectedGame) && !gameLoading && LoadedGame && <LoadedGame />}
+            {!LOCAL_GAMES.has(selectedGame) && !gameLoading && !LoadedGame && (
               <div className="flex h-full items-center justify-center text-center">
                 <div>
                   <p className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>Failed to load game</p>
