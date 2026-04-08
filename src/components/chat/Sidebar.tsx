@@ -84,6 +84,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [identityEditorOpen,  setIdentityEditorOpen]  = useState(false);
   const [isOwnCardHovered,    setIsOwnCardHovered]    = useState(false);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
+  const footerRef      = useRef<HTMLDivElement>(null);
   const asideRef       = useRef<HTMLElement>(null);
 
   // Consume tour pendingAction for identity-editor and settings
@@ -151,8 +152,9 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     function handler(e: MouseEvent) {
       const t = e.target as HTMLElement;
       const inCard = statusMenuRef.current?.contains(t);
+      const inFooter = footerRef.current?.contains(t);
       const inPortaledMenu = t.closest?.('[data-card-popup]');
-      if (!inCard && !inPortaledMenu) {
+      if (!inCard && !inFooter && !inPortaledMenu) {
         setStatusMenuOpen(false);
         if (settingsView === 'menu') setSettingsView(null);
       }
@@ -420,34 +422,6 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setIdentityEditorOpen(o => !o)}
-              className="rounded-aero p-1.5 transition-all"
-              style={{ color: identityEditorOpen ? 'var(--text-primary)' : 'var(--text-muted)', background: identityEditorOpen ? 'var(--hover-bg)' : '' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-              onMouseLeave={e => { if (!identityEditorOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
-              title="Edit identity"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
-              className="rounded-aero p-1.5 transition-all"
-              style={{ color: settingsView ? 'var(--text-primary)' : 'var(--text-muted)', background: settingsView === 'menu' ? 'var(--hover-bg)' : '' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
-              onMouseLeave={e => { if (settingsView !== 'menu') (e.currentTarget as HTMLElement).style.background = ''; }}
-              title="Settings"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
         </div>
 
         {/* Resize handle — bottom-right corner */}
@@ -509,16 +483,16 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         document.body
       )}
 
-      {/* Settings dropdown menu — portaled */}
-      {settingsView === 'menu' && statusMenuRef.current && createPortal(
+      {/* Settings dropdown menu — portaled, anchored above footer */}
+      {settingsView === 'menu' && footerRef.current && createPortal(
         <div
           data-card-popup
           className="w-52 py-1.5 shadow-xl animate-fade-in"
           style={{
             position: 'fixed',
             zIndex: 9998,
-            top: statusMenuRef.current.getBoundingClientRect().bottom + 8,
-            right: window.innerWidth - statusMenuRef.current.getBoundingClientRect().right,
+            bottom: window.innerHeight - footerRef.current.getBoundingClientRect().top + 4,
+            left: footerRef.current.getBoundingClientRect().left + footerRef.current.getBoundingClientRect().width / 2 - 104,
             borderRadius: 16,
             border: '1px solid var(--popup-border)',
             background: 'var(--popup-bg)',
@@ -721,6 +695,47 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         )}
       </nav>
 
+      {/* ── Footer: Edit Identity + Settings ── */}
+      <div
+        ref={footerRef}
+        className="flex items-center justify-center gap-2 px-3 py-2 flex-shrink-0"
+        style={{ borderTop: '1px solid var(--panel-divider)' }}
+      >
+        <button
+          onClick={() => setIdentityEditorOpen(o => !o)}
+          className="flex items-center gap-1.5 rounded-aero px-3 py-1.5 text-xs font-medium transition-all"
+          style={{
+            color: identityEditorOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+            background: identityEditorOpen ? 'var(--hover-bg)' : 'transparent',
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+          onMouseLeave={e => { if (!identityEditorOpen) (e.currentTarget as HTMLElement).style.background = ''; }}
+          title="Edit identity"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit Identity
+        </button>
+        <button
+          onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
+          className="flex items-center gap-1.5 rounded-aero px-3 py-1.5 text-xs font-medium transition-all"
+          style={{
+            color: settingsView ? 'var(--text-primary)' : 'var(--text-secondary)',
+            background: settingsView === 'menu' ? 'var(--hover-bg)' : 'transparent',
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--hover-bg)'}
+          onMouseLeave={e => { if (settingsView !== 'menu') (e.currentTarget as HTMLElement).style.background = ''; }}
+          title="Settings"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Settings
+        </button>
+      </div>
 
       {/* Settings panels — centered modal overlay */}
       {isPanelOpen && createPortal(
