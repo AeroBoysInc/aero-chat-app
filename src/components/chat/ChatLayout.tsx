@@ -32,6 +32,7 @@ import { useCallStore } from '../../store/callStore';
 import { useGroupCallStore } from '../../store/groupCallStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
+import { useGroupChatStore } from '../../store/groupChatStore';
 import { useThemeStore, isUltraTheme, isMasterTheme } from '../../store/themeStore';
 
 const MasterThemeDashboard = lazy(() => import('../master/MasterThemeDashboard').then(m => ({ default: m.MasterThemeDashboard })));
@@ -105,6 +106,7 @@ export function ChatLayout() {
   }, [isPremium, activeTheme]);
 
   const { pendingIncoming } = useFriendStore();
+  const pendingGroupInvites = useGroupChatStore(s => s.pendingInvites);
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -323,10 +325,10 @@ export function ChatLayout() {
               title="Friend Requests"
             >
               <Bell className="h-4 w-4" />
-              {pendingIncoming.length > 0 && (
+              {(pendingIncoming.length + pendingGroupInvites.length) > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
                   style={{ background: 'var(--badge-bg)', color: 'var(--badge-text)' }}>
-                  {pendingIncoming.length}
+                  {pendingIncoming.length + pendingGroupInvites.length}
                 </span>
               )}
             </button>
