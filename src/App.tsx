@@ -14,6 +14,8 @@ import { useXpStore } from './store/xpStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
+import { playMessageSound } from './lib/messageSound';
+import { useMuteStore } from './store/muteStore';
 import { clearAllChatCaches, pruneUnscopedCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
 import { ChatLayout } from './components/chat/ChatLayout';
@@ -110,7 +112,7 @@ export default function App() {
       // registration before RegisterForm has finished inserting the profile.
       const { data: row } = await supabase
         .from('profiles')
-        .select('id, username, public_key, avatar_url, status, encrypted_private_key, card_gradient, card_image_url, card_image_params, is_premium')
+        .select('id, username, public_key, avatar_url, status, encrypted_private_key, card_gradient, card_image_url, card_image_params, is_premium, bio, custom_status_text, custom_status_emoji, accent_color, accent_color_secondary, card_effect, avatar_gif_url, name_effect')
         .eq('id', userId)
         .maybeSingle();
 
@@ -245,9 +247,14 @@ export default function App() {
         // OR the app is idle (second monitor / other window) — user isn't watching.
         if (msg.sender_id !== activeId || inGame || appIdle) {
           increment(msg.sender_id);
-          // Desktop notification
+          // Desktop notification + sound
           const sender = useFriendStore.getState().friends.find(f => f.id === msg.sender_id);
-          if (sender) showMessageNotification(sender.username, '🔒 Encrypted message');
+          if (sender) {
+            showMessageNotification(sender.username, '🔒 Encrypted message');
+            if (!useMuteStore.getState().isMuted(msg.sender_id)) {
+              playMessageSound();
+            }
+          }
         }
       })
       .subscribe();
@@ -386,7 +393,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-aero-cyan" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2" style={{ borderColor: 'var(--panel-divider, rgba(255,255,255,0.2))', borderTopColor: 'var(--input-focus-border, #00d4ff)' }} />
       </div>
     );
   }

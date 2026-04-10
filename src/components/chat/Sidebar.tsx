@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool } from 'lucide-react';
+import { Search, LogOut, Bell, BellOff, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -8,6 +8,7 @@ import { useUnreadStore } from '../../store/unreadStore';
 import { useTypingStore } from '../../store/typingStore';
 import { useStatusStore } from '../../store/statusStore';
 import { usePresenceStore } from '../../store/presenceStore';
+import { useMuteStore } from '../../store/muteStore';
 import { useShallow } from 'zustand/react/shallow';
 import { AvatarImage, statusLabel, statusColor, type Status } from '../ui/AvatarImage';
 import { AeroLogo } from '../ui/AeroLogo';
@@ -771,6 +772,8 @@ const FriendItem = memo(function FriendItem({
   const isTyping      = useTypingStore(s => s.typing[friend.id] === true);
   const unread        = useUnreadStore(s => s.counts[friend.id] ?? 0);
   const removeFriend  = useFriendStore(s => s.removeFriend);
+  const isMuted       = useMuteStore(s => s.isMuted(friend.id));
+  const toggleMute    = useMuteStore(s => s.toggleMute);
   const [isHovered, setIsHovered] = useState(false);
   const [showPopout, setShowPopout] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -916,18 +919,35 @@ const FriendItem = memo(function FriendItem({
         </div>
       </div>
 
-      {/* Remove friend button (hover, no unread) */}
+      {/* Mute / Remove buttons (hover, no unread) */}
       {isHovered && unread === 0 && (
-        <button
-          onClick={e => { e.stopPropagation(); removeFriend(currentUserId, friend.id); }}
-          className="rounded-aero p-1 transition-all shrink-0"
-          style={{ position: 'relative', zIndex: 4, color: 'var(--text-muted)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-          title="Remove friend"
-        >
-          <UserMinus className="h-3.5 w-3.5" />
-        </button>
+        <div style={{ position: 'relative', zIndex: 4, display: 'flex', gap: 2, flexShrink: 0 }}>
+          <button
+            onClick={e => { e.stopPropagation(); toggleMute(friend.id); }}
+            className="rounded-aero p-1 transition-all"
+            style={{ color: isMuted ? '#f59e0b' : 'var(--text-muted)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = isMuted ? '#fbbf24' : '#f59e0b'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isMuted ? '#f59e0b' : 'var(--text-muted)'; }}
+            title={isMuted ? 'Unmute notifications' : 'Mute notifications'}
+          >
+            {isMuted ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); removeFriend(currentUserId, friend.id); }}
+            className="rounded-aero p-1 transition-all"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e03f3f'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+            title="Remove friend"
+          >
+            <UserMinus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Muted indicator (always visible when muted and not hovered) */}
+      {isMuted && !isHovered && unread === 0 && (
+        <BellOff className="h-3 w-3 shrink-0" style={{ position: 'relative', zIndex: 4, color: 'var(--text-muted)', opacity: 0.4 }} />
       )}
 
       {/* Unread badge */}
