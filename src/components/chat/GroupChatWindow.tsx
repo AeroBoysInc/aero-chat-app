@@ -3,7 +3,7 @@ import { Send, Lock, Phone, Settings, Bell, BellOff, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useGroupChatStore } from '../../store/groupChatStore';
-import { useGroupMessageStore, type GroupMessage } from '../../store/groupMessageStore';
+import { useGroupMessageStore } from '../../store/groupMessageStore';
 import { useUnreadStore } from '../../store/unreadStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useMuteStore } from '../../store/muteStore';
@@ -117,7 +117,7 @@ export function GroupChatWindow({ groupId }: Props) {
 
   const memberMap = new Map<string, { username: string; avatar_url: string | null }>();
   for (const m of group.members) {
-    if (m.profile) memberMap.set(m.user_id, { username: m.profile.username, avatar_url: m.profile.avatar_url });
+    if (m.profile) memberMap.set(m.user_id, { username: m.profile.username, avatar_url: m.profile.avatar_url ?? null });
   }
 
   return (

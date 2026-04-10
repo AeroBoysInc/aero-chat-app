@@ -13,10 +13,11 @@ import { useServerStore } from './store/serverStore';
 import { useXpStore } from './store/xpStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
-import { requestNotificationPermission, showMessageNotification, showCallNotification, showGroupMessageNotification, showGroupInviteNotification } from './lib/notifications';
+import { requestNotificationPermission, showMessageNotification, showCallNotification, showGroupMessageNotification } from './lib/notifications';
 import { playMessageSound } from './lib/messageSound';
 import { useGroupChatStore } from './store/groupChatStore';
-import { useGroupMessageStore } from './store/groupMessageStore';
+// useGroupMessageStore used by GroupChatWindow, not directly in App
+// import { useGroupMessageStore } from './store/groupMessageStore';
 import { useMuteStore } from './store/muteStore';
 import { clearAllChatCaches, pruneUnscopedCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
