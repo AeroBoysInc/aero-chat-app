@@ -174,7 +174,7 @@ export const useGroupChatStore = create<GroupChatStore>()((set, get) => ({
     return group.id;
   },
 
-  acceptInvite: async (inviteId, myUserId) => {
+  acceptInvite: async (inviteId, _myUserId) => {
     await supabase
       .from('group_invites')
       .update({ status: 'accepted' })
