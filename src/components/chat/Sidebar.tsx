@@ -772,7 +772,7 @@ const FriendItem = memo(function FriendItem({
   const isTyping      = useTypingStore(s => s.typing[friend.id] === true);
   const unread        = useUnreadStore(s => s.counts[friend.id] ?? 0);
   const removeFriend  = useFriendStore(s => s.removeFriend);
-  const isMuted       = useMuteStore(s => s.isMuted(friend.id));
+  const isMuted       = useMuteStore(s => s.mutedIds.has(friend.id));
   const toggleMute    = useMuteStore(s => s.toggleMute);
   const [isHovered, setIsHovered] = useState(false);
   const [showPopout, setShowPopout] = useState(false);
@@ -947,7 +947,14 @@ const FriendItem = memo(function FriendItem({
 
       {/* Muted indicator (always visible when muted and not hovered) */}
       {isMuted && !isHovered && unread === 0 && (
-        <BellOff className="h-3 w-3 shrink-0" style={{ position: 'relative', zIndex: 4, color: 'var(--text-muted)', opacity: 0.4 }} />
+        <div style={{
+          position: 'relative', zIndex: 4, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 20, height: 20, borderRadius: 6,
+          background: 'rgba(245,158,11,0.10)',
+        }}>
+          <BellOff className="h-3 w-3" style={{ color: '#f59e0b', opacity: 0.7 }} />
+        </div>
       )}
 
       {/* Unread badge */}

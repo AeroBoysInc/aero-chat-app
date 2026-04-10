@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays, Smile, Paintbrush } from 'lucide-react';
+import { Send, Lock, AlertCircle, ShieldAlert, Trash2, Mic, Play, Pause, Timer, Paperclip, Download, File as FileIcon, ArrowLeft, Phone, Video, Users, CalendarDays, Smile, Paintbrush, Bell, BellOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { encryptMessage, decryptMessage, loadPrivateKey } from '../../lib/crypto';
 import { useAuthStore, type Profile } from '../../store/authStore';
@@ -31,6 +31,7 @@ import { EmojiGifPicker } from '../ui/EmojiGifPicker';
 import { BubbleStylePicker } from '../ui/BubbleStylePicker';
 import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStore';
 import { useTourStore } from '../../store/tourStore';
+import { useMuteStore } from '../../store/muteStore';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AccentName } from '../ui/AccentName';
 import { CustomStatusBadge } from '../ui/CustomStatusBadge';
@@ -822,6 +823,8 @@ export function ChatWindow({ contact, onBack }: Props) {
   const startCall  = useCallStore(s => s.startCall);
   const groupCallStatus = useGroupCallStore(s => s.status);
   const [showGroupCallModal, setShowGroupCallModal] = useState(false);
+  const isMuted = useMuteStore(s => s.mutedIds.has(contact.id));
+  const toggleMute = useMuteStore(s => s.toggleMute);
   // Mirror the same logic as Sidebar: presence channel overrides stored status to 'offline'
   // when the contact is not in the live online set (covers app-close / tab-close / logout).
   const storedStatus = ((friends.find(f => f.id === contact.id)?.status ?? contact.status) as Status | undefined) ?? 'online';
@@ -1592,6 +1595,22 @@ export function ChatWindow({ contact, onBack }: Props) {
           </div>
         </div>
         <div className="no-drag flex items-center gap-1.5">
+          {/* Mute notifications toggle */}
+          <button
+            onClick={() => toggleMute(contact.id)}
+            title={isMuted ? 'Unmute notifications' : 'Mute notifications'}
+            className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
+            style={{
+              color: isMuted ? '#f59e0b' : 'var(--text-muted)',
+              background: isMuted ? 'rgba(245,158,11,0.12)' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = isMuted ? '#fbbf24' : '#f59e0b'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isMuted ? '#f59e0b' : 'var(--text-muted)'; }}
+          >
+            {isMuted ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+          </button>
           {/* Call buttons — only when idle */}
           {callStatus === 'idle' && groupCallStatus === 'idle' && (
             <>
