@@ -12,6 +12,7 @@ import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { getCallTier, getGroupTierPalette, type TierPalette, type AudioBarConfig } from '../../lib/callTierVisuals';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useFriendStore } from '../../store/friendStore';
 
 const MAX_PARTICIPANTS = 4;
 
@@ -56,6 +57,8 @@ export function GroupCallView() {
   const myTier = getCallTier(user, activeTheme);
   const myPalette = getGroupTierPalette(myTier);
 
+  const friends = useFriendStore(s => s.friends);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [duration, setDuration] = useState('0:00');
   const [showControls, setShowControls] = useState(true);
@@ -87,6 +90,10 @@ export function GroupCallView() {
   if (status === 'idle') return null;
 
   const participantList = Array.from(participants.values());
+  const invitedProfiles = invitedUserIds.map(id => {
+    const f = friends.find(fr => fr.id === id);
+    return f ? { userId: id, username: f.username, avatarUrl: f.avatar_url ?? null } : { userId: id, username: '...', avatarUrl: null };
+  });
   const isScreenSharing = !!screenSharingUserId;
   const iAmSharing = screenSharingUserId === myUserId;
 
@@ -234,11 +241,12 @@ export function GroupCallView() {
                         ))}
                         <div style={{
                           position: 'relative',
-                          width: 40,
-                          height: 40,
+                          width: 48,
+                          height: 48,
                           borderRadius: '50%',
                           border: myPalette.avatarBorder,
                           boxShadow: myPalette.avatarGlow,
+                          overflow: 'hidden',
                         }}>
                           <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="xl" />
                         </div>
@@ -289,8 +297,59 @@ export function GroupCallView() {
               );
             })}
 
+            {/* Invited user panels — "Calling..." */}
+            {invitedProfiles.map(inv => (
+              <div key={inv.userId} style={{ display: 'contents' }}>
+                <div style={{ width: 1, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+                <div style={{
+                  flex: 1,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.6,
+                }}>
+                  {/* Dark background */}
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(6,14,31,0.92)' }} />
+
+                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    {/* Pulsing ring + avatar */}
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{
+                        position: 'absolute',
+                        width: 64, height: 64,
+                        borderRadius: '50%',
+                        border: '2px solid rgba(245,158,11,0.40)',
+                        animation: 'pulse-ring 1.5s cubic-bezier(0.215,0.61,0.355,1) infinite',
+                      }} />
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
+                        <AvatarImage username={inv.username} avatarUrl={inv.avatarUrl} size="xl" />
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.70)' }}>
+                      {inv.username}
+                    </span>
+
+                    {/* Calling indicator */}
+                    <div className="flex items-center gap-1.5">
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: '#f59e0b',
+                        animation: 'aura-pulse 1.5s ease-in-out infinite',
+                      }} />
+                      <span className="text-xs" style={{ color: 'rgba(245,158,11,0.80)' }}>Calling…</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
             {/* Empty slot panel — invite prompt */}
-            {participantList.length < MAX_PARTICIPANTS && (
+            {(participantList.length + invitedProfiles.length) < MAX_PARTICIPANTS && (
               <>
                 <div style={{ width: 1, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
                 <div
@@ -413,6 +472,15 @@ export function GroupCallView() {
       ))}
 
       {showAddModal && <AddToCallModal onClose={() => setShowAddModal(false)} />}
+
+      {/* pulse-ring keyframes for invited panels */}
+      <style>{`
+        @keyframes pulse-ring {
+          0%   { transform: scale(1);   opacity: 1; }
+          80%  { transform: scale(1.4); opacity: 0; }
+          100% { transform: scale(1.4); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

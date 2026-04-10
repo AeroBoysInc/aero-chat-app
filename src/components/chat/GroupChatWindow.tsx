@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Send, Lock, Phone, Settings, Bell, BellOff, Users } from 'lucide-react';
+import { Send, Lock, Phone, PhoneIncoming, Settings, Bell, BellOff, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useGroupChatStore } from '../../store/groupChatStore';
-import { useGroupMessageStore } from '../../store/groupMessageStore';
+import { useGroupMessageStore, type GroupMessage } from '../../store/groupMessageStore';
 import { useUnreadStore } from '../../store/unreadStore';
 import { usePresenceStore } from '../../store/presenceStore';
 import { useMuteStore } from '../../store/muteStore';
 import { useGroupCallStore } from '../../store/groupCallStore';
+import { useBubbleStyleStore, getBubbleStyle } from '../../store/bubbleStyleStore';
 import { AvatarImage } from '../ui/AvatarImage';
 import { GroupSettingsModal } from './GroupSettingsModal';
 
@@ -20,6 +21,8 @@ function formatDateLabel(date: Date): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+const EMPTY_MESSAGES: GroupMessage[] = [];
+
 interface Props {
   groupId: string;
 }
@@ -27,7 +30,7 @@ interface Props {
 export function GroupChatWindow({ groupId }: Props) {
   const user = useAuthStore(s => s.user);
   const group = useGroupChatStore(s => s.groups.find(g => g.id === groupId));
-  const messages = useGroupMessageStore(s => s.chats[groupId] ?? []);
+  const messages = useGroupMessageStore(s => s.chats[groupId] ?? EMPTY_MESSAGES);
   const loadMessages = useGroupMessageStore(s => s.loadMessages);
   const sendMessage = useGroupMessageStore(s => s.sendMessage);
   const appendMessage = useGroupMessageStore(s => s.appendMessage);
@@ -35,17 +38,23 @@ export function GroupChatWindow({ groupId }: Props) {
   const isMuted = useMuteStore(s => s.mutedIds.has(`group:${groupId}`));
   const toggleMute = useMuteStore(s => s.toggleMute);
   const startGroupCall = useGroupCallStore(s => s.startGroupCall);
+  const hasGroupKey = useGroupChatStore(s => s.groupKeys.has(groupId));
+  const bubbleStyleId = useBubbleStyleStore(s => s.styleId);
+  const activeBubble = getBubbleStyle(bubbleStyleId);
 
   const [text, setText] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [activeCallInfo, setActiveCallInfo] = useState<{ callId: string; callerName: string; callerUserId: string; callerAvatar: string | null } | null>(null);
 
-  // Load messages on mount / group change
+  // Load messages on mount / group change / when group key becomes available
   useEffect(() => {
-    loadMessages(groupId);
+    if (hasGroupKey) {
+      loadMessages(groupId);
+    }
     clearUnread(`group:${groupId}`);
-  }, [groupId]);
+  }, [groupId, hasGroupKey]);
 
   // Subscribe to new group messages
   useEffect(() => {
@@ -65,6 +74,26 @@ export function GroupChatWindow({ groupId }: Props) {
 
     return () => { supabase.removeChannel(channel); };
   }, [groupId, user?.id]);
+
+  // Subscribe to group-call-active notifications (so we show "Call in progress" banner)
+  useEffect(() => {
+    setActiveCallInfo(null);
+    const ch = supabase
+      .channel(`group-call-active:${groupId}`)
+      .on('broadcast', { event: 'call-started' }, ({ payload }) => {
+        setActiveCallInfo({
+          callId: payload.callId,
+          callerName: payload.callerName,
+          callerUserId: payload.callerUserId,
+          callerAvatar: payload.callerAvatar ?? null,
+        });
+      })
+      .on('broadcast', { event: 'call-ended' }, () => {
+        setActiveCallInfo(null);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [groupId]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -98,8 +127,22 @@ export function GroupChatWindow({ groupId }: Props) {
     const memberProfiles = group.members
       .filter(m => m.user_id !== user?.id && m.profile)
       .map(m => m.profile!);
-    startGroupCall(memberProfiles);
-  }, [group, user?.id, startGroupCall]);
+    startGroupCall(memberProfiles, groupId);
+  }, [group, user?.id, groupId, startGroupCall]);
+
+  const joinGroupCall = useGroupCallStore(s => s.joinGroupCall);
+  const handleJoinCall = useCallback(() => {
+    if (!activeCallInfo) return;
+    joinGroupCall(activeCallInfo.callId, activeCallInfo.callerUserId, [{
+      userId: activeCallInfo.callerUserId,
+      username: activeCallInfo.callerName,
+      avatarUrl: activeCallInfo.callerAvatar,
+      isMuted: false,
+      isSpeaking: false,
+      audioLevel: 0,
+    }]);
+    setActiveCallInfo(null);
+  }, [activeCallInfo, joinGroupCall]);
 
   const itemList = useMemo(() =>
     messages.map((msg, i) => ({
@@ -109,8 +152,9 @@ export function GroupChatWindow({ groupId }: Props) {
     })),
   [messages]);
 
+  const onlineIds = usePresenceStore(s => s.onlineIds);
   const onlineCount = group?.members.filter(m =>
-    usePresenceStore.getState().onlineIds.has(m.user_id)
+    onlineIds.has(m.user_id)
   ).length ?? 0;
 
   if (!group || !user) return null;
@@ -214,6 +258,36 @@ export function GroupChatWindow({ groupId }: Props) {
         </div>
       </div>
 
+      {/* ── Call in progress banner ── */}
+      {activeCallInfo && activeCallInfo.callerUserId !== user?.id && (
+        <div
+          className="flex items-center gap-2.5 px-4 py-2.5 flex-shrink-0"
+          style={{
+            background: 'linear-gradient(90deg, rgba(52,211,153,0.10) 0%, rgba(52,211,153,0.04) 100%)',
+            borderBottom: '1px solid rgba(52,211,153,0.18)',
+          }}
+        >
+          <PhoneIncoming className="h-4 w-4 flex-shrink-0" style={{ color: '#34d399' }} />
+          <span className="text-xs flex-1" style={{ color: '#34d399' }}>
+            <strong>{activeCallInfo.callerName}</strong> started a call
+          </span>
+          <button
+            onClick={handleJoinCall}
+            className="text-xs font-bold px-3 py-1 rounded-full transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399', border: '1px solid rgba(52,211,153,0.30)' }}
+          >
+            Join
+          </button>
+          <button
+            onClick={() => setActiveCallInfo(null)}
+            className="text-xs px-2 py-1 rounded-full transition-opacity hover:opacity-80"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ── Messages ── */}
       <div
         ref={chatAreaRef}
@@ -253,24 +327,29 @@ export function GroupChatWindow({ groupId }: Props) {
                     </p>
                   )}
                   <div
-                    className={`rounded-aero-lg px-4 py-2.5 ${isMine ? 'sent-bubble-gloss' : ''}`}
-                    style={{
-                      background: isMine
-                        ? 'linear-gradient(135deg, var(--bubble-sent-from), var(--bubble-sent-to))'
-                        : 'var(--bubble-recv-bg)',
-                      color: isMine ? 'var(--bubble-sent-text)' : 'var(--bubble-recv-text)',
-                      border: isMine ? 'none' : '1px solid var(--bubble-recv-border)',
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      wordBreak: 'break-word',
+                    className={`rounded-aero-lg px-4 py-2.5${isMine && activeBubble.gloss ? ' sent-bubble-gloss' : ''}`}
+                    style={isMine ? {
+                      background: activeBubble.bg,
+                      boxShadow: activeBubble.shadow,
+                      border: activeBubble.border,
+                      borderBottomRightRadius: 4,
+                    } : {
+                      background: 'var(--recv-bg)',
+                      boxShadow: '0 2px 10px rgba(0,80,160,0.10), inset 0 1px 0 rgba(255,255,255,0.50)',
+                      border: '1px solid var(--recv-border)',
+                      borderBottomLeftRadius: 4,
                     }}
                   >
-                    {msg.content}
+                    <p className="text-sm leading-relaxed break-words" style={{
+                      color: isMine ? activeBubble.textColor : 'var(--recv-text)',
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                    }}>
+                      {msg.content}
+                    </p>
                   </div>
                   <p style={{
-                    fontSize: 9,
-                    color: 'var(--text-muted)',
-                    opacity: 0.6,
+                    fontSize: 10,
+                    color: isMine ? activeBubble.timeColor : 'var(--recv-time, var(--text-muted))',
                     marginTop: 2,
                     textAlign: isMine ? 'right' : 'left',
                   }}>

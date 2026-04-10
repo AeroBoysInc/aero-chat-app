@@ -50,7 +50,9 @@ function getSavedWidth(): number {
 }
 
 export function ChatLayout() {
-  const { selectedContact, setSelectedContact, selectedGroupId } = useChatStore();
+  const selectedContact = useChatStore(s => s.selectedContact);
+  const setSelectedContact = useChatStore(s => s.setSelectedContact);
+  const selectedGroupId = useChatStore(s => s.selectedGroupId);
   const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, avatarViewActive, serverView, cornerPosition, rearrangeMode, setCornerPosition, setRearrangeMode } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive || avatarViewActive;
   const serverActive = serverView === 'server' || serverView === 'bubble';

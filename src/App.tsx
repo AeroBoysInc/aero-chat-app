@@ -15,7 +15,7 @@ import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, dec
 import { consumePendingPassword } from './lib/keyRestoration';
 import { requestNotificationPermission, showMessageNotification, showCallNotification, showGroupMessageNotification } from './lib/notifications';
 import { playMessageSound } from './lib/messageSound';
-import { useGroupChatStore } from './store/groupChatStore';
+import { useGroupChatStore, type GroupChat } from './store/groupChatStore';
 // useGroupMessageStore used by GroupChatWindow, not directly in App
 // import { useGroupMessageStore } from './store/groupMessageStore';
 import { useMuteStore } from './store/muteStore';
@@ -322,43 +322,71 @@ export default function App() {
   }, [user?.id]);
 
   // Group messages — unread counting + notifications for all groups
+  // Uses a Zustand subscription to react when groups load (async), since
+  // groups may not be available when the effect first mounts.
   useEffect(() => {
     if (!user) return;
-    const groups = useGroupChatStore.getState().groups;
-    if (groups.length === 0) return;
 
-    const channels = groups.map(g => {
-      return supabase
-        .channel(`group-unread:${g.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'group_messages',
-          filter: `group_id=eq.${g.id}`,
-        }, (payload) => {
-          const msg = payload.new as { sender_id: string; group_id: string };
-          if (msg.sender_id === user.id) return;
+    let channels: ReturnType<typeof supabase.channel>[] = [];
+    let prevGroupIds = '';
 
-          const activeGroupId = useChatStore.getState().selectedGroupId;
-          const inGame = useCornerStore.getState().gameViewActive;
-          const appIdle = document.hidden || !document.hasFocus();
+    function setupChannels(groups: GroupChat[]) {
+      // Dedupe: only rebuild if the set of group IDs changed
+      const nextIds = groups.map(g => g.id).sort().join(',');
+      if (nextIds === prevGroupIds) return;
+      prevGroupIds = nextIds;
 
-          if (msg.group_id !== activeGroupId || inGame || appIdle) {
-            increment(`group:${msg.group_id}`);
-            const grp = useGroupChatStore.getState().groups.find(gg => gg.id === msg.group_id);
-            const sender = grp?.members.find(m => m.user_id === msg.sender_id);
-            if (grp && sender?.profile) {
-              showGroupMessageNotification(grp.name, sender.profile.username, '🔒 Encrypted message');
-              if (!useMuteStore.getState().isMuted(`group:${msg.group_id}`)) {
-                playMessageSound();
+      // Tear down old channels
+      channels.forEach(ch => supabase.removeChannel(ch));
+      channels = [];
+
+      for (const g of groups) {
+        const ch = supabase
+          .channel(`group-unread:${g.id}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'group_messages',
+            filter: `group_id=eq.${g.id}`,
+          }, (payload) => {
+            const msg = payload.new as { sender_id: string; group_id: string };
+            if (msg.sender_id === user!.id) return;
+
+            const activeGroupId = useChatStore.getState().selectedGroupId;
+            const inGame = useCornerStore.getState().gameViewActive;
+            const appIdle = document.hidden || !document.hasFocus();
+
+            if (msg.group_id !== activeGroupId || inGame || appIdle) {
+              increment(`group:${msg.group_id}`);
+              const grp = useGroupChatStore.getState().groups.find(gg => gg.id === msg.group_id);
+              const sender = grp?.members.find(m => m.user_id === msg.sender_id);
+              if (grp && sender?.profile) {
+                showGroupMessageNotification(grp.name, sender.profile.username, '🔒 Encrypted message');
+                if (!useMuteStore.getState().isMuted(`group:${msg.group_id}`)) {
+                  playMessageSound();
+                }
               }
             }
-          }
-        })
-        .subscribe();
+          })
+          .subscribe();
+        channels.push(ch);
+      }
+    }
+
+    // Set up channels for any groups already loaded
+    setupChannels(useGroupChatStore.getState().groups);
+
+    // Re-setup when groups list changes (e.g. after async loadGroups completes)
+    const unsub = useGroupChatStore.subscribe((state, prev) => {
+      if (state.groups !== prev.groups) {
+        setupChannels(state.groups);
+      }
     });
 
-    return () => { channels.forEach(ch => supabase.removeChannel(ch)); };
+    return () => {
+      unsub();
+      channels.forEach(ch => supabase.removeChannel(ch));
+    };
   }, [user?.id]);
 
   // Tab title unread badge — e.g. "(3) AeroChat"
@@ -451,7 +479,7 @@ export default function App() {
         useCallStore.getState().handleIncomingOffer(sdp, callId, caller, callType ?? 'audio', user.id);
       })
       .on('broadcast', { event: 'call:group-invite' }, ({ payload }) => {
-        const { callId, inviter, participants } = payload;
+        const { callId, inviter, participants, groupId } = payload;
         if (!callId || !inviter) return;
 
         // Only accept from friends
@@ -467,6 +495,7 @@ export default function App() {
           callId,
           participants ?? [],
           { ...friend },
+          groupId ?? null,
         );
       })
       .on('broadcast', { event: 'call:group-escalate' }, async ({ payload }) => {
@@ -491,6 +520,30 @@ export default function App() {
           await groupStore.joinGroupCall(callId, inviter.userId, participants ?? []);
         } catch (err) {
           console.error('[group-call] Auto-escalation failed', err);
+        }
+      })
+      .on('broadcast', { event: 'call:cancel' }, ({ payload }) => {
+        // 1:1 call cancelled by caller before we answered
+        const { callId } = payload;
+        if (!callId) return;
+        const cs = useCallStore.getState();
+        if (cs.status === 'ringing' && cs.callId === callId) {
+          cs.hangUp();
+        }
+      })
+      .on('broadcast', { event: 'call:group-cancel' }, ({ payload }) => {
+        // Group call cancelled — initiator left before we answered
+        const { callId } = payload;
+        if (!callId) return;
+        const gs = useGroupCallStore.getState();
+        if (gs.status === 'ringing' && gs.callId === callId) {
+          useGroupCallStore.setState({
+            status: 'idle',
+            callId: null,
+            participants: new Map(),
+            invitedUserIds: [],
+            groupId: null,
+          });
         }
       })
       .subscribe();

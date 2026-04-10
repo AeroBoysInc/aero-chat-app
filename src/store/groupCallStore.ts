@@ -34,9 +34,10 @@ export interface GroupCallState {
   isDeafened: boolean;
   callStartedAt: number | null;
   invitedUserIds: string[];
+  groupId: string | null;
 
   // Actions
-  startGroupCall: (friends: Profile[]) => Promise<void>;
+  startGroupCall: (friends: Profile[], groupId?: string) => Promise<void>;
   escalateToGroup: (newFriend: Profile) => Promise<void>;
   joinGroupCall: (callId: string, inviterUserId: string, existingParticipants: GroupParticipant[]) => Promise<void>;
   leaveCall: () => void;
@@ -45,7 +46,7 @@ export interface GroupCallState {
   toggleDeafen: () => void;
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
-  handleIncomingGroupInvite: (callId: string, participants: GroupParticipant[], inviter: Profile) => void;
+  handleIncomingGroupInvite: (callId: string, participants: GroupParticipant[], inviter: Profile, groupId?: string | null) => void;
 }
 
 // ─── Module-level refs (NOT in Zustand — native objects break devtools) ─────
@@ -111,6 +112,7 @@ const INITIAL_STATE = {
   isDeafened: false,
   callStartedAt: null,
   invitedUserIds: [],
+  groupId: null,
 };
 
 // ─── Helper: look up card background from friends or auth store ──────────
@@ -314,15 +316,16 @@ async function subscribeToGroupChannel(
       audioLevel: 0,
       ...getCardFields(payload.userId),
     });
-    useGroupCallStore.setState({ participants: nextParticipants });
+    useGroupCallStore.setState({
+      participants: nextParticipants,
+      invitedUserIds: store.invitedUserIds.filter(id => id !== payload.userId),
+    });
 
-    // Set up peer connection
+    // Set up peer connection and always create offer — existing participants
+    // must initiate the connection because the new joiner missed earlier
+    // group:join broadcasts and doesn't know who is already in the call.
     await setupPeerConnection(payload.userId, callId, myUserId);
-
-    // Lower ID creates the offer (deterministic tie-breaking)
-    if (myUserId < payload.userId) {
-      await createOfferForPeer(payload.userId, callId, myUserId);
-    }
+    await createOfferForPeer(payload.userId, callId, myUserId);
   });
 
   channel.on('broadcast', { event: 'group:leave' }, ({ payload }) => {
@@ -439,7 +442,7 @@ function startVAD(myUserId: string): void {
 export const useGroupCallStore = create<GroupCallState>((set, get) => ({
   ...INITIAL_STATE,
 
-  startGroupCall: async (friends: Profile[]) => {
+  startGroupCall: async (friends: Profile[], groupId?: string) => {
     // Get auth user
     const { useAuthStore } = await import('./authStore');
     const user = useAuthStore.getState().user;
@@ -515,6 +518,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       participants,
       callStartedAt: Date.now(),
       invitedUserIds: friends.map((f) => f.id),
+      groupId: groupId ?? null,
     });
 
     // Broadcast join for self
@@ -544,10 +548,11 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
         body: JSON.stringify({
           messages: [
             {
-              topic: `realtime:call:ring:${friend.id}`,
+              topic: `call:ring:${friend.id}`,
               event: 'call:group-invite',
               payload: {
                 callId,
+                groupId: groupId ?? null,
                 inviter: {
                   userId: myUserId,
                   username: user.username,
@@ -559,6 +564,21 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
           ],
         }),
       }).catch((err) => console.warn('[GroupCall] Failed to ring', friend.id, err));
+    }
+
+    // Notify group members a call is active (so viewers of the group chat see a banner)
+    if (groupId) {
+      fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            topic: `group-call-active:${groupId}`,
+            event: 'call-started',
+            payload: { callId, callerUserId: myUserId, callerName: user.username, callerAvatar: user.avatar_url ?? null },
+          }],
+        }),
+      }).catch(() => {});
     }
 
     // 30s timeout for unanswered invites
@@ -652,7 +672,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{
-          topic: `realtime:call:ring:${newFriend.id}`,
+          topic: `call:ring:${newFriend.id}`,
           event: 'call:group-invite',
           payload: {
             callId,
@@ -669,7 +689,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{
-          topic: `realtime:call:ring:${refs.contact.id}`,
+          topic: `call:ring:${refs.contact.id}`,
           event: 'call:group-escalate',
           payload: {
             callId,
@@ -774,10 +794,47 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
     });
   },
   leaveCall: () => {
-    const { callId } = get();
+    const { callId, invitedUserIds, groupId } = get();
     if (callId) {
       _groupChannel?.send({ type: 'broadcast', event: 'group:leave', payload: { callId, userId: get().myUserId } });
     }
+
+    // If no other participants are connected, cancel the ring for all invited users
+    // who haven't joined yet (they're not on the signaling channel so group:leave
+    // won't reach them — use their individual ring channels instead).
+    if (_peerConnections.size === 0 && invitedUserIds.length > 0) {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      for (const userId of invitedUserIds) {
+        fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+          method: 'POST',
+          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{
+              topic: `call:ring:${userId}`,
+              event: 'call:group-cancel',
+              payload: { callId },
+            }],
+          }),
+        }).catch(() => {});
+      }
+
+      // Also broadcast call-ended to the group
+      if (groupId) {
+        fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+          method: 'POST',
+          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{
+              topic: `group-call-active:${groupId}`,
+              event: 'call-ended',
+              payload: { callId },
+            }],
+          }),
+        }).catch(() => {});
+      }
+    }
+
     cleanupAll();
     set(INITIAL_STATE);
   },
@@ -813,7 +870,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{
-          topic: `realtime:call:ring:${friend.id}`,
+          topic: `call:ring:${friend.id}`,
           event: 'call:group-invite',
           payload: {
             callId,
@@ -918,7 +975,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
 
     set({ screenSharingUserId: null, localScreenStream: null });
   },
-  handleIncomingGroupInvite: (callId, participants, _inviter) => {
+  handleIncomingGroupInvite: (callId, participants, _inviter, groupId) => {
     const { status } = get();
     if (status !== 'idle') return;
 
@@ -927,6 +984,7 @@ export const useGroupCallStore = create<GroupCallState>((set, get) => ({
       callId,
       participants: new Map(participants.map(p => [p.userId, p])),
       invitedUserIds: [],
+      groupId: groupId ?? null,
     });
   },
 }));

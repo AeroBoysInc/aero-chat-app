@@ -747,6 +747,25 @@ export const useCallStore = create<CallState>((set, get) => ({
       });
     }
 
+    // 1b. If caller cancels before the callee answers, also REST-broadcast
+    // a cancel to the contact's ring channel. This is more reliable than
+    // channel.send() which races with removeChannel() below.
+    if (callId && contact && status === 'calling' && isCaller) {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            topic: `call:ring:${contact.id}`,
+            event: 'call:cancel',
+            payload: { callId },
+          }],
+        }),
+      }).catch(() => {});
+    }
+
     // 2. Insert call event message (fire-and-forget)
     if (contact) {
       supabase.auth.getUser().then(({ data }) => {

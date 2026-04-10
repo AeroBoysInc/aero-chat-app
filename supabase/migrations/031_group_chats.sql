@@ -46,7 +46,23 @@ CREATE INDEX IF NOT EXISTS idx_group_messages_group_created
   ON group_messages (group_id, created_at);
 
 -- ═══════════════════════════════════════════════════════════════════
--- 2. ENABLE RLS ON ALL TABLES
+-- 2. SECURITY DEFINER helper — bypasses RLS to check membership
+--    without causing infinite recursion between policies.
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION is_group_member(gid uuid, uid uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM group_members WHERE group_id = gid AND user_id = uid
+  );
+$$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 3. ENABLE RLS ON ALL TABLES
 -- ═══════════════════════════════════════════════════════════════════
 
 ALTER TABLE group_chats ENABLE ROW LEVEL SECURITY;
@@ -55,12 +71,12 @@ ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_messages ENABLE ROW LEVEL SECURITY;
 
 -- ═══════════════════════════════════════════════════════════════════
--- 3. RLS POLICIES — group_chats
+-- 4. RLS POLICIES — group_chats
 -- ═══════════════════════════════════════════════════════════════════
 
--- SELECT: user is a member
+-- SELECT: user is a member (or is the leader — covers the moment of creation)
 CREATE POLICY "group_chats_select" ON group_chats FOR SELECT USING (
-  EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = id AND gm.user_id = auth.uid())
+  leader_id = auth.uid() OR is_group_member(id, auth.uid())
 );
 
 -- INSERT: any authenticated user
@@ -79,12 +95,12 @@ CREATE POLICY "group_chats_delete" ON group_chats FOR DELETE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 4. RLS POLICIES — group_members
+-- 5. RLS POLICIES — group_members
 -- ═══════════════════════════════════════════════════════════════════
 
--- SELECT: user must be member of the group
+-- SELECT: user must be a member of the same group
 CREATE POLICY "group_members_select" ON group_members FOR SELECT USING (
-  EXISTS (SELECT 1 FROM group_members gm2 WHERE gm2.group_id = group_id AND gm2.user_id = auth.uid())
+  is_group_member(group_id, auth.uid())
 );
 
 -- INSERT: only group leader can add members
@@ -99,7 +115,7 @@ CREATE POLICY "group_members_delete" ON group_members FOR DELETE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 5. RLS POLICIES — group_invites
+-- 6. RLS POLICIES — group_invites
 -- ═══════════════════════════════════════════════════════════════════
 
 -- SELECT: inviter or invitee
@@ -118,29 +134,28 @@ CREATE POLICY "group_invites_update" ON group_invites FOR UPDATE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 6. RLS POLICIES — group_messages
+-- 7. RLS POLICIES — group_messages
 -- ═══════════════════════════════════════════════════════════════════
 
 -- SELECT: user must be member
 CREATE POLICY "group_messages_select" ON group_messages FOR SELECT USING (
-  EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = group_id AND gm.user_id = auth.uid())
+  is_group_member(group_id, auth.uid())
 );
 
 -- INSERT: user must be member and sender_id matches
 CREATE POLICY "group_messages_insert" ON group_messages FOR INSERT WITH CHECK (
-  sender_id = auth.uid()
-  AND EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = group_id AND gm.user_id = auth.uid())
+  sender_id = auth.uid() AND is_group_member(group_id, auth.uid())
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 7. Realtime — enable postgres_changes for new tables
+-- 8. Realtime — enable postgres_changes for new tables
 -- ═══════════════════════════════════════════════════════════════════
 ALTER PUBLICATION supabase_realtime ADD TABLE group_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_invites;
 
 -- ═══════════════════════════════════════════════════════════════════
--- 8. Storage — group-images bucket
+-- 9. Storage — group-images bucket
 -- ═══════════════════════════════════════════════════════════════════
 INSERT INTO storage.buckets (id, name, public) VALUES ('group-images', 'group-images', true)
 ON CONFLICT (id) DO NOTHING;

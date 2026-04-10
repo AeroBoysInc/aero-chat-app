@@ -47,7 +47,6 @@ export interface GroupInvite {
 
 interface GroupChatStore {
   groups: GroupChat[];
-  selectedGroupId: string | null;
   pendingInvites: GroupInvite[];
   groupKeys: Map<string, Uint8Array>; // groupId → decrypted symmetric key
 
@@ -58,7 +57,6 @@ interface GroupChatStore {
   declineInvite: (inviteId: string) => Promise<void>;
   leaveGroup: (groupId: string, myUserId: string) => Promise<void>;
   removeMember: (groupId: string, userId: string) => Promise<void>;
-  selectGroup: (groupId: string | null) => void;
   updateGroupCard: (groupId: string, fields: Partial<Pick<GroupChat, 'name' | 'card_gradient' | 'card_image_url' | 'card_image_params'>>) => Promise<void>;
   decryptAndCacheKey: (group: GroupChat, myUserId: string) => void;
   addMemberAfterAccept: (groupId: string, inviteeId: string, inviteePublicKey: string) => Promise<void>;
@@ -66,7 +64,6 @@ interface GroupChatStore {
 
 export const useGroupChatStore = create<GroupChatStore>()((set, get) => ({
   groups: [],
-  selectedGroupId: null,
   pendingInvites: [],
   groupKeys: new Map(),
 
@@ -210,9 +207,12 @@ export const useGroupChatStore = create<GroupChatStore>()((set, get) => ({
       } else {
         // Last member — delete the group
         await supabase.from('group_chats').delete().eq('id', groupId);
+        const { useChatStore } = await import('./chatStore');
+        if (useChatStore.getState().selectedGroupId === groupId) {
+          useChatStore.getState().setSelectedGroupId(null);
+        }
         set(s => ({
           groups: s.groups.filter(g => g.id !== groupId),
-          selectedGroupId: s.selectedGroupId === groupId ? null : s.selectedGroupId,
         }));
         return;
       }
@@ -236,11 +236,14 @@ export const useGroupChatStore = create<GroupChatStore>()((set, get) => ({
     }
 
     // Clean up local state
+    const { useChatStore } = await import('./chatStore');
+    if (useChatStore.getState().selectedGroupId === groupId) {
+      useChatStore.getState().setSelectedGroupId(null);
+    }
     const keys = new Map(get().groupKeys);
     keys.delete(groupId);
     set(s => ({
       groups: s.groups.filter(g => g.id !== groupId),
-      selectedGroupId: s.selectedGroupId === groupId ? null : s.selectedGroupId,
       groupKeys: keys,
     }));
   },
@@ -270,8 +273,6 @@ export const useGroupChatStore = create<GroupChatStore>()((set, get) => ({
       ),
     }));
   },
-
-  selectGroup: (groupId) => set({ selectedGroupId: groupId }),
 
   updateGroupCard: async (groupId, fields) => {
     await supabase.from('group_chats').update(fields).eq('id', groupId);

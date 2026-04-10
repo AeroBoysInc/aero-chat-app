@@ -81,7 +81,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
 
   const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('friends');
   const groups = useGroupChatStore(s => s.groups);
-  const selectedGroupId = useGroupChatStore(s => s.selectedGroupId);
+  const selectedGroupId = useChatStore(s => s.selectedGroupId);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const [query,           setQuery]           = useState('');
@@ -758,6 +758,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 isSelected={selectedGroupId === g.id}
                 onSelect={() => {
                   useChatStore.getState().setSelectedGroupId(g.id);
+                  useUnreadStore.getState().clear(`group:${g.id}`);
                 }}
                 currentUserId={user!.id}
               />
@@ -1093,13 +1094,15 @@ const GroupItem = memo(function GroupItem({
   const [isHovered, setIsHovered] = useState(false);
   const leaveGroup = useGroupChatStore(s => s.leaveGroup);
 
+  const groupOnlineIds = usePresenceStore(s => s.onlineIds);
+
   const memberNames = group.members
     .filter(m => m.user_id !== currentUserId)
     .map(m => m.profile?.username ?? '?')
     .join(', ');
 
   const onlineCount = group.members.filter(m => {
-    return usePresenceStore.getState().onlineIds.has(m.user_id);
+    return groupOnlineIds.has(m.user_id);
   }).length;
 
   const cardGradientCss = CARD_GRADIENTS.find(g2 => g2.id === group.card_gradient)?.css ?? null;
