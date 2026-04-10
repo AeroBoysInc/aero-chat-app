@@ -31,3 +31,29 @@ export function showCallNotification(callerName: string, callType: 'audio' | 'vi
     silent: false,
   });
 }
+
+/** Show a system notification for a group message */
+export function showGroupMessageNotification(groupName: string, senderName: string, preview: string) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (document.hasFocus()) return;
+
+  new Notification(`${groupName} — ${senderName}`, {
+    body: preview,
+    icon: '/icons/icon.png',
+    silent: false,
+  });
+}
+
+/** Show a system notification for a group invite */
+export function showGroupInviteNotification(groupName: string, inviterName: string) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (document.hasFocus()) return;
+
+  new Notification('Group Invite — AeroChat', {
+    body: `${inviterName} invited you to ${groupName}`,
+    icon: '/icons/icon.png',
+    silent: false,
+  });
+}
