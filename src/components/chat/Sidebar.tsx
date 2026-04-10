@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, BellOff, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool } from 'lucide-react';
+import { Search, LogOut, Bell, BellOff, UserPlus, Clock, ChevronUp, ChevronDown, UserMinus, Gamepad2, PenTool, Plus, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore, type Profile } from '../../store/authStore';
 import { useFriendStore } from '../../store/friendStore';
@@ -20,6 +20,9 @@ import { SecurityPanel } from '../settings/SecurityPanel';
 import { GeneralPanel } from '../settings/GeneralPanel';
 import { useCornerStore } from '../../store/cornerStore';
 import { useCallStore } from '../../store/callStore';
+import { useGroupChatStore, type GroupChat } from '../../store/groupChatStore';
+import { useChatStore } from '../../store/chatStore';
+import { CreateGroupModal } from './CreateGroupModal';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { XpMiniBar } from '../ui/XpMiniBar';
 import { AccentName } from '../ui/AccentName';
@@ -75,6 +78,11 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const toggleGroup = useCallback((status: string) => {
     setCollapsedGroups(prev => ({ ...prev, [status]: !prev[status] }));
   }, []);
+
+  const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('friends');
+  const groups = useGroupChatStore(s => s.groups);
+  const selectedGroupId = useGroupChatStore(s => s.selectedGroupId);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const [query,           setQuery]           = useState('');
   const [results,         setResults]         = useState<Profile[]>([]);
@@ -563,12 +571,50 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         </div>
       </div>
 
-      {/* ── Section label ── */}
-      <div className="px-4 pb-2 pt-1">
-        <p style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-label)' }}>
-          {query ? 'Search Results' : 'Friends'}
-        </p>
-      </div>
+      {/* ── Friends / Groups tab bar ── */}
+      {!query && (
+        <div className="flex items-center gap-0 mx-3 mb-2 mt-1" style={{ borderBottom: '1px solid var(--panel-divider)' }}>
+          <button
+            onClick={() => setActiveTab('friends')}
+            className="flex-1 text-center py-2 transition-colors"
+            style={{
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: activeTab === 'friends' ? '#00d4ff' : 'var(--text-muted)',
+              borderBottom: activeTab === 'friends' ? '2px solid #00d4ff' : '2px solid transparent',
+              marginBottom: -1,
+            }}
+          >
+            Friends
+          </button>
+          <button
+            onClick={() => setActiveTab('groups')}
+            className="flex-1 text-center py-2 transition-colors"
+            style={{
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: activeTab === 'groups' ? '#00d4ff' : 'var(--text-muted)',
+              borderBottom: activeTab === 'groups' ? '2px solid #00d4ff' : '2px solid transparent',
+              marginBottom: -1,
+            }}
+          >
+            Groups
+          </button>
+        </div>
+      )}
+      {query && (
+        <div className="px-4 pb-2 pt-1">
+          <p style={{ fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-label)' }}>
+            Search Results
+          </p>
+        </div>
+      )}
 
       {/* ── List ── */}
       <nav className="flex-1 overflow-y-auto scrollbar-aero px-2 pb-2">
@@ -626,7 +672,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           </>
         )}
 
-        {!query && (
+        {!query && activeTab === 'friends' && (
           <>
             {friends.length === 0 && (
               <div className="flex flex-col items-center px-2 py-10 text-center gap-3">
@@ -679,6 +725,43 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
                 </div>
               );
             })}
+          </>
+        )}
+
+        {!query && activeTab === 'groups' && (
+          <>
+            {/* Create group button */}
+            <button
+              onClick={() => setShowCreateGroup(true)}
+              className="flex items-center gap-2 w-full rounded-aero px-3 py-2 mb-2 text-xs font-semibold transition-colors"
+              style={{ color: '#00d4ff', border: '1px dashed rgba(0,212,255,0.25)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.06)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Group
+            </button>
+
+            {groups.length === 0 && (
+              <div className="flex flex-col items-center px-2 py-10 text-center gap-3">
+                <Users className="h-9 w-9" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  No groups yet.<br />Create one to get started!
+                </p>
+              </div>
+            )}
+
+            {groups.map(g => (
+              <GroupItem
+                key={g.id}
+                group={g}
+                isSelected={selectedGroupId === g.id}
+                onSelect={() => {
+                  useChatStore.getState().setSelectedGroupId(g.id);
+                }}
+                currentUserId={user!.id}
+              />
+            ))}
           </>
         )}
       </nav>
@@ -747,6 +830,10 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       )}
 
       {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
+
+      {showCreateGroup && (
+        <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
+      )}
     </aside>
   );
 }
@@ -988,3 +1075,186 @@ const FriendItem = memo(function FriendItem({
   );
 });
 
+// ── GroupItem ────────────────────────────────────────────────────────────────
+
+interface GroupItemProps {
+  group: GroupChat;
+  isSelected: boolean;
+  onSelect: () => void;
+  currentUserId: string;
+}
+
+const GroupItem = memo(function GroupItem({
+  group, isSelected, onSelect, currentUserId,
+}: GroupItemProps) {
+  const unread = useUnreadStore(s => s.counts[`group:${group.id}`] ?? 0);
+  const isMuted = useMuteStore(s => s.mutedIds.has(`group:${group.id}`));
+  const toggleMute = useMuteStore(s => s.toggleMute);
+  const [isHovered, setIsHovered] = useState(false);
+  const leaveGroup = useGroupChatStore(s => s.leaveGroup);
+
+  const memberNames = group.members
+    .filter(m => m.user_id !== currentUserId)
+    .map(m => m.profile?.username ?? '?')
+    .join(', ');
+
+  const onlineCount = group.members.filter(m => {
+    return usePresenceStore.getState().onlineIds.has(m.user_id);
+  }).length;
+
+  const cardGradientCss = CARD_GRADIENTS.find(g2 => g2.id === group.card_gradient)?.css ?? null;
+
+  return (
+    <button
+      onClick={onSelect}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="w-full text-left transition-all"
+      style={{
+        borderRadius: 12,
+        overflow: 'hidden',
+        position: 'relative',
+        padding: '10px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 4,
+        border: isSelected
+          ? '1px solid rgba(0,212,255,0.25)'
+          : isHovered
+            ? '1px solid rgba(255,255,255,0.08)'
+            : '1px solid rgba(255,255,255,0.04)',
+        cursor: 'pointer',
+        background: isSelected
+          ? 'linear-gradient(135deg, rgba(26,111,212,0.16) 0%, rgba(0,190,255,0.12) 100%)'
+          : isHovered
+            ? 'var(--hover-bg)'
+            : 'transparent',
+      }}
+    >
+      {/* Card background bleed */}
+      {group.card_image_url ? (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: `url(${group.card_image_url}) center/cover`, borderRadius: 12 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 12 }} />
+        </>
+      ) : cardGradientCss ? (
+        <div style={{ position: 'absolute', inset: 0, background: cardGradientCss, opacity: 0.12, borderRadius: 12 }} />
+      ) : null}
+
+      {/* Stacked avatars */}
+      <div style={{ position: 'relative', width: Math.min(group.members.length, 3) * 10 + 24, height: 28, flexShrink: 0, zIndex: 1 }}>
+        {group.members.slice(0, 3).map((m, i) => (
+          <div key={m.user_id} style={{
+            position: 'absolute',
+            left: i * 10,
+            top: i % 2 === 0 ? 0 : 2,
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            border: '2px solid rgba(10,22,40,0.8)',
+            zIndex: 3 - i,
+            overflow: 'hidden',
+            background: 'var(--sidebar-bg)',
+          }}>
+            {m.profile?.avatar_url ? (
+              <img src={m.profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{
+                width: '100%', height: '100%',
+                background: 'linear-gradient(135deg, #1a6fd4, #00d4ff)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700, color: '#fff',
+              }}>
+                {(m.profile?.username ?? '?')[0].toUpperCase()}
+              </div>
+            )}
+          </div>
+        ))}
+        {group.members.length > 3 && (
+          <div style={{
+            position: 'absolute', left: 30, top: 0,
+            width: 24, height: 24, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)',
+            border: '2px solid rgba(10,22,40,0.8)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.6)',
+            zIndex: 0,
+          }}>
+            +{group.members.length - 3}
+          </div>
+        )}
+      </div>
+
+      {/* Group info */}
+      <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }} className="truncate">
+          {group.name}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }} className="truncate">
+            {memberNames}
+          </span>
+          {onlineCount > 0 && (
+            <>
+              <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.15)' }}>·</span>
+              <span style={{
+                display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
+                background: '#3dd87a', boxShadow: '0 0 4px rgba(61,216,122,0.5)',
+              }} />
+              <span style={{ fontSize: 8, color: 'rgba(61,216,122,0.7)' }}>
+                {onlineCount} online
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Right side: unread badge + hover actions */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {isHovered && (
+          <>
+            <div
+              onClick={e => { e.stopPropagation(); toggleMute(`group:${group.id}`); }}
+              className="rounded-lg p-1 transition-colors cursor-pointer"
+              style={{ color: isMuted ? '#f59e0b' : 'var(--text-muted)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <BellOff className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+            </div>
+            <div
+              onClick={e => { e.stopPropagation(); leaveGroup(group.id, currentUserId); }}
+              className="rounded-lg p-1 transition-colors cursor-pointer"
+              style={{ color: '#f87171' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.12)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+              title="Leave Group"
+            >
+              <LogOut className="h-3 w-3" />
+            </div>
+          </>
+        )}
+        {!isHovered && isMuted && (
+          <div style={{
+            width: 20, height: 20, borderRadius: 6,
+            background: 'rgba(245,158,11,0.10)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <BellOff className="h-3 w-3" style={{ color: '#f59e0b', opacity: 0.7 }} />
+          </div>
+        )}
+        {unread > 0 && (
+          <div style={{
+            background: '#ff4060', color: 'white',
+            fontSize: 9, fontWeight: 700, borderRadius: 10,
+            padding: '1px 6px', minWidth: 18, textAlign: 'center',
+          }}>
+            {unread}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+});
