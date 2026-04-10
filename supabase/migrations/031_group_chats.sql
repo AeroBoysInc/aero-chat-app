@@ -1,8 +1,9 @@
 -- 031_group_chats.sql — Group chats: tables, RLS, indexes, storage
 
 -- ═══════════════════════════════════════════════════════════════════
--- 1. group_chats — one row per group
+-- 1. CREATE ALL TABLES FIRST (policies reference each other)
 -- ═══════════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS group_chats (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name                text NOT NULL,
@@ -14,7 +15,48 @@ CREATE TABLE IF NOT EXISTS group_chats (
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS group_members (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id   uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES profiles(id),
+  joined_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (group_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS group_invites (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id    uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  inviter_id  uuid NOT NULL REFERENCES profiles(id),
+  invitee_id  uuid NOT NULL REFERENCES profiles(id),
+  status      text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (group_id, invitee_id)
+);
+
+CREATE TABLE IF NOT EXISTS group_messages (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id    uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  sender_id   uuid NOT NULL REFERENCES profiles(id),
+  content     text NOT NULL,
+  nonce       text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_messages_group_created
+  ON group_messages (group_id, created_at);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2. ENABLE RLS ON ALL TABLES
+-- ═══════════════════════════════════════════════════════════════════
+
 ALTER TABLE group_chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_messages ENABLE ROW LEVEL SECURITY;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 3. RLS POLICIES — group_chats
+-- ═══════════════════════════════════════════════════════════════════
 
 -- SELECT: user is a member
 CREATE POLICY "group_chats_select" ON group_chats FOR SELECT USING (
@@ -37,17 +79,8 @@ CREATE POLICY "group_chats_delete" ON group_chats FOR DELETE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 2. group_members — who's in each group
+-- 4. RLS POLICIES — group_members
 -- ═══════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS group_members (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id   uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
-  user_id    uuid NOT NULL REFERENCES profiles(id),
-  joined_at  timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (group_id, user_id)
-);
-
-ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: user must be member of the group
 CREATE POLICY "group_members_select" ON group_members FOR SELECT USING (
@@ -66,19 +99,8 @@ CREATE POLICY "group_members_delete" ON group_members FOR DELETE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 3. group_invites — pending invitations
+-- 5. RLS POLICIES — group_invites
 -- ═══════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS group_invites (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id    uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
-  inviter_id  uuid NOT NULL REFERENCES profiles(id),
-  invitee_id  uuid NOT NULL REFERENCES profiles(id),
-  status      text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (group_id, invitee_id)
-);
-
-ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: inviter or invitee
 CREATE POLICY "group_invites_select" ON group_invites FOR SELECT USING (
@@ -96,21 +118,8 @@ CREATE POLICY "group_invites_update" ON group_invites FOR UPDATE USING (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 4. group_messages — encrypted group messages
+-- 6. RLS POLICIES — group_messages
 -- ═══════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS group_messages (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id    uuid NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
-  sender_id   uuid NOT NULL REFERENCES profiles(id),
-  content     text NOT NULL,
-  nonce       text NOT NULL,
-  created_at  timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_group_messages_group_created
-  ON group_messages (group_id, created_at);
-
-ALTER TABLE group_messages ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: user must be member
 CREATE POLICY "group_messages_select" ON group_messages FOR SELECT USING (
@@ -124,14 +133,14 @@ CREATE POLICY "group_messages_insert" ON group_messages FOR INSERT WITH CHECK (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 5. Realtime — enable postgres_changes for new tables
+-- 7. Realtime — enable postgres_changes for new tables
 -- ═══════════════════════════════════════════════════════════════════
 ALTER PUBLICATION supabase_realtime ADD TABLE group_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_invites;
 
 -- ═══════════════════════════════════════════════════════════════════
--- 6. Storage — group-images bucket
+-- 8. Storage — group-images bucket
 -- ═══════════════════════════════════════════════════════════════════
 INSERT INTO storage.buckets (id, name, public) VALUES ('group-images', 'group-images', true)
 ON CONFLICT (id) DO NOTHING;
