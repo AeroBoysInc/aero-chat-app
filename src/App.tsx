@@ -13,8 +13,10 @@ import { useServerStore } from './store/serverStore';
 import { useXpStore } from './store/xpStore';
 import { generateKeyPair, savePrivateKey, loadPrivateKey, encryptPrivateKey, decryptPrivateKey } from './lib/crypto';
 import { consumePendingPassword } from './lib/keyRestoration';
-import { requestNotificationPermission, showMessageNotification, showCallNotification } from './lib/notifications';
+import { requestNotificationPermission, showMessageNotification, showCallNotification, showGroupMessageNotification, showGroupInviteNotification } from './lib/notifications';
 import { playMessageSound } from './lib/messageSound';
+import { useGroupChatStore } from './store/groupChatStore';
+import { useGroupMessageStore } from './store/groupMessageStore';
 import { useMuteStore } from './store/muteStore';
 import { clearAllChatCaches, pruneUnscopedCaches } from './lib/chatCache';
 import { AuthPage } from './components/auth/AuthPage';
@@ -228,6 +230,13 @@ export default function App() {
       });
   }, [user?.id]);
 
+  // Load groups + pending group invites on login
+  useEffect(() => {
+    if (!user) return;
+    useGroupChatStore.getState().loadGroups(user.id);
+    useGroupChatStore.getState().loadInvites(user.id);
+  }, [user?.id]);
+
   // Global unread counter + desktop notifications
   useEffect(() => {
     if (!user) return;
@@ -259,6 +268,96 @@ export default function App() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+  // Group invites — new invite notifications + leader-side accept handling
+  useEffect(() => {
+    if (!user) return;
+
+    // Channel for invites TO me (as invitee)
+    const inviteeCh = supabase
+      .channel(`group-invites:${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'group_invites',
+        filter: `invitee_id=eq.${user.id}`,
+      }, () => {
+        useGroupChatStore.getState().loadInvites(user.id);
+      })
+      .subscribe();
+
+    // Channel for invites I SENT (as leader) — watch for accepts
+    const leaderCh = supabase
+      .channel(`group-invite-accepts:${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'group_invites',
+        filter: `inviter_id=eq.${user.id}`,
+      }, async (payload) => {
+        const invite = payload.new as { id: string; group_id: string; invitee_id: string; status: string };
+        if (invite.status === 'accepted') {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('public_key')
+            .eq('id', invite.invitee_id)
+            .single();
+          if (profile?.public_key) {
+            await useGroupChatStore.getState().addMemberAfterAccept(
+              invite.group_id,
+              invite.invitee_id,
+              profile.public_key,
+            );
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(inviteeCh);
+      supabase.removeChannel(leaderCh);
+    };
+  }, [user?.id]);
+
+  // Group messages — unread counting + notifications for all groups
+  useEffect(() => {
+    if (!user) return;
+    const groups = useGroupChatStore.getState().groups;
+    if (groups.length === 0) return;
+
+    const channels = groups.map(g => {
+      return supabase
+        .channel(`group-unread:${g.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${g.id}`,
+        }, (payload) => {
+          const msg = payload.new as { sender_id: string; group_id: string };
+          if (msg.sender_id === user.id) return;
+
+          const activeGroupId = useChatStore.getState().selectedGroupId;
+          const inGame = useCornerStore.getState().gameViewActive;
+          const appIdle = document.hidden || !document.hasFocus();
+
+          if (msg.group_id !== activeGroupId || inGame || appIdle) {
+            increment(`group:${msg.group_id}`);
+            const grp = useGroupChatStore.getState().groups.find(gg => gg.id === msg.group_id);
+            const sender = grp?.members.find(m => m.user_id === msg.sender_id);
+            if (grp && sender?.profile) {
+              showGroupMessageNotification(grp.name, sender.profile.username, '🔒 Encrypted message');
+              if (!useMuteStore.getState().isMuted(`group:${msg.group_id}`)) {
+                playMessageSound();
+              }
+            }
+          }
+        })
+        .subscribe();
+    });
+
+    return () => { channels.forEach(ch => supabase.removeChannel(ch)); };
   }, [user?.id]);
 
   // Tab title unread badge — e.g. "(3) AeroChat"
