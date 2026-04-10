@@ -2,6 +2,7 @@ import { Lock, Bell, LogOut } from 'lucide-react';
 import { lazy, Suspense, useRef, useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatWindow } from './ChatWindow';
+import { GroupChatWindow } from './GroupChatWindow';
 import { AeroLogo } from '../ui/AeroLogo';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { CornerRail } from '../corners/CornerRail';
@@ -48,7 +49,7 @@ function getSavedWidth(): number {
 }
 
 export function ChatLayout() {
-  const { selectedContact, setSelectedContact } = useChatStore();
+  const { selectedContact, setSelectedContact, selectedGroupId } = useChatStore();
   const { gameViewActive, devViewActive, writerViewActive, calendarViewActive, avatarViewActive, serverView, cornerPosition, rearrangeMode, setCornerPosition, setRearrangeMode } = useCornerStore();
   const anyViewActive = gameViewActive || devViewActive || writerViewActive || calendarViewActive || avatarViewActive;
   const serverActive = serverView === 'server' || serverView === 'bubble';
@@ -421,6 +422,8 @@ export function ChatLayout() {
               <CallView />
             ) : groupCallActive ? (
               <GroupCallView />
+            ) : selectedGroupId ? (
+              <GroupChatWindow groupId={selectedGroupId} />
             ) : selectedContact ? (
               <ChatWindow contact={selectedContact} />
             ) : (
