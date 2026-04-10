@@ -261,6 +261,14 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  // Tab title unread badge — e.g. "(3) AeroChat"
+  useEffect(() => {
+    return useUnreadStore.subscribe(state => {
+      const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
+      document.title = total > 0 ? `(${total}) AeroChat` : 'AeroChat';
+    });
+  }, []);
+
   // OS notification for incoming calls — fires once on transition to ringing
   useEffect(() => {
     let prevStatus = useCallStore.getState().status;
