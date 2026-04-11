@@ -32,6 +32,7 @@ export interface ServerRolePermissions {
   send_messages: boolean;
   pin_messages: boolean;
   start_calls: boolean;
+  dungeon_master: boolean;
 }
 
 export interface ServerMember {
@@ -85,6 +86,13 @@ export interface ServerInvite {
   max_uses: number | null;
   use_count: number;
   created_at: string;
+}
+
+export interface ServerToolkit {
+  server_id: string;
+  toolkit_id: string;
+  activated_by: string;
+  activated_at: string;
 }
 
 export type PermissionKey = keyof Omit<ServerRolePermissions, 'role_id'>;
