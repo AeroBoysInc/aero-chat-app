@@ -1,6 +1,6 @@
 // src/components/call/GroupCallView.tsx
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus, Headphones, HeadphoneOff } from 'lucide-react';
+import { Mic, MicOff, Monitor, MonitorOff, PhoneOff, UserPlus, Headphones, HeadphoneOff, MessageSquare } from 'lucide-react';
 import { useGroupCallStore, _getRemoteStream, type GroupParticipant } from '../../store/groupCallStore';
 import { useAudioStore } from '../../store/audioStore';
 import { ParticipantCard } from './ParticipantCard';
@@ -13,6 +13,8 @@ import { getCallTier, getGroupTierPalette, type TierPalette, type AudioBarConfig
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useFriendStore } from '../../store/friendStore';
+import { useIsMobile } from '../../lib/useIsMobile';
+import { GroupChatWindow } from '../chat/GroupChatWindow';
 
 const MAX_PARTICIPANTS = 4;
 
@@ -59,6 +61,9 @@ export function GroupCallView() {
 
   const friends = useFriendStore(s => s.friends);
 
+  const groupId = useGroupCallStore(s => s.groupId);
+  const isMobile = useIsMobile();
+  const [mobileChatMode, setMobileChatMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [duration, setDuration] = useState('0:00');
   const [showControls, setShowControls] = useState(true);
@@ -96,6 +101,136 @@ export function GroupCallView() {
   });
   const isScreenSharing = !!screenSharingUserId;
   const iAmSharing = screenSharingUserId === myUserId;
+
+  /* ── Mobile render path ── */
+  if (isMobile) {
+    const mobileParticipants = participantList;
+
+    // Mini widget + group chat mode
+    if (mobileChatMode && groupId) {
+      return (
+        <div className="h-dvh flex flex-col" style={{ background: 'var(--sidebar-bg)' }}>
+          {/* Mini call bar */}
+          <button
+            onClick={() => setMobileChatMode(false)}
+            style={{
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(0,80,200,0.2), rgba(0,40,100,0.3))',
+              borderBottom: '1px solid rgba(0,212,255,0.1)',
+              color: '#fff', width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex' }}>
+              {mobileParticipants.slice(0, 2).map((p, i) => (
+                <div key={p.userId} style={{ marginLeft: i > 0 ? -6 : 0 }}>
+                  <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="sm" />
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>Group Call</div>
+              <div style={{ fontSize: 10, color: 'rgba(0,212,255,0.5)' }}>{duration}</div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); leaveCall(); }}
+              style={{
+                width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: 'rgba(239,68,68,0.5)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <PhoneOff className="h-3.5 w-3.5" />
+            </button>
+          </button>
+          {/* Group chat below */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <GroupChatWindow groupId={groupId} />
+          </div>
+        </div>
+      );
+    }
+
+    // Full-screen group call with 2x2 grid
+    return (
+      <div className="h-dvh safe-bottom flex flex-col" style={{ background: 'rgba(6,14,31,0.98)' }}>
+        {/* 2x2 participant grid */}
+        <div style={{
+          flex: 1, display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 4, padding: 6,
+        }}>
+          {mobileParticipants.map(p => {
+            const isMe = p.userId === myUserId;
+            return (
+              <div key={p.userId} style={{
+                borderRadius: 12, overflow: 'hidden', position: 'relative',
+                background: 'rgba(255,255,255,0.03)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <AvatarImage username={p.username} avatarUrl={p.avatarUrl} size="lg" />
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#fff', marginTop: 6 }}>{p.username}</p>
+                {(isMe ? isMuted : p.isMuted) && (
+                  <div style={{ position: 'absolute', top: 6, right: 6 }}>
+                    <MicOff className="h-3 w-3" style={{ color: 'rgba(239,68,68,0.7)' }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {/* Empty slots */}
+          {Array.from({ length: Math.max(0, 4 - mobileParticipants.length) }).map((_, i) => (
+            <div key={`empty-${i}`} style={{
+              borderRadius: 12, border: '1px dashed rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <UserPlus className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.15)' }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Controls bar */}
+        <div style={{
+          flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14,
+          padding: '16px 20px 20px', alignItems: 'center',
+          background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(12px)',
+        }}>
+          <button onClick={toggleMute} style={{
+            width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.15)',
+            background: isMuted ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          }}>
+            {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+          {/* Chat toggle */}
+          {groupId && (
+            <button onClick={() => setMobileChatMode(true)} style={{
+              width: 40, height: 40, borderRadius: '50%',
+              border: '1px solid rgba(0,212,255,0.3)', background: 'rgba(0,212,255,0.15)',
+              color: 'rgba(0,212,255,0.85)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}>
+              <MessageSquare className="h-4 w-4" />
+            </button>
+          )}
+          <button onClick={leaveCall} style={{
+            width: 48, height: 48, borderRadius: '50%', border: 'none',
+            background: 'rgba(239,68,68,0.7)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            boxShadow: '0 0 15px rgba(239,68,68,0.3)',
+          }}>
+            <PhoneOff className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Hidden audio elements for each remote stream */}
+        {mobileParticipants.filter(p => p.userId !== myUserId).map(p => (
+          <RemoteAudio key={p.userId} userId={p.userId} />
+        ))}
+      </div>
+    );
+  }
 
   const btnBase: React.CSSProperties = {
     width: 44, height: 44, borderRadius: '50%',
