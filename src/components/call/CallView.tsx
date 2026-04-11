@@ -9,7 +9,8 @@ import { ChatWindow } from '../chat/ChatWindow';
 import { AvatarImage } from '../ui/AvatarImage';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { useAudioStore } from '../../store/audioStore';
-import { Phone, Video, Monitor, MicOff } from 'lucide-react';
+import { Phone, Video, Monitor, MicOff, Mic, PhoneOff, MessageSquare } from 'lucide-react';
+import { useIsMobile } from '../../lib/useIsMobile';
 import type { Profile } from '../../store/authStore';
 import { getCallTier, getTierPalette, type TierPalette, type AudioBarConfig } from '../../lib/callTierVisuals';
 import { useThemeStore } from '../../store/themeStore';
@@ -58,8 +59,11 @@ export function CallView() {
     contactIsMuted,
     isCaller,
     isMuted,
+    isCameraOn,
     callStartedAt,
     hangUp,
+    toggleMute,
+    toggleCamera,
   } = useCallStore();
 
   const user = useAuthStore(s => s.user);
@@ -71,6 +75,8 @@ export function CallView() {
   const chatSizeRight = useAudioStore(s => s.chatSizeRight);
   const chatSizeBottom = useAudioStore(s => s.chatSizeBottom);
 
+  const isMobile = useIsMobile();
+  const [mobileChatMode, setMobileChatMode] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddToCall, setShowAddToCall] = useState(false);
   const [duration, setDuration] = useState('0:00');
@@ -236,6 +242,140 @@ export function CallView() {
   }, []);
 
   if (status === 'idle') return null;
+
+  /* ── Mobile render path ── */
+  if (isMobile) {
+    // Mini widget + chat mode
+    if (mobileChatMode && status === 'connected' && contact) {
+      return (
+        <div className="h-dvh flex flex-col" style={{ background: 'var(--sidebar-bg)' }}>
+          {/* Mini call bar — tap to return to full-screen */}
+          <button
+            onClick={() => setMobileChatMode(false)}
+            style={{
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg, rgba(0,80,200,0.2), rgba(0,40,100,0.3))',
+              borderBottom: '1px solid rgba(0,212,255,0.1)',
+              color: '#fff', width: '100%',
+            }}
+          >
+            <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="sm" />
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{contact.username}</div>
+              <div style={{ fontSize: 10, color: 'rgba(0,212,255,0.5)' }}>{duration}</div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); hangUp(); }}
+              style={{
+                width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: 'rgba(239,68,68,0.5)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <PhoneOff className="h-3.5 w-3.5" />
+            </button>
+          </button>
+          {/* Chat below */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ChatWindow contact={contact} />
+          </div>
+          <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+        </div>
+      );
+    }
+
+    // Full-screen call view
+    return (
+      <div className="h-dvh safe-bottom flex flex-col" style={{ background: 'rgba(6,14,31,0.98)' }}>
+        <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+        {/* Ringing state */}
+        {status === 'ringing' && <IncomingCallModal />}
+        {/* Connected state */}
+        {status === 'connected' && (
+          <>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              {/* PiP self-view */}
+              {localStream && callType === 'video' && (
+                <div style={{ position: 'absolute', top: 12, right: 12, width: 56, height: 72, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(0,212,255,0.15)', zIndex: 5 }}>
+                  <CameraFeed stream={localStream} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+              {/* Remote video or avatar */}
+              {remoteStream && callType === 'video' ? (
+                <CameraFeed stream={remoteStream} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <>
+                  <div style={{ width: 88, height: 88 }}>
+                    <AvatarImage username={contact?.username ?? ''} avatarUrl={contact?.avatar_url} size="xl" />
+                  </div>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginTop: 14 }}>{contact?.username}</p>
+                  <p style={{ fontSize: 12, color: 'rgba(0,212,255,0.5)', marginTop: 4, fontFamily: 'monospace' }}>{duration}</p>
+                </>
+              )}
+            </div>
+            {/* Controls bar */}
+            <div style={{
+              flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14,
+              padding: '16px 20px 20px', alignItems: 'center',
+              background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(12px)',
+            }}>
+              <button onClick={toggleMute} style={{
+                width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.15)',
+                background: isMuted ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}>
+                {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <button onClick={toggleCamera} style={{
+                width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.15)',
+                background: isCameraOn ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}>
+                <Video className="h-4 w-4" />
+              </button>
+              {/* Chat toggle */}
+              {contact && (
+                <button onClick={() => setMobileChatMode(true)} style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  border: '1px solid rgba(0,212,255,0.3)', background: 'rgba(0,212,255,0.15)',
+                  color: 'rgba(0,212,255,0.85)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                }}>
+                  <MessageSquare className="h-4 w-4" />
+                </button>
+              )}
+              <button onClick={hangUp} style={{
+                width: 48, height: 48, borderRadius: '50%', border: 'none',
+                background: 'rgba(239,68,68,0.7)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                boxShadow: '0 0 15px rgba(239,68,68,0.3)',
+              }}>
+                <PhoneOff className="h-5 w-5" />
+              </button>
+            </div>
+          </>
+        )}
+        {/* Calling state */}
+        {status === 'calling' && contact && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{ fontSize: 11, color: 'rgba(0,212,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 20 }}>Calling...</p>
+            <div style={{ width: 80, height: 80 }}>
+              <AvatarImage username={contact.username} avatarUrl={contact.avatar_url} size="xl" />
+            </div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 12 }}>{contact.username}</p>
+            <button onClick={hangUp} style={{
+              width: 52, height: 52, borderRadius: '50%', border: 'none', marginTop: 40,
+              background: 'rgba(239,68,68,0.7)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}>
+              <PhoneOff className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const isConnected = status === 'connected';
   const isIncomingRinging = status === 'ringing';
