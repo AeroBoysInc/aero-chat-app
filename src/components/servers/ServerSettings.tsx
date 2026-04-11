@@ -9,8 +9,9 @@ import { MemberList } from './MemberList';
 import { BubbleManager } from './BubbleManager';
 import { InviteManager } from './InviteManager';
 import { ServerEvents } from './ServerEvents';
+import { ToolkitTab } from './toolkits/ToolkitTab';
 
-type Tab = 'roles' | 'members' | 'bubbles' | 'invites' | 'events';
+type Tab = 'roles' | 'members' | 'bubbles' | 'invites' | 'events' | 'toolkits';
 
 export const ServerSettings = memo(function ServerSettings({
   onClose,
@@ -33,6 +34,7 @@ export const ServerSettings = memo(function ServerSettings({
     { id: 'bubbles', label: 'Bubbles', show: can('manage_bubbles') },
     { id: 'invites', label: 'Invites', show: can('send_invites') },
     { id: 'events', label: 'Events', show: true },
+    { id: 'toolkits', label: '✦ Toolkits', show: true },
   ];
 
   const visibleTabs = tabs.filter(t => t.show);
@@ -74,6 +76,7 @@ export const ServerSettings = memo(function ServerSettings({
           {tab === 'bubbles' && <BubbleManager />}
           {tab === 'invites' && <InviteManager />}
           {tab === 'events' && <ServerEvents />}
+          {tab === 'toolkits' && <ToolkitTab />}
         </div>
       </div>
     </div>
