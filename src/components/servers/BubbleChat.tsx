@@ -8,6 +8,7 @@ import { useServerStore } from '../../store/serverStore';
 import { useServerMessageStore } from '../../store/serverMessageStore';
 import { useServerRoleStore } from '../../store/serverRoleStore';
 import { useAudioStore } from '../../store/audioStore';
+import { useDndCharacterStore } from '../../store/dndCharacterStore';
 import { AvatarImage } from '../ui/AvatarImage';
 import { AccentName } from '../ui/AccentName';
 import { ProfileTooltip } from '../ui/ProfileTooltip';
@@ -36,6 +37,39 @@ function parseGifMessage(content: string): { url: string; width: number; height:
   try {
     const p = JSON.parse(content);
     if (p._gif) return { url: p.url, width: p.width, height: p.height, previewUrl: p.previewUrl };
+    return null;
+  } catch { return null; }
+}
+
+interface DndCommand {
+  type: 'give_exp' | 'heal' | 'damage';
+  value: number;
+}
+
+function parseDndCommand(text: string): DndCommand | null {
+  const lower = text.toLowerCase().trim();
+  let match: RegExpMatchArray | null;
+
+  match = lower.match(/^\/give\s+exp\s+(\d+)$/);
+  if (match) return { type: 'give_exp', value: parseInt(match[1], 10) };
+
+  match = lower.match(/^\/heal\s+(\d+)$/);
+  if (match) return { type: 'heal', value: parseInt(match[1], 10) };
+
+  match = lower.match(/^\/damage\s+(\d+)$/);
+  if (match) return { type: 'damage', value: parseInt(match[1], 10) };
+
+  return null;
+}
+
+function isDndCommandMessage(content: string): boolean {
+  try { return JSON.parse(content)._dndCmd === true; } catch { return false; }
+}
+
+function parseDndCommandMessage(content: string): { text: string; emoji: string } | null {
+  try {
+    const p = JSON.parse(content);
+    if (p._dndCmd) return { text: p.text, emoji: p.emoji };
     return null;
   } catch { return null; }
 }
@@ -243,9 +277,11 @@ function MentionAutocomplete({ query, members, onSelect }: {
 export const BubbleChat = memo(function BubbleChat() {
   const user = useAuthStore(s => s.user);
   const { selectedBubbleId, bubbles, members } = useServerStore();
+  const activeToolkit = useServerStore(s => s.activeToolkit);
   const { roles } = useServerRoleStore();
   const { bubbles: msgCache, setBubble, appendMessage } = useServerMessageStore();
   const { outputVolume, outputDeviceId, inputDeviceId, noiseCancellation, inputVolume } = useAudioStore();
+  const { characters } = useDndCharacterStore();
 
   const bubble = bubbles.find(b => b.id === selectedBubbleId);
   const messages = msgCache[selectedBubbleId ?? ''] ?? [];
@@ -384,9 +420,50 @@ export const BubbleChat = memo(function BubbleChat() {
     const text = input.trim();
     setInput('');
     setMentionQuery(null);
+
+    // ── DnD command interception ──
+    if (activeToolkit) {
+      const cmd = parseDndCommand(text);
+      if (cmd) {
+        const myChar = characters.find(c => c.user_id === user.id);
+        if (!myChar) {
+          setSendError('You need a character card to use DnD commands. Create one in the Characters tab.');
+          return;
+        }
+
+        let sysText = '';
+        let emoji = '';
+        let updateFields: Record<string, number> = {};
+
+        if (cmd.type === 'give_exp') {
+          const newXp = myChar.xp_current + cmd.value;
+          updateFields = { xp_current: newXp };
+          emoji = '✨';
+          sysText = `${myChar.name} gained ${cmd.value} XP (${myChar.xp_current} → ${newXp})`;
+        } else if (cmd.type === 'heal') {
+          const newHp = Math.min(myChar.hp_current + cmd.value, myChar.hp_max);
+          updateFields = { hp_current: newHp };
+          emoji = '💚';
+          sysText = `${myChar.name} healed ${cmd.value} HP (${myChar.hp_current} → ${newHp})`;
+        } else if (cmd.type === 'damage') {
+          const newHp = Math.max(myChar.hp_current - cmd.value, 0);
+          updateFields = { hp_current: newHp };
+          emoji = '⚔️';
+          sysText = `${myChar.name} took ${cmd.value} damage (${myChar.hp_current} → ${newHp} HP)`;
+        }
+
+        const { error: updateErr } = await useDndCharacterStore.getState().updateCharacter(myChar.id, updateFields);
+        if (updateErr) { setSendError('Failed to update character.'); return; }
+
+        await sendContent(JSON.stringify({ _dndCmd: true, text: sysText, emoji }));
+        setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
+    }
+
     await sendContent(text);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [input, user, selectedBubbleId, sending]);
+  }, [input, user, selectedBubbleId, sending, activeToolkit, characters]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -826,7 +903,21 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
 
         {/* Content */}
         <div className="selectable" style={{ marginTop: 2 }}>
-          {isGif ? (() => {
+          {isDndCommandMessage(msg.content) ? (() => {
+            const cmd = parseDndCommandMessage(msg.content);
+            if (!cmd) return null;
+            return (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{
+                background: 'var(--tk-accent-glow, rgba(139,69,19,0.10))',
+                border: '1px solid var(--tk-border, rgba(139,69,19,0.15))',
+              }}>
+                <span style={{ fontSize: 16 }}>{cmd.emoji}</span>
+                <span style={{ fontSize: 12, color: 'var(--tk-text, var(--text-secondary))', fontStyle: 'italic' }}>
+                  {cmd.text}
+                </span>
+              </div>
+            );
+          })() : isGif ? (() => {
             const gif = parseGifMessage(msg.content);
             if (!gif) return null;
             return (
