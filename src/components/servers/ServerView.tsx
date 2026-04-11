@@ -8,11 +8,12 @@ import { AvatarImage } from '../ui/AvatarImage';
 import { AccentName } from '../ui/AccentName';
 import { CustomStatusBadge } from '../ui/CustomStatusBadge';
 import { CardEffect } from '../ui/CardEffect';
-import { getBannerCss } from '../../lib/identityConstants';
 import { CARD_GRADIENTS } from '../../lib/cardGradients';
 import { BubbleHub } from './BubbleHub';
 import { BubbleChat } from './BubbleChat';
 import { ServerSettings } from './ServerSettings';
+import { DndThemeProvider } from './toolkits/DndThemeProvider';
+import { DndTabBar, type DndTab } from './toolkits/DndTabBar';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
@@ -21,8 +22,10 @@ export const ServerView = memo(function ServerView() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [dndTab, setDndTab] = useState<DndTab>('bubbles');
 
   const server = servers.find(s => s.id === selectedServerId);
+  const activeToolkit = useServerStore(s => s.activeToolkit);
 
   useEffect(() => {
     if (selectedServerId) {
@@ -30,6 +33,9 @@ export const ServerView = memo(function ServerView() {
       loadRoles(selectedServerId);
     }
   }, [selectedServerId]);
+
+  // Reset DnD tab when switching servers
+  useEffect(() => { setDndTab('bubbles'); }, [selectedServerId]);
 
   const activeBubble = useServerStore(s => s.bubbles.find(b => b.id === s.selectedBubbleId));
 
@@ -39,6 +45,7 @@ export const ServerView = memo(function ServerView() {
   const inBubble = serverView === 'bubble' && activeBubble;
 
   return (
+    <DndThemeProvider>
     <div className="flex h-full flex-col overflow-hidden" style={{ background: 'var(--chat-bg)' }}>
       {/* Header wrapper — allows the bubble badge to overflow downward */}
       <div className="flex-shrink-0" style={{ position: 'relative', zIndex: 3 }}>
@@ -82,6 +89,7 @@ export const ServerView = memo(function ServerView() {
             background: server.icon_url ? `url(${server.icon_url}) center/cover` : 'linear-gradient(135deg, var(--sent-bubble-bg), var(--input-focus-border))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 700, color: 'white',
+            ...(activeToolkit ? { border: '2px solid var(--tk-gold, transparent)', boxShadow: '0 0 8px var(--tk-accent-glow, transparent)' } : {}),
           }}>
             {!server.icon_url && initial}
           </div>
@@ -129,27 +137,49 @@ export const ServerView = memo(function ServerView() {
       )}
       </div>{/* end header wrapper */}
 
-      {/* Content — slide transition between Hub and Chat */}
+      {/* DnD toolkit tab bar — only visible when toolkit is active */}
+      {activeToolkit && (
+        <DndTabBar activeTab={dndTab} onTabChange={setDndTab} />
+      )}
+
+      {/* Content — bubble view or toolkit tab content */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
-        {/* Both layers always rendered, positioned via translateX */}
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: inBubble ? 'translateX(-100%)' : 'translateX(0)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          <BubbleHub />
-        </div>
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: inBubble ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          {selectedBubbleId && <BubbleChat />}
-        </div>
+        {(!activeToolkit || dndTab === 'bubbles') ? (
+          <>
+            {/* Both layers always rendered, positioned via translateX */}
+            <div
+              className="absolute inset-0"
+              style={{
+                transform: inBubble ? 'translateX(-100%)' : 'translateX(0)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
+              <BubbleHub />
+            </div>
+            <div
+              className="absolute inset-0"
+              style={{
+                transform: inBubble ? 'translateX(0)' : 'translateX(100%)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
+              {selectedBubbleId && <BubbleChat />}
+            </div>
+          </>
+        ) : (
+          /* Toolkit tab placeholder — sub-projects 2–6 will replace these */
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <div style={{ fontSize: 48, marginBottom: 8, opacity: 0.3 }}>
+                {dndTab === 'characters' ? '🃏' : dndTab === 'worldmap' ? '🗺️' : dndTab === 'quests' ? '📜' : '📖'}
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--tk-text, var(--text-primary))', marginBottom: 4 }}>
+                {dndTab === 'characters' ? 'Characters' : dndTab === 'worldmap' ? 'World Map' : dndTab === 'quests' ? 'Quests' : 'DM Notes'}
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--tk-text-muted, var(--text-muted))' }}>Coming soon</p>
+            </div>
+          </div>
+        )}
       </div>
       {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}
 
@@ -187,7 +217,6 @@ export const ServerView = memo(function ServerView() {
             <div className="overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
               {members.map(member => {
                 const role = roles.find(r => r.id === member.role_id);
-                const identityBanner = getBannerCss(member.banner_gradient);
                 const hasImage = !!member.card_image_url;
                 const bgStyle: React.CSSProperties = hasImage
                   ? {
@@ -197,14 +226,12 @@ export const ServerView = memo(function ServerView() {
                         ? `${member.card_image_params.x ?? 50}% ${member.card_image_params.y ?? 50}%`
                         : 'center',
                     }
-                  : identityBanner
-                    ? { background: identityBanner }
-                    : {
-                        background: CARD_GRADIENTS.find(g => g.id === member.card_gradient)?.css
-                          ?? (member.accent_color
-                            ? `linear-gradient(135deg, ${member.accent_color}30 0%, ${member.accent_color}12 100%)`
-                            : 'linear-gradient(135deg, rgba(0,120,255,0.15) 0%, rgba(56,204,248,0.10) 100%)'),
-                      };
+                  : {
+                      background: CARD_GRADIENTS.find(g => g.id === member.card_gradient)?.css
+                        ?? (member.accent_color
+                          ? `linear-gradient(135deg, ${member.accent_color}30 0%, ${member.accent_color}12 100%)`
+                          : 'linear-gradient(135deg, rgba(0,120,255,0.15) 0%, rgba(56,204,248,0.10) 100%)'),
+                    };
 
                 return (
                   <div
@@ -263,5 +290,6 @@ export const ServerView = memo(function ServerView() {
         </div>
       )}
     </div>
+    </DndThemeProvider>
   );
 });
