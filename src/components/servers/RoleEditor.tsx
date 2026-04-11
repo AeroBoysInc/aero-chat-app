@@ -16,6 +16,7 @@ const PERM_LABELS: Record<PermissionKey, string> = {
   send_messages: 'Send Messages',
   pin_messages: 'Pin Messages',
   start_calls: 'Start Calls',
+  dungeon_master: 'Dungeon Master',
 };
 
 export const RoleEditor = memo(function RoleEditor() {

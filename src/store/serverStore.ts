@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { loadPrivateKey, encryptMessage } from '../lib/crypto';
-import type { Server, ServerMember, Bubble } from '../lib/serverTypes';
+import type { Server, ServerMember, Bubble, ServerToolkit } from '../lib/serverTypes';
 
 // ── Server invite message helper ─────────────────────────────────────────────
 
@@ -56,6 +56,7 @@ interface ServerStoreState {
   bubbleUnreads: Record<string, number>;
   /** member user_ids per server (for online counts on cards) */
   serverMemberIds: Record<string, string[]>;
+  activeToolkit: ServerToolkit | null;
 
   loadServers: () => Promise<void>;
   loadServerData: (serverId: string) => Promise<void>;
@@ -87,6 +88,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   serverUnreads: {},
   bubbleUnreads: {},
   serverMemberIds: {},
+  activeToolkit: null,
 
   loadServers: async () => {
     const { data } = await supabase
@@ -97,7 +99,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
   },
 
   loadServerData: async (serverId) => {
-    const [membersRes, bubblesRes] = await Promise.all([
+    const [membersRes, bubblesRes, toolkitRes] = await Promise.all([
       supabase
         .from('server_members')
         .select('*, profiles:user_id(username, avatar_url, status, card_gradient, card_image_url, card_image_params, bio, custom_status_text, custom_status_emoji, accent_color, accent_color_secondary, banner_gradient, banner_image_url, card_effect, avatar_gif_url, name_effect)')
@@ -107,6 +109,11 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
         .select('*')
         .eq('server_id', serverId)
         .order('created_at', { ascending: true }),
+      supabase
+        .from('server_toolkits')
+        .select('*')
+        .eq('server_id', serverId)
+        .maybeSingle(),
     ]);
     const members = (membersRes.data ?? []).map((m: any) => ({
       server_id: m.server_id,
@@ -133,6 +140,7 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
     set({
       members,
       bubbles: bubblesRes.data ?? [],
+      activeToolkit: toolkitRes.data ?? null,
     });
   },
 
@@ -331,5 +339,6 @@ export const useServerStore = create<ServerStoreState>()((set, get) => ({
     selectedServerId: null, selectedBubbleId: null,
     onlineIds: new Set(), serverUnreads: {}, bubbleUnreads: {},
     serverMemberIds: {},
+    activeToolkit: null,
   }),
 }));

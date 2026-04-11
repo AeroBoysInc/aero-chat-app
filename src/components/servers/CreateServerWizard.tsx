@@ -89,7 +89,7 @@ export const CreateServerWizard = memo(function CreateServerWizard({
         role_id: ownerRole.id,
         manage_server: true, manage_roles: true, manage_bubbles: true,
         manage_members: true, send_invites: true, send_messages: true,
-        pin_messages: true, start_calls: true,
+        pin_messages: true, start_calls: true, dungeon_master: true,
       });
 
       // 4. Insert default Member role + permissions
@@ -104,7 +104,7 @@ export const CreateServerWizard = memo(function CreateServerWizard({
         role_id: memberRole.id,
         manage_server: false, manage_roles: false, manage_bubbles: false,
         manage_members: false, send_invites: false, send_messages: true,
-        pin_messages: false, start_calls: true,
+        pin_messages: false, start_calls: true, dungeon_master: false,
       });
 
       // 5. Insert creator as member with Owner role

@@ -19,7 +19,7 @@ const DEFAULT_PERMS: ServerRolePermissions = {
   role_id: '',
   manage_server: false, manage_roles: false, manage_bubbles: false,
   manage_members: false, send_invites: false, send_messages: false,
-  pin_messages: false, start_calls: false,
+  pin_messages: false, start_calls: false, dungeon_master: false,
 };
 
 export const useServerRoleStore = create<ServerRoleStoreState>()((set, get) => ({
