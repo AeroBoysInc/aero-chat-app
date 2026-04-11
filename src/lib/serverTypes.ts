@@ -95,4 +95,24 @@ export interface ServerToolkit {
   activated_at: string;
 }
 
+export interface DndCharacter {
+  id: string;
+  server_id: string;
+  user_id: string;
+  name: string;
+  species: string;
+  class: string;
+  level: number;
+  portrait_url: string | null;
+  background_url: string | null;
+  hp_current: number;
+  hp_max: number;
+  xp_current: number;
+  xp_max: number;
+  gold: number;
+  stats: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+  armor_class: number;
+  created_at: string;
+}
+
 export type PermissionKey = keyof Omit<ServerRolePermissions, 'role_id'>;
