@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { X, Check, UserX, Users } from 'lucide-react';
+import { X, Check, UserX, Users, ArrowLeft } from 'lucide-react';
+import { useIsMobile } from '../../lib/useIsMobile';
 import { useFriendStore } from '../../store/friendStore';
 import { useGroupChatStore } from '../../store/groupChatStore';
 import { useAuthStore } from '../../store/authStore';
@@ -11,12 +12,66 @@ export function FriendRequestModal({ onClose }: Props) {
   const { pendingIncoming, respondToRequest } = useFriendStore();
   const { pendingInvites, acceptInvite, declineInvite } = useGroupChatStore();
   const user = useAuthStore(s => s.user);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  if (isMobile) {
+    return (
+      <div className="h-dvh flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'var(--sidebar-bg)' }}>
+        {/* Header */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--panel-divider)' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h2 className="font-bold" style={{ color: 'var(--text-primary)', fontSize: 16 }}>Friend Requests</h2>
+        </div>
+        {/* Content — scrollable */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
+          {pendingIncoming.length === 0 && pendingInvites.length === 0 ? (
+            <p className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No pending requests</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {pendingIncoming.map((req) => (
+                <li key={req.id} className="flex items-center gap-3 rounded-aero px-3 py-3"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--panel-divider)' }}>
+                  <AvatarImage username={req.sender?.username ?? '?'} avatarUrl={req.sender?.avatar_url} size="md" />
+                  <span className="flex-1 truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{req.sender?.username}</span>
+                  <button onClick={() => respondToRequest(req.id, true)}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(34,197,94,0.2)', color: '#22c55e', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => respondToRequest(req.id, false)}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+              {pendingInvites.map((inv) => (
+                <li key={inv.id} className="flex items-center gap-3 rounded-aero px-3 py-3"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--panel-divider)' }}>
+                  <Users className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+                  <span className="flex-1 truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{inv.group?.name ?? 'Group invite'}</span>
+                  <button onClick={() => user && acceptInvite(inv.id, user.id)}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(34,197,94,0.2)', color: '#22c55e', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => declineInvite(inv.id)}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
