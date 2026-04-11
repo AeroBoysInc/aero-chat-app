@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Send, Lock, Phone, PhoneIncoming, Settings, Bell, BellOff, Users } from 'lucide-react';
+import { Send, Lock, Phone, PhoneIncoming, Settings, Bell, BellOff, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useGroupChatStore } from '../../store/groupChatStore';
@@ -25,9 +25,10 @@ const EMPTY_MESSAGES: GroupMessage[] = [];
 
 interface Props {
   groupId: string;
+  onBack?: () => void;
 }
 
-export function GroupChatWindow({ groupId }: Props) {
+export function GroupChatWindow({ groupId, onBack }: Props) {
   const user = useAuthStore(s => s.user);
   const group = useGroupChatStore(s => s.groups.find(g => g.id === groupId));
   const messages = useGroupMessageStore(s => s.chats[groupId] ?? EMPTY_MESSAGES);
@@ -165,7 +166,7 @@ export function GroupChatWindow({ groupId }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" style={{ minHeight: 0 }}>
       {/* ── Header ── */}
       <div
         className="flex items-center gap-3 px-5 py-3 flex-shrink-0"
@@ -174,8 +175,20 @@ export function GroupChatWindow({ groupId }: Props) {
           background: 'linear-gradient(180deg, rgba(0,100,255,0.08) 0%, transparent 100%), var(--panel-header-bg)',
           backdropFilter: 'blur(12px)',
           borderRadius: '18px 18px 0 0',
+          flexShrink: 0,
         }}
       >
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-xl transition-all"
+            style={{ background: 'var(--btn-ghost-bg)', border: '1px solid var(--btn-ghost-border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--popup-hover)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--btn-ghost-bg)'}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </button>
+        )}
         <div style={{
           width: 36, height: 36, borderRadius: 10,
           background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,100,200,0.2))',
@@ -292,7 +305,7 @@ export function GroupChatWindow({ groupId }: Props) {
       <div
         ref={chatAreaRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto scrollbar-aero px-4 py-3"
+        className="flex-1 overflow-y-auto scrollbar-aero px-4 py-3 min-h-0"
         style={{ position: 'relative' }}
       >
         {itemList.map(({ msg, showDate }) => {
@@ -365,7 +378,7 @@ export function GroupChatWindow({ groupId }: Props) {
       {/* ── Input bar ── */}
       <div
         className="flex items-center gap-2 px-4 py-3 flex-shrink-0"
-        style={{ borderTop: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)' }}
+        style={{ borderTop: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', flexShrink: 0 }}
       >
         <input
           className="aero-input flex-1 py-2 px-3 text-sm"
