@@ -92,6 +92,8 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
   const [statusMenuOpen,  setStatusMenuOpen]  = useState(false);
   const [identityEditorOpen,  setIdentityEditorOpen]  = useState(false);
   const [isOwnCardHovered,    setIsOwnCardHovered]    = useState(false);
+  const [profileExpanded, setProfileExpanded] = useState(false);
+  const mobileProfileRef = useRef<HTMLDivElement>(null);
   const statusMenuRef  = useRef<HTMLDivElement>(null);
   const footerRef      = useRef<HTMLDivElement>(null);
   const asideRef       = useRef<HTMLElement>(null);
@@ -171,6 +173,18 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [settingsView]);
+
+  // Collapse mobile profile card on outside tap
+  useEffect(() => {
+    if (!profileExpanded) return;
+    function handler(e: MouseEvent) {
+      if (mobileProfileRef.current && !mobileProfileRef.current.contains(e.target as Node)) {
+        setProfileExpanded(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [profileExpanded]);
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
@@ -310,7 +324,128 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         </div>
       )}
 
+      {/* ── Mobile Profile Card — collapsible ── */}
+      {isMobile && (
+        <div
+          ref={mobileProfileRef}
+          style={{
+            background: 'var(--card-bg, linear-gradient(145deg, rgba(0,120,255,0.10), rgba(255,255,255,0.30)))',
+            borderBottom: '1px solid var(--panel-divider)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Decorative orbs */}
+          <div className="pointer-events-none absolute" style={{
+            width: profileExpanded ? 80 : 50, height: profileExpanded ? 80 : 50,
+            top: -15, right: -15, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,180,255,0.18) 0%, transparent 70%)',
+            filter: 'blur(8px)', transition: 'all 0.3s ease',
+          }} />
+          <div className="pointer-events-none absolute" style={{
+            width: 35, height: 35, bottom: -8, left: 20, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(120,0,255,0.10) 0%, transparent 70%)',
+            filter: 'blur(6px)',
+          }} />
+
+          {/* Collapsed row — always visible */}
+          <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+            <button onClick={() => setProfileExpanded(e => !e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <AvatarImage
+                username={user?.username ?? '?'}
+                avatarUrl={user?.avatar_url}
+                size={profileExpanded ? 'lg' : 'md'}
+                status={myStatus}
+                isInCall={callStatus === 'connected'}
+                playingGame={myPlayingGame}
+              />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="truncate font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                {user?.username}
+              </p>
+              <div style={{ fontSize: 10, color: statusColor[myStatus], display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: statusColor[myStatus] }} />
+                {statusLabel[myStatus]}
+              </div>
+            </div>
+            {/* Friend requests badge */}
+            {(pendingIncoming.length > 0) && (
+              <button
+                onClick={() => setRequestsOpen(true)}
+                style={{
+                  width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+                  position: 'relative', border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+                }}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                <span style={{
+                  position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: '50%',
+                  background: 'var(--badge-bg)', color: 'var(--badge-text)', fontSize: 8, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {pendingIncoming.length}
+                </span>
+              </button>
+            )}
+            {/* Settings gear */}
+            <button
+              onClick={() => setSettingsView(v => v === 'menu' ? null : 'menu')}
+              style={{
+                width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </button>
+            {/* Expand/collapse chevron */}
+            <ChevronUp
+              className="h-3.5 w-3.5"
+              style={{
+                color: 'var(--text-muted)',
+                transform: profileExpanded ? 'rotate(0)' : 'rotate(180deg)',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+              }}
+              onClick={() => setProfileExpanded(e => !e)}
+            />
+          </div>
+
+          {/* Expanded section — status chips */}
+          <div style={{
+            maxHeight: profileExpanded ? 120 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 0.3s ease',
+            padding: profileExpanded ? '0 14px 10px' : '0 14px 0',
+          }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {ALL_STATUSES.map(s => (
+                <button
+                  key={s}
+                  onClick={() => { setMyStatus(s); setProfileExpanded(false); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 12, fontSize: 10,
+                    background: myStatus === s ? `${statusColor[s]}22` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${myStatus === s ? `${statusColor[s]}55` : 'rgba(255,255,255,0.08)'}`,
+                    color: myStatus === s ? statusColor[s] : 'rgba(255,255,255,0.5)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor[s] }} />
+                  {statusLabel[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Profile Card ── */}
+      {!isMobile && (
+        <>
       <div
         className="relative mx-3 my-2 rounded-[14px] overflow-visible"
         ref={(el) => {
@@ -450,6 +585,8 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
         </div>
 
       </div>
+        </>
+      )}
 
       {/* Status menu — portaled to escape 3D card transform */}
       {statusMenuOpen && statusMenuRef.current && createPortal(
@@ -552,7 +689,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       )}
 
       {/* ── XP Bar (premium) — connected underneath the card ── */}
-      {user?.is_premium && (
+      {!isMobile && user?.is_premium && (
         <div className="mx-3 -mt-1 px-1" style={{ position: 'relative', zIndex: 0 }}>
           <XpMiniBar bar="chatter" />
         </div>
@@ -768,6 +905,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
       </nav>
 
       {/* ── Footer: Edit Identity + Settings ── */}
+      {!isMobile && (
       <div
         ref={footerRef}
         className="flex items-center justify-center gap-2 px-3 py-2 flex-shrink-0"
@@ -808,6 +946,7 @@ export function Sidebar({ selectedUser, onSelectUser, isMobile = false }: Props)
           Settings
         </button>
       </div>
+      )}
 
       {/* Settings panels — centered modal overlay */}
       {isPanelOpen && createPortal(
