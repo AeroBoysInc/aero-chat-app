@@ -28,6 +28,7 @@ export const ServerView = memo(function ServerView() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [dndTab, setDndTab] = useState<DndTab>('bubbles');
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
+  const [hoverRect, setHoverRect] = useState<{ top: number; right: number; bottom: number } | null>(null);
 
   const characters = useDndCharacterStore(s => s.characters);
   const loadCharacters = useDndCharacterStore(s => s.loadCharacters);
@@ -257,8 +258,13 @@ export const ServerView = memo(function ServerView() {
                     key={member.user_id}
                     className="overflow-hidden"
                     style={{ borderRadius: 14, border: '1px solid var(--panel-divider)' }}
-                    onMouseEnter={() => memberChar && setHoveredUserId(member.user_id)}
-                    onMouseLeave={() => setHoveredUserId(null)}
+                    onMouseEnter={(e) => {
+                      if (!memberChar) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setHoveredUserId(member.user_id);
+                      setHoverRect({ top: rect.top, right: rect.right, bottom: rect.bottom });
+                    }}
+                    onMouseLeave={() => { setHoveredUserId(null); setHoverRect(null); }}
                   >
                     {/* Card background strip with effect */}
                     <div style={{ height: 48, position: 'relative', ...bgStyle }}>
@@ -304,68 +310,100 @@ export const ServerView = memo(function ServerView() {
                       </div>
                     </div>
 
-                    {/* DnD character widget — reveals on hover */}
-                    {memberChar && hoveredUserId === member.user_id && (() => {
-                      const cc = getClassColor(memberChar.class);
-                      return (
-                        <div className="animate-fade-in" style={{
-                          padding: '8px 12px',
-                          borderTop: `1px solid ${cc}20`,
-                          background: `linear-gradient(135deg, ${cc}08, rgba(0,0,0,0.12))`,
-                        }}>
-                          <div className="flex items-center gap-2.5">
-                            {/* Portrait */}
-                            <div style={{
-                              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                              border: `2px solid ${cc}`,
-                              boxShadow: `0 0 8px ${cc}30`,
-                              background: memberChar.portrait_url
-                                ? `url(${memberChar.portrait_url}) center/cover`
-                                : `linear-gradient(135deg, ${cc}40, ${cc}15)`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 14, color: cc,
-                            }}>
-                              {!memberChar.portrait_url && '🛡️'}
-                            </div>
-                            {/* Name & class */}
-                            <div className="min-w-0 flex-1">
-                              <span style={{ fontSize: 11, fontWeight: 700, color: cc }}>{memberChar.name}</span>
-                              <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>
-                                {memberChar.species} {memberChar.class} · Lv {memberChar.level}
-                              </p>
-                            </div>
-                            {/* AC & Gold */}
-                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>
-                              <div>AC <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{memberChar.armor_class}</span></div>
-                              <div style={{ color: '#FFD700' }}>{memberChar.gold.toLocaleString()} GP</div>
-                            </div>
-                          </div>
-                          {/* HP bar */}
-                          <div style={{ marginTop: 6 }}>
-                            <HpBar current={memberChar.hp_current} max={memberChar.hp_max} height={4} />
-                          </div>
-                          {/* Stats row */}
-                          <div className="flex gap-1" style={{ marginTop: 5 }}>
-                            {(Object.entries(memberChar.stats) as [string, number][]).map(([key, val]) => (
-                              <div key={key} style={{
-                                flex: 1, textAlign: 'center', padding: '2px 0',
-                                borderRadius: 4, fontSize: 8, fontWeight: 600,
-                                background: val >= 14 ? `${cc}15` : 'rgba(255,255,255,0.04)',
-                                color: val >= 14 ? cc : 'var(--text-muted)',
-                              }}>
-                                <div style={{ textTransform: 'uppercase', fontSize: 7, opacity: 0.6 }}>{key}</div>
-                                {val}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* Floating DnD character card — appears to the right of hovered member */}
+          {hoveredUserId && hoverRect && (() => {
+            const char = characters.find(c => c.user_id === hoveredUserId);
+            if (!char) return null;
+            const cc = getClassColor(char.class);
+            // Clamp vertical position so card doesn't overflow viewport
+            const cardHeight = 260;
+            const top = Math.min(hoverRect.top, window.innerHeight - cardHeight - 16);
+            return (
+              <div
+                className="animate-fade-in"
+                style={{
+                  position: 'fixed', top, left: hoverRect.right + 12,
+                  width: 240, borderRadius: 16, overflow: 'hidden',
+                  background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
+                  boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+                  pointerEvents: 'none', zIndex: 50,
+                }}
+              >
+                {/* Background image */}
+                {char.background_url && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: `url(${char.background_url}) center/cover`,
+                    opacity: 0.1, pointerEvents: 'none',
+                  }} />
+                )}
+
+                <div className="relative" style={{ padding: '14px 14px 12px' }}>
+                  {/* Header label */}
+                  <div style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 8, textTransform: 'uppercase' }}>
+                    Character Sheet
+                  </div>
+
+                  {/* Portrait + name */}
+                  <div className="flex items-center gap-3" style={{ marginBottom: 10 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                      border: `2.5px solid ${cc}`,
+                      boxShadow: `0 0 12px ${cc}40`,
+                      background: char.portrait_url
+                        ? `url(${char.portrait_url}) center/cover`
+                        : `linear-gradient(135deg, ${cc}40, ${cc}15)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 20, color: cc,
+                    }}>
+                      {!char.portrait_url && '🛡️'}
+                    </div>
+                    <div className="min-w-0">
+                      <div style={{ fontSize: 13, fontWeight: 700, color: cc }}>{char.name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                        {char.species} {char.class} · Level {char.level}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats grid — 3×2 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+                    {(Object.entries(char.stats) as [string, number][]).map(([key, val]) => (
+                      <div key={key} style={{
+                        textAlign: 'center', padding: '4px 0', borderRadius: 6,
+                        background: val >= 14 ? `${cc}15` : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${val >= 14 ? `${cc}25` : 'rgba(255,255,255,0.06)'}`,
+                      }}>
+                        <div style={{ fontSize: 7, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-muted)', opacity: 0.7 }}>{key}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: val >= 14 ? cc : val <= 8 ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* HP bar */}
+                  <div style={{ marginBottom: 4 }}>
+                    <div className="flex items-center justify-between" style={{ fontSize: 8, color: 'var(--text-muted)', marginBottom: 2 }}>
+                      <span>HP</span>
+                      <span>{char.hp_current}/{char.hp_max}</span>
+                    </div>
+                    <HpBar current={char.hp_current} max={char.hp_max} height={5} />
+                  </div>
+
+                  {/* Footer stats row */}
+                  <div className="flex items-center justify-between" style={{ marginTop: 6, fontSize: 9, color: 'var(--text-muted)' }}>
+                    <span>AC <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{char.armor_class}</span></span>
+                    <span style={{ color: '#FFD700' }}>{char.gold.toLocaleString()} gp</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
