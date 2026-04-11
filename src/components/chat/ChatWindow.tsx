@@ -1477,11 +1477,11 @@ export function ChatWindow({ contact, onBack }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" style={{ minHeight: 0 }}>
 
       {/* Header */}
       <div className="drag-region"
-        style={{ position: 'relative', overflow: 'hidden', padding: '8px 14px', borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
+        style={{ flexShrink: 0, position: 'relative', overflow: 'hidden', padding: '8px 14px', borderBottom: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '18px 18px 0 0' }}>
 
         {/* Banner bleed background */}
         <div aria-hidden="true" style={{
@@ -1705,7 +1705,7 @@ export function ChatWindow({ contact, onBack }: Props) {
       <div
         ref={chatAreaRef}
         data-bubble-container=""
-        className="flex-1 overflow-y-auto scrollbar-aero px-6 py-4"
+        className="flex-1 overflow-y-auto scrollbar-aero px-6 py-4 min-h-0"
         style={{ position: 'relative' }}
       >
         <BubbleLayer bubbles={bubbles} onRemove={removeBubble} />
@@ -1777,7 +1777,7 @@ export function ChatWindow({ contact, onBack }: Props) {
 
       {/* Input */}
       <form onSubmit={sendMessage} className="px-5 py-4"
-        style={{ borderTop: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '0 0 18px 18px' }}>
+        style={{ flexShrink: 0, borderTop: '1px solid var(--panel-divider)', background: 'var(--panel-header-bg)', backdropFilter: 'blur(12px)', borderRadius: '0 0 18px 18px' }}>
         {!hasPrivateKey && (
           <div className="mb-3 flex items-center gap-2 rounded-aero border px-4 py-2.5 text-sm"
             style={{ background: 'rgba(255,200,50,0.12)', borderColor: 'rgba(220,160,0,0.35)', color: '#8a6200' }}>
