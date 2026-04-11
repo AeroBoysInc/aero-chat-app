@@ -14,6 +14,7 @@ import { BubbleChat } from './BubbleChat';
 import { ServerSettings } from './ServerSettings';
 import { DndThemeProvider } from './toolkits/DndThemeProvider';
 import { DndTabBar, type DndTab } from './toolkits/DndTabBar';
+import { CharactersTab } from './toolkits/CharactersTab';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
@@ -168,17 +169,21 @@ export const ServerView = memo(function ServerView() {
           </>
         ) : (
           /* Toolkit tab placeholder — sub-projects 2–6 will replace these */
+          dndTab === 'characters' ? (
+          <CharactersTab />
+        ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <div style={{ fontSize: 48, marginBottom: 8, opacity: 0.3 }}>
-                {dndTab === 'characters' ? '🃏' : dndTab === 'worldmap' ? '🗺️' : dndTab === 'quests' ? '📜' : '📖'}
+                {dndTab === 'worldmap' ? '🗺️' : dndTab === 'quests' ? '📜' : '📖'}
               </div>
               <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--tk-text, var(--text-primary))', marginBottom: 4 }}>
-                {dndTab === 'characters' ? 'Characters' : dndTab === 'worldmap' ? 'World Map' : dndTab === 'quests' ? 'Quests' : 'DM Notes'}
+                {dndTab === 'worldmap' ? 'World Map' : dndTab === 'quests' ? 'Quests' : 'DM Notes'}
               </p>
               <p style={{ fontSize: 11, color: 'var(--tk-text-muted, var(--text-muted))' }}>Coming soon</p>
             </div>
           </div>
+        )
         )}
       </div>
       {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}
