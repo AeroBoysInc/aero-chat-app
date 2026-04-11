@@ -15,6 +15,9 @@ import { ServerSettings } from './ServerSettings';
 import { DndThemeProvider } from './toolkits/DndThemeProvider';
 import { DndTabBar, type DndTab } from './toolkits/DndTabBar';
 import { CharactersTab } from './toolkits/CharactersTab';
+import { useDndCharacterStore } from '../../store/dndCharacterStore';
+import { getClassColor } from '../../lib/classColors';
+import { HpBar } from './toolkits/HpBar';
 
 export const ServerView = memo(function ServerView() {
   const { serverView, exitToDMs, exitToHub } = useCornerStore();
@@ -24,6 +27,10 @@ export const ServerView = memo(function ServerView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [dndTab, setDndTab] = useState<DndTab>('bubbles');
+  const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
+
+  const characters = useDndCharacterStore(s => s.characters);
+  const loadCharacters = useDndCharacterStore(s => s.loadCharacters);
 
   const server = servers.find(s => s.id === selectedServerId);
   const activeToolkit = useServerStore(s => s.activeToolkit);
@@ -37,6 +44,11 @@ export const ServerView = memo(function ServerView() {
 
   // Reset DnD tab when switching servers
   useEffect(() => { setDndTab('bubbles'); }, [selectedServerId]);
+
+  // Load characters when members popup opens (for hover widget)
+  useEffect(() => {
+    if (membersOpen && activeToolkit && selectedServerId) loadCharacters(selectedServerId);
+  }, [membersOpen, activeToolkit, selectedServerId]);
 
   const activeBubble = useServerStore(s => s.bubbles.find(b => b.id === s.selectedBubbleId));
 
@@ -238,11 +250,15 @@ export const ServerView = memo(function ServerView() {
                           : 'linear-gradient(135deg, rgba(0,120,255,0.15) 0%, rgba(56,204,248,0.10) 100%)'),
                     };
 
+                const memberChar = activeToolkit ? characters.find(c => c.user_id === member.user_id) : null;
+
                 return (
                   <div
                     key={member.user_id}
                     className="overflow-hidden"
                     style={{ borderRadius: 14, border: '1px solid var(--panel-divider)' }}
+                    onMouseEnter={() => memberChar && setHoveredUserId(member.user_id)}
+                    onMouseLeave={() => setHoveredUserId(null)}
                   >
                     {/* Card background strip with effect */}
                     <div style={{ height: 48, position: 'relative', ...bgStyle }}>
@@ -287,6 +303,64 @@ export const ServerView = memo(function ServerView() {
                         ) : null}
                       </div>
                     </div>
+
+                    {/* DnD character widget — reveals on hover */}
+                    {memberChar && hoveredUserId === member.user_id && (() => {
+                      const cc = getClassColor(memberChar.class);
+                      return (
+                        <div className="animate-fade-in" style={{
+                          padding: '8px 12px',
+                          borderTop: `1px solid ${cc}20`,
+                          background: `linear-gradient(135deg, ${cc}08, rgba(0,0,0,0.12))`,
+                        }}>
+                          <div className="flex items-center gap-2.5">
+                            {/* Portrait */}
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                              border: `2px solid ${cc}`,
+                              boxShadow: `0 0 8px ${cc}30`,
+                              background: memberChar.portrait_url
+                                ? `url(${memberChar.portrait_url}) center/cover`
+                                : `linear-gradient(135deg, ${cc}40, ${cc}15)`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 14, color: cc,
+                            }}>
+                              {!memberChar.portrait_url && '🛡️'}
+                            </div>
+                            {/* Name & class */}
+                            <div className="min-w-0 flex-1">
+                              <span style={{ fontSize: 11, fontWeight: 700, color: cc }}>{memberChar.name}</span>
+                              <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>
+                                {memberChar.species} {memberChar.class} · Lv {memberChar.level}
+                              </p>
+                            </div>
+                            {/* AC & Gold */}
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>
+                              <div>AC <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{memberChar.armor_class}</span></div>
+                              <div style={{ color: '#FFD700' }}>{memberChar.gold.toLocaleString()} GP</div>
+                            </div>
+                          </div>
+                          {/* HP bar */}
+                          <div style={{ marginTop: 6 }}>
+                            <HpBar current={memberChar.hp_current} max={memberChar.hp_max} height={4} />
+                          </div>
+                          {/* Stats row */}
+                          <div className="flex gap-1" style={{ marginTop: 5 }}>
+                            {(Object.entries(memberChar.stats) as [string, number][]).map(([key, val]) => (
+                              <div key={key} style={{
+                                flex: 1, textAlign: 'center', padding: '2px 0',
+                                borderRadius: 4, fontSize: 8, fontWeight: 600,
+                                background: val >= 14 ? `${cc}15` : 'rgba(255,255,255,0.04)',
+                                color: val >= 14 ? cc : 'var(--text-muted)',
+                              }}>
+                                <div style={{ textTransform: 'uppercase', fontSize: 7, opacity: 0.6 }}>{key}</div>
+                                {val}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
