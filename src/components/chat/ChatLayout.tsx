@@ -142,10 +142,10 @@ export function ChatLayout() {
     return () => obs.disconnect();
   }, []);
 
-  // Slide to chat pane whenever a contact is selected on mobile
+  // Slide to chat pane whenever a contact or group is selected on mobile
   useEffect(() => {
-    if (isMobile && selectedContact) setMobilePaneShowChat(true);
-  }, [selectedContact, isMobile]);
+    if (isMobile && (selectedContact || selectedGroupId)) setMobilePaneShowChat(true);
+  }, [selectedContact, selectedGroupId, isMobile]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
@@ -182,8 +182,15 @@ export function ChatLayout() {
 
   // ── Mobile layout — single-pane slide navigation ──────────────────────────
   if (isMobile) {
+    // Determine which chat component to show
+    const chatContent = selectedGroupId ? (
+      <GroupChatWindow groupId={selectedGroupId} onBack={() => setMobilePaneShowChat(false)} />
+    ) : selectedContact ? (
+      <ChatWindow contact={selectedContact} onBack={() => setMobilePaneShowChat(false)} />
+    ) : null;
+
     return (
-      <div className="relative h-screen overflow-hidden" style={{ background: 'var(--sidebar-bg)' }}>
+      <div className="h-dvh safe-top safe-bottom relative overflow-hidden" style={{ background: 'var(--sidebar-bg)' }}>
 
         {/* Theme switcher — top right */}
         <div className="fixed top-3 right-3 z-50">
@@ -194,7 +201,7 @@ export function ChatLayout() {
         <div style={{
           position: 'absolute', inset: 0,
           transform: mobilePaneShowChat ? 'translateX(-100%)' : 'translateX(0)',
-          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         }}>
           <Sidebar selectedUser={selectedContact} onSelectUser={setSelectedContact} isMobile />
         </div>
@@ -203,18 +210,35 @@ export function ChatLayout() {
         <div style={{
           position: 'absolute', inset: 0,
           transform: mobilePaneShowChat ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          display: 'flex', flexDirection: 'column',
         }}>
-          {selectedContact && (
-            <div className="flex h-full flex-col" style={{ background: 'var(--sidebar-bg)' }}>
-              <ChatWindow
-                contact={selectedContact}
-                onBack={() => setMobilePaneShowChat(false)}
-              />
-            </div>
-          )}
+          {chatContent}
         </div>
 
+        {/* 1:1 Call — full-screen overlay */}
+        {callActive && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 50 }}>
+            <CallView />
+          </div>
+        )}
+
+        {/* Group Call — full-screen overlay */}
+        {groupCallActive && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 50 }}>
+            <GroupCallView />
+          </div>
+        )}
+
+        {/* Group Call ringing modal */}
+        {groupCallStatus === 'ringing' && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+            <GroupCallView />
+          </div>
+        )}
+
+        {/* Friend requests */}
+        {requestsOpen && <FriendRequestModal onClose={() => setRequestsOpen(false)} />}
       </div>
     );
   }
