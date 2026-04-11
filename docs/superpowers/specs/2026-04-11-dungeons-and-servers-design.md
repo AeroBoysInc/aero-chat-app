@@ -102,62 +102,70 @@ When toolkit is active:
 
 ## 2. Character Cards
 
-### 2a. D&D Beyond Integration (Full Mode)
+Character cards are **purely visual** — a flavourful display of basic character info inside the server. They don't replace a player's real character sheet (D&D Beyond, Foundry VTT, Roll20, pen & paper). Players are still expected to fully play and manage their characters on their platform of choice. The cards provide a quick-glance summary and a nice aesthetic touch to the server.
 
-**Linking flow:**
-1. User clicks "Link Character" in the Characters tab.
-2. User pastes their D&D Beyond character share URL (e.g., `https://www.dndbeyond.com/characters/12345678`).
-3. App extracts the character ID and fetches data via the D&D Beyond API.
-4. Character card is created with full data: name, race, class, level, portrait, HP, XP, all six stats, AC, initiative, proficiency bonus, traits.
-5. Data is stored in `dnd_characters` with `source: 'dndbeyond'`.
+### 2a. Character Creation Flow
 
-**Sync:** A "Refresh" button on the character card re-fetches from D&D Beyond. `last_synced_at` timestamp shown on card footer. No automatic polling — sync is manual to respect API limits.
+**Two ways to create a character card:**
 
-**API access note:** D&D Beyond does not offer a fully public REST API. Character data is accessed by scraping the public character JSON endpoint (`https://character-service.dndbeyond.com/character/v5/character/<id>`) which is available for characters with sharing enabled. If this endpoint becomes unavailable or restricted, the manual fallback mode ensures the feature remains functional. The implementation should handle API failures gracefully and prompt users to switch to manual mode if sync fails repeatedly.
+**Option 1 — PDF Import (recommended):**
+1. Player downloads their character sheet PDF from D&D Beyond (or any platform that exports a standard 5e character sheet PDF).
+2. Player clicks "Create Character" in the Characters tab and uploads the PDF.
+3. The app parses the PDF using `pdfjs-dist` to extract: name, species, class, level, ability scores (STR/DEX/CON/INT/WIS/CHA), HP (current/max), AC, XP, gold.
+4. Extracted data is shown in a preview. Player can review and correct any mis-parsed fields before confirming.
+5. Player then uploads a portrait image and optionally a background image to personalize their card.
+6. Character card is saved.
 
-**Data pulled from D&D Beyond:**
-- Name, race, class (multiclass supported as comma-separated), level
-- Portrait image URL
-- HP (current/max), XP (current/max for milestone or XP-based tracking)
-- Six ability scores (STR, DEX, CON, INT, WIS, CHA)
-- Armor Class, Initiative modifier, Proficiency bonus
-- Notable traits (Darkvision, resistances, etc.)
+**Option 2 — Manual Entry:**
+For players who don't have a PDF export (pen & paper players, or platforms without PDF export), they can fill in all fields by hand. The form has the same fields as the PDF parser output — nothing is hidden or restricted.
 
-### 2b. Manual Mode (Tracking Only)
+**All fields are editable after creation.** Players can go back and change any stat, level, name, images, etc. at any time. Everything is modular.
 
-**Warning displayed before manual creation:**
+### 2b. Character Card Data
 
-> "Dungeons & Servers is designed to sync with D&D Beyond for the full experience. Manual mode is for players using other platforms (Foundry VTT, Roll20, pen & paper). You'll only be able to track basic info — this won't build a character sheet for you. Make sure your character is already created elsewhere."
+All characters store the same data regardless of how they were created:
 
-**Manual fields:**
-- Portrait (upload to `dnd-assets` storage bucket)
-- Character name (required)
-- Race (text input)
-- Class (text input)
-- Level (number)
-- HP current / HP max
-- XP current / XP max
-- Gold (optional)
+- **Name** (required)
+- **Species** (e.g., Human, Elf, Tiefling)
+- **Class** (e.g., Fighter, Wizard — multiclass as comma-separated)
+- **Level**
+- **Ability scores:** STR, DEX, CON, INT, WIS, CHA
+- **HP** (current / max)
+- **AC** (Armor Class)
+- **XP** (current / max)
+- **Gold**
+- **Portrait image** (upload to `dnd-assets` storage bucket)
+- **Background image** (optional, upload to `dnd-assets` storage bucket)
 
-**Not available in manual mode:** Stat block, AC, initiative, proficiency, traits. The expanded card popup simply omits these sections.
+### 2c. Chat Commands for HP & XP
 
-### 2c. Card Appearances
+Since characters are not real-time synced, players update HP and XP manually — either via the card UI or via chat commands in any bubble:
 
-**Sidebar compact card (in bubble member list):**
-- Character portrait (32px circle) with class-color border
-- Character name + "Race Class · Lv X"
+- **`/give exp [number]`** — Adds XP to your character. Example: `/give exp 500`
+- **`/heal [number]`** — Heals HP. Example: `/heal 20` (capped at HP max)
+- **`/damage [number]`** — Takes damage. Example: `/damage 15` (floored at 0)
+
+Commands are processed locally: the app updates the character's `hp_current` or `xp_current` in the database and posts a styled system message in the bubble so other members can see the change (e.g., "⚔️ Thorin took 15 damage (45 → 30 HP)").
+
+### 2d. Card Appearances
+
+**Compact card (in Characters tab list):**
+- Character portrait (40px circle) with class-color border
+- Character name + "Species Class · Lv X"
 - HP bar (green → red gradient based on percentage)
 - XP bar (gold)
-- DM badge (gold border + "Dungeon Master" label) for DM users
+- DM badge (gold border + "DM" label) for DM users
+- Background image as subtle card backdrop (if set)
 
 **Expanded card popup (click to inspect):**
+- Background image as full card backdrop (if set), with gradient overlay
 - Larger portrait (64px) with class-color glow
-- Full name, race, class, level
+- Full name, species, class, level
 - "Played by @username" subtitle
-- Stat grid (3x2): STR/DEX/CON/INT/WIS/CHA — high stats highlighted in class color, low stats dimmed (D&D Beyond mode only)
-- HP + XP bars (larger, with glow)
-- Quick-info badges: AC, Initiative, Proficiency, notable traits (D&D Beyond mode only)
-- "Synced from D&D Beyond · X min ago" footer (or "Manual character" for manual mode)
+- Stat grid (3×2): STR/DEX/CON/INT/WIS/CHA — high stats (≥14) highlighted in class color, low stats (≤8) dimmed
+- HP + XP bars (larger, with glow and labels)
+- AC and Gold badges
+- "Edit" button (visible to character owner and DMs) opens inline editing for all fields
 
 **Call tile integration:**
 - During voice/video calls in a toolkit-enabled server, participant tiles show:
@@ -167,7 +175,7 @@ When toolkit is active:
   - DM badge for Dungeon Master users
   - Low HP warning indicator (red `!` when below 25%)
 
-### 2d. HP Bar Color Logic
+### 2e. HP Bar Color Logic
 
 HP bar color shifts based on percentage of current/max:
 - 100–60%: green (`#4CAF50`)
