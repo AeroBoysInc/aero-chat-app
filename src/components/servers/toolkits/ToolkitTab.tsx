@@ -23,11 +23,12 @@ export const ToolkitTab = memo(function ToolkitTab() {
     setLoading(true);
     try {
       // 1. Insert toolkit activation
-      await supabase.from('server_toolkits').insert({
+      const { error } = await supabase.from('server_toolkits').insert({
         server_id: selectedServerId,
         toolkit_id: 'dnd',
         activated_by: user.id,
       });
+      if (error) { console.error('[ToolkitTab] Activate failed:', error); return; }
 
       // 2. Grant dungeon_master to Owner role
       const ownerRole = roles.find(r => r.is_owner_role);
@@ -48,9 +49,10 @@ export const ToolkitTab = memo(function ToolkitTab() {
     if (!selectedServerId || !isOwner) return;
     setLoading(true);
     try {
-      await supabase.from('server_toolkits')
+      const { error } = await supabase.from('server_toolkits')
         .delete()
         .eq('server_id', selectedServerId);
+      if (error) { console.error('[ToolkitTab] Deactivate failed:', error); return; }
       await loadServerData(selectedServerId);
     } finally {
       setLoading(false);
@@ -154,7 +156,7 @@ export const ToolkitTab = memo(function ToolkitTab() {
               {loading ? 'Deactivating…' : 'Deactivate'}
             </button>
           )}
-          {isOwner && !isPremium && (
+          {isOwner && !isPremium && !isActive && (
             <button
               className="flex-1"
               style={{
