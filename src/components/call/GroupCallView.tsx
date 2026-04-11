@@ -15,6 +15,9 @@ import { useThemeStore } from '../../store/themeStore';
 import { useFriendStore } from '../../store/friendStore';
 import { useIsMobile } from '../../lib/useIsMobile';
 import { GroupChatWindow } from '../chat/GroupChatWindow';
+import { useDndCharacterStore } from '../../store/dndCharacterStore';
+import { useServerStore } from '../../store/serverStore';
+import { useServerRoleStore } from '../../store/serverRoleStore';
 
 const MAX_PARTICIPANTS = 4;
 
@@ -60,6 +63,12 @@ export function GroupCallView() {
   const myPalette = getGroupTierPalette(myTier);
 
   const friends = useFriendStore(s => s.friends);
+
+  const { characters } = useDndCharacterStore();
+  const activeToolkit = useServerStore(s => s.activeToolkit);
+  const selectedServerId = useServerStore(s => s.selectedServerId);
+  const members = useServerStore(s => s.members);
+  const hasPermission = useServerRoleStore(s => s.hasPermission);
 
   const groupId = useGroupCallStore(s => s.groupId);
   const isMobile = useIsMobile();
@@ -276,6 +285,8 @@ export function GroupCallView() {
                   audioLevel={p.audioLevel}
                   isMe={p.userId === myUserId}
                   compact
+                  character={activeToolkit ? characters.find(c => c.user_id === p.userId) ?? null : null}
+                  isDm={activeToolkit && selectedServerId ? hasPermission(selectedServerId, p.userId, members, 'dungeon_master') : false}
                 />
               ))}
             </div>
