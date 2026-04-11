@@ -1897,3 +1897,17 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* ── Mobile viewport ─────────────────────────────── */
+.h-dvh {
+  height: 100vh; /* fallback */
+  height: 100dvh;
+}
+
+.safe-top    { padding-top:    env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Cap orbs on mobile to save GPU */
+@media (max-width: 767px) {
+  .orb:nth-child(n+3) { display: none; }
+}
