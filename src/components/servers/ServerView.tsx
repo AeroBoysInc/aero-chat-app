@@ -15,6 +15,7 @@ import { ServerSettings } from './ServerSettings';
 import { DndThemeProvider } from './toolkits/DndThemeProvider';
 import { DndTabBar, type DndTab } from './toolkits/DndTabBar';
 import { CharactersTab } from './toolkits/CharactersTab';
+import { WorldMapTab } from './toolkits/worldmap/WorldMapTab';
 import { useDndCharacterStore } from '../../store/dndCharacterStore';
 import { getClassColor } from '../../lib/classColors';
 import { HpBar } from './toolkits/HpBar';
@@ -181,17 +182,19 @@ export const ServerView = memo(function ServerView() {
             </div>
           </>
         ) : (
-          /* Toolkit tab placeholder — sub-projects 2–6 will replace these */
+          /* Toolkit tab content */
           dndTab === 'characters' ? (
           <CharactersTab />
+        ) : dndTab === 'worldmap' ? (
+          <WorldMapTab />
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <div style={{ fontSize: 48, marginBottom: 8, opacity: 0.3 }}>
-                {dndTab === 'worldmap' ? '🗺️' : dndTab === 'quests' ? '📜' : '📖'}
+                {dndTab === 'quests' ? '📜' : '📖'}
               </div>
               <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--tk-text, var(--text-primary))', marginBottom: 4 }}>
-                {dndTab === 'worldmap' ? 'World Map' : dndTab === 'quests' ? 'Quests' : 'DM Notes'}
+                {dndTab === 'quests' ? 'Quests' : 'DM Notes'}
               </p>
               <p style={{ fontSize: 11, color: 'var(--tk-text-muted, var(--text-muted))' }}>Coming soon</p>
             </div>
