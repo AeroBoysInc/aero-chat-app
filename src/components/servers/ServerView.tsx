@@ -16,6 +16,8 @@ import { DndThemeProvider } from './toolkits/DndThemeProvider';
 import { DndTabBar, type DndTab } from './toolkits/DndTabBar';
 import { CharactersTab } from './toolkits/CharactersTab';
 import { WorldMapTab } from './toolkits/worldmap/WorldMapTab';
+import { QuestLog } from './toolkits/quests/QuestLog';
+import { DmNotebook } from './toolkits/dmnotes/DmNotebook';
 import { useDndCharacterStore } from '../../store/dndCharacterStore';
 import { getClassColor } from '../../lib/classColors';
 import { HpBar } from './toolkits/HpBar';
@@ -187,19 +189,11 @@ export const ServerView = memo(function ServerView() {
           <CharactersTab />
         ) : dndTab === 'worldmap' ? (
           <WorldMapTab />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <div style={{ fontSize: 48, marginBottom: 8, opacity: 0.3 }}>
-                {dndTab === 'quests' ? '📜' : '📖'}
-              </div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--tk-text, var(--text-primary))', marginBottom: 4 }}>
-                {dndTab === 'quests' ? 'Quests' : 'DM Notes'}
-              </p>
-              <p style={{ fontSize: 11, color: 'var(--tk-text-muted, var(--text-muted))' }}>Coming soon</p>
-            </div>
-          </div>
-        )
+        ) : dndTab === 'quests' ? (
+          <QuestLog />
+        ) : dndTab === 'dm-notes' ? (
+          <DmNotebook />
+        ) : null
         )}
       </div>
       {settingsOpen && <ServerSettings onClose={() => setSettingsOpen(false)} />}

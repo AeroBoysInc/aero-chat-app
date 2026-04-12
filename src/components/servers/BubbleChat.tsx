@@ -16,6 +16,8 @@ import { MessageContent } from '../chat/MessageContent';
 import { ImageLightbox } from '../chat/ImageLightbox';
 import { ExternalLinkModal } from '../chat/ExternalLinkModal';
 import { createNoisePipeline, createGainPipeline, type NoisePipeline } from '../../lib/noiseSuppression';
+import { parseRollCommand, rollDice, isDiceRollMessage, parseDiceRollMessage } from '../../lib/diceNotation';
+import { DiceRollMessage } from './toolkits/dice/DiceRollMessage';
 import type { BubbleMessage } from '../../lib/serverTypes';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -420,6 +422,21 @@ export const BubbleChat = memo(function BubbleChat() {
     const text = input.trim();
     setInput('');
     setMentionQuery(null);
+
+    // ── Dice roll interception (works in any server bubble) ──
+    if (activeToolkit) {
+      const parsed = parseRollCommand(text);
+      if (parsed) {
+        const payload = rollDice(parsed);
+        await sendContent(JSON.stringify(payload));
+        setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
+      if (/^\/roll\b/i.test(text)) {
+        setSendError('Invalid dice notation. Try `/roll 2d6+3`.');
+        return;
+      }
+    }
 
     // ── DnD command interception ──
     if (activeToolkit) {
@@ -861,6 +878,7 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
   const isVoice = isVoiceMessage(msg.content);
   const isFile = isFileMessage(msg.content);
   const isGif = isGifMessage(msg.content);
+  const isDndRoll = isDiceRollMessage(msg.content);
 
   return (
     <div
@@ -903,7 +921,11 @@ const BubbleMessageItem = memo(function BubbleMessageItem({
 
         {/* Content */}
         <div className="selectable" style={{ marginTop: 2 }}>
-          {isDndCommandMessage(msg.content) ? (() => {
+          {isDndRoll ? (() => {
+            const payload = parseDiceRollMessage(msg.content);
+            if (!payload) return null;
+            return <DiceRollMessage payload={payload} isMine={msg.sender_id === userId} />;
+          })() : isDndCommandMessage(msg.content) ? (() => {
             const cmd = parseDndCommandMessage(msg.content);
             if (!cmd) return null;
             return (

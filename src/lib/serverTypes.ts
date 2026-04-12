@@ -148,4 +148,29 @@ export interface DndMapVisibility {
   target_id: string;
 }
 
+export interface DndQuest {
+  id: string;
+  server_id: string;
+  title: string;
+  description: string;
+  is_secret: boolean;
+  secret_player_ids: string[];
+  is_completed: boolean;
+  completed_at: string | null;
+  created_by: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface DndDmNote {
+  id: string;
+  server_id: string;
+  title: string;
+  content: string;
+  sort_order: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type PermissionKey = keyof Omit<ServerRolePermissions, 'role_id'>;
