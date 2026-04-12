@@ -83,8 +83,8 @@ export const MapPin = memo(function MapPin({
         position: 'absolute',
         left: `${displayX}%`,
         top: `${displayY}%`,
-        width: 44,
-        height: 44,
+        width: 30,
+        height: 30,
         transform: `translate(-50%, -50%) scale(${inverseScale})`,
         cursor: isDm ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
         zIndex: hovered || isDragging ? 10 : 5,
@@ -96,20 +96,20 @@ export const MapPin = memo(function MapPin({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {/* Pulse ring — exactly aligned with icon */}
+      {/* Pulse ring — concentric with icon */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           borderRadius: '50%',
-          border: `2px solid ${pin.color}`,
+          border: `1.5px solid ${pin.color}`,
           opacity: 0,
           animation: isDragging ? 'none' : 'pin-pulse 2.5s ease-out infinite',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Icon circle — bigger, brighter, white ring for contrast */}
+      {/* Icon circle — crisp white ring, radial fill, inner gloss */}
       <div
         style={{
           position: 'absolute',
@@ -118,32 +118,33 @@ export const MapPin = memo(function MapPin({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 22,
-          background: `radial-gradient(circle at 30% 28%, ${pin.color}ff, ${pin.color}b0 60%, ${pin.color}90)`,
-          border: '3px solid #ffffff',
+          fontSize: 14,
+          lineHeight: 1,
+          background: `radial-gradient(circle at 32% 28%, ${pin.color}ff 0%, ${pin.color}c8 55%, ${pin.color}a0 100%)`,
+          border: '2px solid #ffffff',
           boxShadow: hovered || isDragging
-            ? `0 4px 14px rgba(0,0,0,0.7), 0 0 24px ${pin.color}a0, 0 0 48px ${pin.color}55`
-            : `0 3px 10px rgba(0,0,0,0.65), 0 0 16px ${pin.color}80`,
-          transition: 'box-shadow 0.2s ease',
+            ? `0 3px 10px rgba(0,0,0,0.55), 0 0 18px ${pin.color}a0, 0 0 34px ${pin.color}50, inset 0 1px 1px rgba(255,255,255,0.6)`
+            : `0 2px 6px rgba(0,0,0,0.5), 0 0 10px ${pin.color}70, inset 0 1px 1px rgba(255,255,255,0.5)`,
+          transition: 'box-shadow 0.18s ease',
         }}
       >
-        <span style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>{pin.emoji}</span>
+        <span style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.45))' }}>{pin.emoji}</span>
       </div>
 
-      {/* Label pill — below icon, dark backdrop for readability over any map */}
+      {/* Label pill — compact, dark backdrop for legibility on any map */}
       <div
         style={{
           position: 'absolute',
           left: '50%',
           top: '100%',
           transform: 'translateX(-50%)',
-          marginTop: 5,
-          padding: '2px 9px',
+          marginTop: 4,
+          padding: '1.5px 7px',
           background: 'rgba(10,12,20,0.78)',
-          border: `1px solid ${pin.color}90`,
-          borderRadius: 10,
+          border: `1px solid ${pin.color}80`,
+          borderRadius: 8,
           backdropFilter: 'blur(4px)',
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: 700,
           color: '#ffffff',
           letterSpacing: '0.02em',
