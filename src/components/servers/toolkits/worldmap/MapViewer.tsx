@@ -99,9 +99,11 @@ export const MapViewer = memo(function MapViewer({
   // Mouse drag to pan
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    // Reset drag-moved flag on every mousedown so stale "true" from a
+    // previous pan doesn't block the next pin click.
+    dragMoved.current = false;
     if ((e.target as HTMLElement).closest('[data-hud]') || (e.target as HTMLElement).closest('[data-pin]')) return;
     dragging.current = true;
-    dragMoved.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY };
     panStart.current = { x: panX, y: panY };
     setCursorStyle('grabbing');
