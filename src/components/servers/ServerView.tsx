@@ -1,5 +1,5 @@
 // src/components/servers/ServerView.tsx
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Settings, X } from 'lucide-react';
 import { useCornerStore } from '../../store/cornerStore';
 import { useServerStore } from '../../store/serverStore';
@@ -31,7 +31,8 @@ export const ServerView = memo(function ServerView() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [dndTab, setDndTab] = useState<DndTab>('bubbles');
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
-  const [hoverRect, setHoverRect] = useState<{ top: number; right: number; bottom: number } | null>(null);
+  const [hoverRect, setHoverRect] = useState<{ cardCenterY: number; containerRight: number } | null>(null);
+  const memberListRef = useRef<HTMLDivElement>(null);
 
   const characters = useDndCharacterStore(s => s.characters);
   const loadCharacters = useDndCharacterStore(s => s.loadCharacters);
@@ -229,7 +230,7 @@ export const ServerView = memo(function ServerView() {
             </div>
 
             {/* Member cards */}
-            <div className="overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
+            <div ref={memberListRef} className="overflow-y-auto px-4 py-3 flex flex-col gap-2.5">
               {members.map(member => {
                 const role = roles.find(r => r.id === member.role_id);
                 const hasImage = !!member.card_image_url;
@@ -258,8 +259,12 @@ export const ServerView = memo(function ServerView() {
                     onMouseEnter={(e) => {
                       if (!memberChar) return;
                       const rect = e.currentTarget.getBoundingClientRect();
+                      const containerRect = memberListRef.current?.getBoundingClientRect();
                       setHoveredUserId(member.user_id);
-                      setHoverRect({ top: rect.top, right: rect.right, bottom: rect.bottom });
+                      setHoverRect({
+                        cardCenterY: (rect.top + rect.bottom) / 2,
+                        containerRight: containerRect?.right ?? rect.right,
+                      });
                     }}
                     onMouseLeave={() => { setHoveredUserId(null); setHoverRect(null); }}
                   >
@@ -318,14 +323,15 @@ export const ServerView = memo(function ServerView() {
             const char = characters.find(c => c.user_id === hoveredUserId);
             if (!char) return null;
             const cc = getClassColor(char.class);
-            // Clamp vertical position so card doesn't overflow viewport
+            // Center the tooltip vertically on the hovered card, clamped to viewport
             const cardHeight = 260;
-            const top = Math.min(hoverRect.top, window.innerHeight - cardHeight - 16);
+            const rawTop = hoverRect.cardCenterY - cardHeight / 2;
+            const top = Math.max(16, Math.min(rawTop, window.innerHeight - cardHeight - 16));
             return (
               <div
                 className="animate-fade-in"
                 style={{
-                  position: 'fixed', top, left: hoverRect.right + 12,
+                  position: 'fixed', top, left: hoverRect.containerRight + 12,
                   width: 240, borderRadius: 16, overflow: 'hidden',
                   background: 'var(--sidebar-bg)', border: '1px solid var(--panel-divider)',
                   boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
