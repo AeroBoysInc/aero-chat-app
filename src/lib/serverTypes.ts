@@ -115,4 +115,37 @@ export interface DndCharacter {
   created_at: string;
 }
 
+export interface DndMap {
+  id: string;
+  server_id: string;
+  name: string;
+  image_url: string;
+  sort_order: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface DndMapPin {
+  id: string;
+  map_id: string;
+  x: number;
+  y: number;
+  pin_type: string;
+  emoji: string;
+  name: string;
+  subtitle: string;
+  description: Record<string, unknown>;
+  header_image_url: string | null;
+  color: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface DndMapVisibility {
+  id: string;
+  map_id: string;
+  target_type: 'role' | 'member';
+  target_id: string;
+}
+
 export type PermissionKey = keyof Omit<ServerRolePermissions, 'role_id'>;
