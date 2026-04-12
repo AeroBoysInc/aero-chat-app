@@ -6,28 +6,37 @@ export const Minimap = memo(function Minimap({
   pins,
   panX,
   panY,
-  scale,
+  effectiveScale,
   containerWidth,
   containerHeight,
+  imageWidth,
+  imageHeight,
   onNavigate,
 }: {
   imageUrl: string;
   pins: DndMapPin[];
   panX: number;
   panY: number;
-  scale: number;
+  effectiveScale: number;
   containerWidth: number;
   containerHeight: number;
+  imageWidth: number;
+  imageHeight: number;
   onNavigate: (worldXPercent: number, worldYPercent: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  // Viewport rect in percentages
-  const vx = containerWidth > 0 ? ((-panX / scale) / containerWidth) * 100 : 0;
-  const vy = containerHeight > 0 ? ((-panY / scale) / containerHeight) * 100 : 0;
-  const vw = containerWidth > 0 ? ((containerWidth / scale) / containerWidth) * 100 : 100;
-  const vh = containerHeight > 0 ? ((containerHeight / scale) / containerHeight) * 100 : 100;
+  // Dynamic height matching image aspect ratio
+  const MINI_W = 140;
+  const aspect = imageWidth > 0 && imageHeight > 0 ? imageWidth / imageHeight : 16 / 9;
+  const miniH = Math.max(60, Math.min(140, Math.round(MINI_W / aspect)));
+
+  // Viewport rect in image-percentage space
+  const vx = imageWidth > 0 ? ((-panX / effectiveScale) / imageWidth) * 100 : 0;
+  const vy = imageHeight > 0 ? ((-panY / effectiveScale) / imageHeight) * 100 : 0;
+  const vw = imageWidth > 0 ? ((containerWidth / effectiveScale) / imageWidth) * 100 : 100;
+  const vh = imageHeight > 0 ? ((containerHeight / effectiveScale) / imageHeight) * 100 : 100;
 
   const handleNav = useCallback((e: React.MouseEvent | MouseEvent) => {
     if (!ref.current) return;
@@ -70,7 +79,7 @@ export const Minimap = memo(function Minimap({
       onMouseDown={handleMouseDown}
       style={{
         position: 'absolute', bottom: 14, left: 14, zIndex: 15,
-        width: 140, height: 95, borderRadius: 10, overflow: 'hidden',
+        width: MINI_W, height: miniH, borderRadius: 10, overflow: 'hidden',
         border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.55)',
         backdropFilter: 'blur(8px)', cursor: 'pointer',
       }}

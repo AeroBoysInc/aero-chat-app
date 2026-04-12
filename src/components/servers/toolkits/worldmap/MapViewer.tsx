@@ -23,10 +23,11 @@ export const MapViewer = memo(function MapViewer({
   onAddPin,
 }: MapViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(1); // user zoom: 1 = fit-to-view, 3 = max
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null);
 
   // Drag state
   const dragging = useRef(false);
@@ -48,17 +49,44 @@ export const MapViewer = memo(function MapViewer({
     return () => obs.disconnect();
   }, []);
 
-  // Clamp helper
+  // Load image natural dimensions
+  useEffect(() => {
+    setImageSize(null);
+    const img = new Image();
+    img.onload = () => setImageSize({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // Base scale: fits the entire image within the container at zoom=1
+  const baseScale = imageSize && containerSize.w > 0 && containerSize.h > 0
+    ? Math.min(containerSize.w / imageSize.w, containerSize.h / imageSize.h)
+    : 1;
+  const effectiveScale = baseScale * scale;
+
+  // Center image when loaded or container resizes
+  useEffect(() => {
+    if (!imageSize || containerSize.w === 0) return;
+    const bs = Math.min(containerSize.w / imageSize.w, containerSize.h / imageSize.h);
+    const rw = imageSize.w * bs;
+    const rh = imageSize.h * bs;
+    setPanX(rw < containerSize.w ? (containerSize.w - rw) / 2 : 0);
+    setPanY(rh < containerSize.h ? (containerSize.h - rh) / 2 : 0);
+    setScale(1);
+  }, [imageSize, containerSize.w, containerSize.h]);
+
+  // Clamp helper — centers axis when rendered size fits in container
   const clamp = useCallback((px: number, py: number, s: number) => {
+    if (!imageSize || containerSize.w === 0) return { x: px, y: py };
+    const es = baseScale * s;
+    const rw = imageSize.w * es;
+    const rh = imageSize.h * es;
     const cw = containerSize.w;
     const ch = containerSize.h;
-    const maxPx = (s - 1) * cw;
-    const maxPy = (s - 1) * ch;
     return {
-      x: Math.max(-maxPx, Math.min(0, px)),
-      y: Math.max(-maxPy, Math.min(0, py)),
+      x: rw <= cw ? (cw - rw) / 2 : Math.max(-(rw - cw), Math.min(0, px)),
+      y: rh <= ch ? (ch - rh) / 2 : Math.max(-(rh - ch), Math.min(0, py)),
     };
-  }, [containerSize]);
+  }, [imageSize, baseScale, containerSize]);
 
   // Apply pan+zoom with clamping
   const applyTransform = useCallback((px: number, py: number, s: number) => {
@@ -102,7 +130,7 @@ export const MapViewer = memo(function MapViewer({
     };
   }, [scale, clamp]);
 
-  // Scroll wheel zoom
+  // Scroll wheel zoom toward cursor
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if ((e.target as HTMLElement).closest('[data-hud]')) return;
     e.preventDefault();
@@ -110,49 +138,53 @@ export const MapViewer = memo(function MapViewer({
     const newScale = Math.max(1, Math.min(3, scale + delta));
     if (newScale === scale) return;
 
+    const curEff = baseScale * scale;
+    const newEff = baseScale * newScale;
     const rect = containerRef.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const wx = (mx - panX) / scale;
-    const wy = (my - panY) / scale;
-    applyTransform(mx - wx * newScale, my - wy * newScale, newScale);
+    const wx = (mx - panX) / curEff;
+    const wy = (my - panY) / curEff;
+    applyTransform(mx - wx * newEff, my - wy * newEff, newScale);
     setContextMenu(null);
-  }, [scale, panX, panY, applyTransform]);
+  }, [scale, panX, panY, baseScale, applyTransform]);
 
   // Zoom buttons
   const zoomToCenter = useCallback((delta: number) => {
     const newScale = Math.max(1, Math.min(3, scale + delta));
     if (newScale === scale) return;
+    const curEff = baseScale * scale;
+    const newEff = baseScale * newScale;
     const cx = containerSize.w / 2;
     const cy = containerSize.h / 2;
-    const wx = (cx - panX) / scale;
-    const wy = (cy - panY) / scale;
-    applyTransform(cx - wx * newScale, cy - wy * newScale, newScale);
-  }, [scale, panX, panY, containerSize, applyTransform]);
+    const wx = (cx - panX) / curEff;
+    const wy = (cy - panY) / curEff;
+    applyTransform(cx - wx * newEff, cy - wy * newEff, newScale);
+  }, [scale, panX, panY, baseScale, containerSize, applyTransform]);
 
   // Minimap navigation
   const handleMinimapNavigate = useCallback((worldXPct: number, worldYPct: number) => {
-    const cw = containerSize.w;
-    const ch = containerSize.h;
-    const px = -((worldXPct / 100) * cw * scale - cw / 2);
-    const py = -((worldYPct / 100) * ch * scale - ch / 2);
+    if (!imageSize) return;
+    const es = effectiveScale;
+    const px = -((worldXPct / 100) * imageSize.w * es - containerSize.w / 2);
+    const py = -((worldYPct / 100) * imageSize.h * es - containerSize.h / 2);
     const clamped = clamp(px, py, scale);
     setPanX(clamped.x);
     setPanY(clamped.y);
-  }, [containerSize, scale, clamp]);
+  }, [imageSize, effectiveScale, containerSize, scale, clamp]);
 
   // Right-click to add pin
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    if (!isDm) return;
+    if (!isDm || !imageSize) return;
     if ((e.target as HTMLElement).closest('[data-hud]') || (e.target as HTMLElement).closest('[data-pin]')) return;
     e.preventDefault();
     const rect = containerRef.current!.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
-    const worldX = ((sx - panX) / scale) / containerSize.w * 100;
-    const worldY = ((sy - panY) / scale) / containerSize.h * 100;
+    const worldX = ((sx - panX) / effectiveScale) / imageSize.w * 100;
+    const worldY = ((sy - panY) / effectiveScale) / imageSize.h * 100;
     setContextMenu({ screenX: e.clientX, screenY: e.clientY, worldX, worldY });
-  }, [isDm, panX, panY, scale, containerSize]);
+  }, [isDm, panX, panY, effectiveScale, imageSize]);
 
   // Pin click (ignore if was dragging)
   const handlePinClick = useCallback((pin: DndMapPin) => {
@@ -163,37 +195,39 @@ export const MapViewer = memo(function MapViewer({
   return (
     <div
       ref={containerRef}
-      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', cursor: cursorStyle }}
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', cursor: cursorStyle, background: 'rgba(0,0,0,0.2)' }}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
       onContextMenu={handleContextMenu}
       onClick={() => setContextMenu(null)}
     >
-      {/* Map world layer */}
-      <div
-        style={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          transformOrigin: '0 0',
-          transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
-        }}
-      >
-        <img
-          src={imageUrl}
-          alt="Map"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none' }}
-          draggable={false}
-        />
-        {pins.map(pin => (
-          <MapPin
-            key={pin.id}
-            pin={pin}
-            scale={scale}
-            onPinClick={handlePinClick}
+      {/* Map world layer — sized to actual image, scaled to fit container */}
+      {imageSize && (
+        <div
+          style={{
+            position: 'absolute',
+            width: imageSize.w,
+            height: imageSize.h,
+            transformOrigin: '0 0',
+            transform: `translate(${panX}px, ${panY}px) scale(${effectiveScale})`,
+          }}
+        >
+          <img
+            src={imageUrl}
+            alt="Map"
+            style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+            draggable={false}
           />
-        ))}
-      </div>
+          {pins.map(pin => (
+            <MapPin
+              key={pin.id}
+              pin={pin}
+              scale={effectiveScale}
+              onPinClick={handlePinClick}
+            />
+          ))}
+        </div>
+      )}
 
       {/* HUD — not affected by zoom */}
       <div data-hud style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 15 }}>
@@ -206,9 +240,11 @@ export const MapViewer = memo(function MapViewer({
             pins={pins}
             panX={panX}
             panY={panY}
-            scale={scale}
+            effectiveScale={effectiveScale}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
+            imageWidth={imageSize?.w ?? 0}
+            imageHeight={imageSize?.h ?? 0}
             onNavigate={handleMinimapNavigate}
           />
         </div>
