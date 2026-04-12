@@ -13,6 +13,7 @@ interface MapViewerProps {
   isDm: boolean;
   onPinClick: (pin: DndMapPin) => void;
   onAddPin: (x: number, y: number, preset: PinTypePreset) => void;
+  onPinMove: (pin: DndMapPin, newX: number, newY: number) => void;
 }
 
 export const MapViewer = memo(function MapViewer({
@@ -21,6 +22,7 @@ export const MapViewer = memo(function MapViewer({
   isDm,
   onPinClick,
   onAddPin,
+  onPinMove,
 }: MapViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1); // user zoom: 1 = fit-to-view, 3 = max
@@ -225,7 +227,11 @@ export const MapViewer = memo(function MapViewer({
               key={pin.id}
               pin={pin}
               scale={effectiveScale}
+              isDm={isDm}
+              imageWidth={imageSize.w}
+              imageHeight={imageSize.h}
               onPinClick={handlePinClick}
+              onPinMove={onPinMove}
             />
           ))}
         </div>

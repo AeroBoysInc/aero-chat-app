@@ -1,5 +1,6 @@
 // src/components/servers/toolkits/worldmap/AddPinMenu.tsx
 import { memo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { PIN_TYPE_PRESETS, type PinTypePreset } from '../../../../lib/pinTypePresets';
 
 export const AddPinMenu = memo(function AddPinMenu({
@@ -28,13 +29,20 @@ export const AddPinMenu = memo(function AddPinMenu({
     };
   }, [onClose]);
 
-  // Clamp to viewport
+  // Clamp to viewport so the menu stays on-screen near the cursor
+  const MENU_W = 220;
+  const MENU_H = 12 * 34 + 30; // ~header + 12 items
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const left = Math.max(8, Math.min(x, vw - MENU_W - 8));
+  const top = Math.max(8, Math.min(y, vh - MENU_H - 8));
+
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: x,
-    top: y,
-    zIndex: 50,
-    width: 220,
+    left,
+    top,
+    zIndex: 9999,
+    width: MENU_W,
     borderRadius: 14,
     overflow: 'hidden',
     background: 'rgba(18,18,32,0.97)',
@@ -43,7 +51,9 @@ export const AddPinMenu = memo(function AddPinMenu({
     backdropFilter: 'blur(16px)',
   };
 
-  return (
+  // Portal to body so ancestor transform/filter/backdrop-filter don't hijack position:fixed
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <div ref={ref} style={style}>
       <div style={{
         padding: '10px 14px 6px', fontSize: 10, fontWeight: 700,
@@ -69,6 +79,7 @@ export const AddPinMenu = memo(function AddPinMenu({
           <span>{preset.label}</span>
         </button>
       ))}
-    </div>
+    </div>,
+    document.body
   );
 });

@@ -157,8 +157,20 @@ export const useDndMapStore = create<DndMapStoreState>()((set, get) => {
     },
 
     updatePin: async (id, fields) => {
+      // Optimistic local update so drag-to-move feels instant
+      const prevPins = get().pins;
+      set(s => {
+        const newPins: Record<string, DndMapPin[]> = {};
+        for (const [mapId, arr] of Object.entries(s.pins)) {
+          newPins[mapId] = arr.map(p => p.id === id ? { ...p, ...fields } : p);
+        }
+        return { pins: newPins };
+      });
       const { error } = await supabase.from('dnd_map_pins').update(fields).eq('id', id);
-      if (error) return { error: error.message };
+      if (error) {
+        set({ pins: prevPins });
+        return { error: error.message };
+      }
       return {};
     },
 

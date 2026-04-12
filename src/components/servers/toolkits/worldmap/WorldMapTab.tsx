@@ -20,7 +20,7 @@ export const WorldMapTab = memo(function WorldMapTab() {
   const { hasPermission } = useServerRoleStore();
   const {
     visibleMaps, pins, activeMapId, loading,
-    loadMaps, loadPins, setActiveMap, deletePin, subscribeRealtime, reset,
+    loadMaps, loadPins, setActiveMap, deletePin, updatePin, subscribeRealtime, reset,
   } = useDndMapStore();
 
   const isDm = user && selectedServerId
@@ -72,6 +72,10 @@ export const WorldMapTab = memo(function WorldMapTab() {
     setPopupPin(null);
   }, [deletePin]);
 
+  const handlePinMove = useCallback((pin: DndMapPin, newX: number, newY: number) => {
+    updatePin(pin.id, { x: newX, y: newY });
+  }, [updatePin]);
+
   // Empty state — no maps yet
   if (!loading && visibleMaps.length === 0) {
     return (
@@ -119,6 +123,7 @@ export const WorldMapTab = memo(function WorldMapTab() {
           isDm={isDm}
           onPinClick={handlePinClick}
           onAddPin={handleAddPin}
+          onPinMove={handlePinMove}
         />
       )}
 
